@@ -248,6 +248,20 @@ a{color:inherit;text-decoration:none}
 }
 @media(min-width:769px)and(max-width:1024px){
   .lp-ft-grid{grid-template-columns:repeat(2,1fr)!important}
+  .mk-badges-scroll{
+    display:flex!important;
+    gap:8px!important;
+    overflow-x:auto;
+    overflow-y:hidden;
+    padding-bottom:2px;
+    -webkit-overflow-scrolling:touch;
+    scroll-snap-type:x mandatory;
+  }
+  .mk-badge-slot{
+    flex:0 0 96px;
+    min-width:96px;
+    scroll-snap-align:start;
+  }
 }
 
 /* ── Browser window frame ── */
@@ -316,6 +330,9 @@ a{color:inherit;text-decoration:none}
 .mk-badges-title{font-size:9px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#5C5A53}
 .mk-badges-link{font-size:9px;color:#1EDD8B;font-weight:500}
 .mk-badges-scroll{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.mk-badges-scroll::-webkit-scrollbar{height:4px}
+.mk-badges-scroll::-webkit-scrollbar-track{background:rgba(255,255,255,0.03);border-radius:3px}
+.mk-badges-scroll::-webkit-scrollbar-thumb{background:rgba(30,221,139,0.32);border-radius:3px}
 .mk-badge-slot{min-width:0}
 .mk-badge-slot .badge-card-wrapper{padding:0}
 .mk-badge-slot .portrait-card{height:auto;min-height:140px;border-radius:9px;overflow:visible}

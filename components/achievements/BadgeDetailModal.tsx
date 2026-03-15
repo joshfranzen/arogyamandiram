@@ -7,13 +7,6 @@ import { cn } from '@/lib/utils';
 import type { UserBadge } from '@/types';
 import { BadgeCard, getRarityFromId } from './BadgeCard';
 
-const RARITY_BLURB: Record<string, string> = {
-  legendary: 'One of the hardest badges to earn. You’re in the top tier.',
-  epic: 'A serious commitment. Few reach this level.',
-  rare: 'Shows real consistency. Keep it up.',
-  common: 'Every journey starts here. Great start.',
-};
-
 interface BadgeDetailModalProps {
   badge: UserBadge | null;
   onClose: () => void;
@@ -37,9 +30,15 @@ export function BadgeDetailModal({ badge, onClose }: BadgeDetailModalProps) {
   if (!badge) return null;
 
   const rarity = getRarityFromId(badge.id);
-  const rarityLabel = rarity === 'legendary' ? 'Legendary' : rarity === 'epic' ? 'Epic' : rarity === 'rare' ? 'Rare' : 'Common';
-  const blurb = RARITY_BLURB[rarity] ?? '';
   const firstEarnedDate = badge.firstEarnedAt ?? badge.earnedAt;
+  const deckClass =
+    rarity === 'legendary'
+      ? 'deck-card deck-card-legendary'
+      : rarity === 'epic'
+        ? 'deck-card deck-card-epic'
+        : rarity === 'rare'
+          ? 'deck-card deck-card-rare'
+          : 'deck-card deck-card-common';
 
   const modalContent = (
     <div
@@ -72,54 +71,32 @@ export function BadgeDetailModal({ badge, onClose }: BadgeDetailModalProps) {
           {!isFlipped ? (
             <BadgeCard badge={badge} />
           ) : (
-            <div className="portrait-card deck-card deck-card-detail-back flex flex-col overflow-hidden rounded-3xl border border-white/[0.08] bg-bg-elevated/95 px-3 py-3 text-left text-xs text-text-primary sm:px-4 sm:py-4">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-text-primary sm:text-base">
-                    {badge.name}
-                  </p>
-                  <p className="mt-0.5 text-[11px] uppercase tracking-[0.16em] text-text-muted">
-                    {rarityLabel} · {badge.category ?? 'Badge'}
+            <div
+              className={cn(
+                'portrait-card relative flex h-full w-full flex-col overflow-hidden text-left outline-none',
+                deckClass
+              )}
+            >
+              <div className="flex h-full flex-col justify-between gap-2 px-3 py-3 sm:px-4 sm:py-4">
+                <div>
+                  <p className="line-clamp-2 text-[12px] leading-relaxed text-text-secondary sm:text-[13px]">
+                    {badge.description}
                   </p>
                 </div>
-                <span
-                  className={cn(
-                    'rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide',
-                    rarity === 'legendary' && 'bg-amber-500/15 text-amber-100',
-                    rarity === 'epic' && 'bg-accent-violet/20 text-white',
-                    rarity === 'rare' && 'bg-emerald-500/20 text-emerald-100',
-                    rarity === 'common' && 'bg-white/10 text-text-secondary'
-                  )}
-                >
-                  {rarityLabel}
-                </span>
-              </div>
 
-              {blurb && (
-                <p className="mb-2 text-[11px] leading-relaxed text-text-muted">
-                  {blurb}
-                </p>
-              )}
-              <p className="text-[11px] leading-relaxed text-text-secondary">
-                {badge.description}
-              </p>
-
-              {firstEarnedDate && (
-                <div className="mt-3 border-t border-white/10 pt-2 text-[11px] text-text-muted">
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-text-secondary/80">
-                      Earned
-                    </p>
-                    <p className="mt-0.5">
+                <div className="border-t border-white/10 pt-2 text-[10px] text-text-muted sm:text-[11px]">
+                  {firstEarnedDate && (
+                    <p>
+                      Earned on{' '}
                       {new Date(firstEarnedDate).toLocaleDateString(undefined, {
                         month: 'short',
                         day: 'numeric',
                         year: 'numeric',
                       })}
                     </p>
-                  </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           )}
         </div>

@@ -202,20 +202,35 @@ body {
     @apply px-3 py-3;
   }
   .recent-badges-grid {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-start;
     gap: 10px;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
     min-height: 0;
-    padding-bottom: 0;
+    padding: 0 6px 4px;
+    scroll-padding-inline: 6px;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
   }
   .recent-badges-grid::-webkit-scrollbar {
     display: none;
   }
-  /* Desktop: each recent badge fills available width equally. */
+  /* Keep dashboard badges in the same portrait proportions as achievements cards. */
   .recent-badges-grid > * {
-    min-width: 0;
-    max-width: none;
+    /* Add wrapper horizontal padding (0.25rem + 0.25rem = 0.5rem) to preserve visible card width. */
+    flex: 0 0 calc((230px * 5 / 7) + 0.5rem);
+    min-width: calc((230px * 5 / 7) + 0.5rem);
+    max-width: calc((230px * 5 / 7) + 0.5rem);
+    align-self: center;
+    scroll-snap-align: start;
+  }
+  .recent-badges-grid .portrait-card {
+    width: calc(230px * 5 / 7);
   }
   .ring-card {
     @apply flex h-full flex-col items-center justify-center gap-3 px-5 py-5;
@@ -503,10 +518,10 @@ body {
     transition: padding 300ms ease;
   }
 
-  /* Sidebar collapsed (desktop): grow calorie + water cards in both width and height. */
+  /* Sidebar collapsed (desktop): keep side cards balanced so badge lane doesn't get squeezed. */
   @media (min-width: 1024px) {
     .sidebar-collapsed .bento-ring-stats {
-      grid-template-columns: minmax(276px, 276px) minmax(0, 1fr) minmax(276px, 276px);
+      grid-template-columns: minmax(240px, 260px) minmax(0, 1fr) minmax(240px, 260px);
     }
     .sidebar-collapsed .ring-card,
     .sidebar-collapsed .water-beaker-card {
@@ -1002,17 +1017,19 @@ body {
     max-width: 260px;
   }
 
-  /* iPad-sized (md) – switch to a proper 3‑column grid to mirror the achievements page card sizing. */
+  /* iPad-sized (md): keep horizontal scroll with same-sized cards. */
   @media (min-width: 768px) and (max-width: 1023px) {
     .mobile-dash .recent-badges-grid {
-      display: grid;
-      grid-auto-flow: row;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      overflow-x: visible;
+      display: flex;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scroll-snap-type: x proximity;
     }
     .mobile-dash .recent-badges-grid > * {
-      flex: initial;
-      max-width: none;
+      flex: 0 0 220px;
+      max-width: 220px;
+      scroll-snap-align: start;
     }
   }
 
