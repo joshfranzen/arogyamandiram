@@ -178,8 +178,8 @@ body {
   }
   .bento-ring-stats {
     display: grid;
-    /* Keep calorie + water cards identical width in both sidebar states. */
-    grid-template-columns: minmax(240px, 240px) minmax(0, 1fr) minmax(240px, 240px);
+    /* Keep calorie + water cards identical and slightly wider for cleaner spacing balance. */
+    grid-template-columns: minmax(272px, 272px) minmax(0, 1fr) minmax(272px, 272px);
     grid-template-rows: 1fr;
     gap: 12px;
     grid-column: 1 / -1;
@@ -191,6 +191,7 @@ body {
   .bento-ring-badges {
     grid-column: 2;
     grid-row: 1;
+    display: flex;
     min-width: 0;
     min-height: 0;
     overflow: hidden;
@@ -231,6 +232,17 @@ body {
   }
   .recent-badges-grid .portrait-card {
     width: calc(230px * 5 / 7);
+  }
+  @media (min-width: 1024px) {
+    /* Force horizontal scroll without creating outer side gaps. */
+    .recent-badges-grid > * {
+      flex: 0 0 204px;
+      min-width: 204px;
+      max-width: 204px;
+    }
+    .recent-badges-grid .portrait-card {
+      width: 196px;
+    }
   }
   .ring-card {
     @apply flex h-full flex-col items-center justify-center gap-3 px-5 py-5;
@@ -518,11 +530,8 @@ body {
     transition: padding 300ms ease;
   }
 
-  /* Sidebar collapsed (desktop): keep side cards balanced so badge lane doesn't get squeezed. */
+  /* Sidebar collapsed (desktop): keep ring/water visuals larger but do not resize badge lane. */
   @media (min-width: 1024px) {
-    .sidebar-collapsed .bento-ring-stats {
-      grid-template-columns: minmax(240px, 260px) minmax(0, 1fr) minmax(240px, 260px);
-    }
     .sidebar-collapsed .ring-card,
     .sidebar-collapsed .water-beaker-card {
       padding-top: 1.75rem;

@@ -70,24 +70,26 @@ export default function Sidebar({ collapsed: controlledCollapsed, onCollapsedCha
     >
       {/* Logo */}
       <div className="shrink-0 px-[18px] pb-3 pt-5">
-        <div
-          className={cn(
-            'font-bold tracking-[0.08em] leading-tight',
-            collapsed ? 'text-center text-xs text-accent-emerald' : 'text-[15px]'
-          )}
-        >
-          {collapsed ? (
-            'AM'
-          ) : (
-            <>
-              <span className="bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-300 bg-clip-text text-transparent">
-                AROGYAMANDIRAM
-              </span>
-              <small className="mt-0.5 block font-normal text-[9px] uppercase tracking-[0.12em] text-zinc-400">
-                Health & Wellness
-              </small>
-            </>
-          )}
+        <div className="flex min-h-[44px] items-center">
+          <div
+            className={cn(
+              'font-bold tracking-[0.08em] leading-tight',
+              collapsed ? 'w-full text-center text-xs text-accent-emerald' : 'text-[15px]'
+            )}
+          >
+            {collapsed ? (
+              'AM'
+            ) : (
+              <>
+                <span className="bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-300 bg-clip-text text-transparent">
+                  AROGYAMANDIRAM
+                </span>
+                <small className="mt-0.5 block font-normal text-[9px] uppercase tracking-[0.12em] text-zinc-400">
+                  Health & Wellness
+                </small>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
