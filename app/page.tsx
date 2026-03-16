@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef, MutableRefObject } from "react";
+import Link from "next/link";
 import { StreakCard as AchievementStreakCard } from "@/components/achievements/StreakCard";
 import { BadgeCard } from "@/components/achievements/BadgeCard";
 import type { UserBadge } from "@/types";
@@ -58,10 +59,9 @@ export default function Landing() {
       <>
         {/* ── Inline all styles (for artifact preview; use landing.css in production) ── */}
         <style dangerouslySetInnerHTML={{ __html: `
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#060806;--s1:#0C0F0D;--s2:#121614;--s3:#1A1F1C;--g:#1EDD8B;--g-dim:#16B471;--g-glow:rgba(30,221,139,0.15);--g-glow2:rgba(30,221,139,0.06);--t1:#F0EEEB;--t2:#9B9990;--t3:#5C5A53;--br:rgba(255,255,255,0.06);--font-body:'Inter',system-ui,sans-serif;--font-display:'Outfit',system-ui,sans-serif}
-html,body,#root{margin:0;padding:0;background:var(--bg);color:var(--t1);font-family:var(--font-body);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+:root{--bg:#060806;--s1:#0C0F0D;--s2:#121614;--s3:#1A1F1C;--g:#1EDD8B;--g-dim:#16B471;--g-glow:rgba(30,221,139,0.15);--g-glow2:rgba(30,221,139,0.06);--t1:#F0EEEB;--t2:#9B9990;--t3:#5C5A53;--br:rgba(255,255,255,0.06);--font-body:var(--font-outfit),system-ui,sans-serif;--font-display:var(--font-outfit),system-ui,sans-serif}
+html,body,#root{margin:0;padding:0;background:var(--bg);color:var(--t1);font-family:var(--font-body);-webkit-font-smoothing:antialiased;overflow-x:hidden;scroll-behavior:smooth}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.05);border-radius:2px}
 a{color:inherit;text-decoration:none}
 .lp-wrap{max-width:1120px;margin:0 auto;padding:0 28px}
@@ -109,7 +109,7 @@ a{color:inherit;text-decoration:none}
 /* Mockup */
 .lp-mock-sec{padding:0 28px 80px;display:flex;justify-content:center;position:relative}
 .lp-mock{width:100%;max-width:780px;background:var(--s1);border:1px solid var(--br);border-radius:20px;padding:14px;position:relative;overflow:hidden}
-.lp-mock::before{content:'';position:absolute;inset:-1px;border-radius:21px;background:conic-gradient(from 180deg,transparent,var(--g-glow),transparent,var(--g-glow),transparent);z-index:-1;animation:lp-br 8s linear infinite;opacity:.4}
+.lp-mock::before{content:'';position:absolute;inset:-1px;border-radius:21px;background:conic-gradient(from 180deg,transparent,var(--g-glow),transparent,var(--g-glow),transparent);z-index:-1;animation:lp-br 16s linear infinite;opacity:.2}
 @keyframes lp-br{to{transform:rotate(360deg)}}
 .lp-mock-in{background:var(--s2);border:1px solid var(--br);border-radius:14px;padding:16px}
 .lp-mock-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
@@ -216,7 +216,7 @@ a{color:inherit;text-decoration:none}
 .mk-ph-cal-rem-text{font-size:8.5px;color:#3a4460}
 .mk-ph-cal-goal{font-size:8px;color:#3a4460;margin-top:1px}
 .mk-ph-ring{position:relative;width:70px;height:70px;flex-shrink:0}
-.mk-ph-ring svg{width:100%;height:100%;animation:rpulse 3s ease-in-out infinite}
+.mk-ph-ring svg{width:100%;height:100%}
 .mk-ph-ring-center{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
 .mk-ph-ring-pct{font-family:'Outfit',system-ui,sans-serif;font-size:13px;font-weight:800;color:#a3a3a3}
 .mk-ph-macros{display:flex;flex-direction:column;gap:4px}
@@ -377,15 +377,18 @@ a{color:inherit;text-decoration:none}
 .mk-sdot.done{background:rgba(30,221,139,0.06);color:#16B471;border-color:rgba(30,221,139,0.15)}
 .mk-ai-card{background:rgba(30,221,139,0.06);border:1px solid rgba(30,221,139,0.12);border-radius:12px;padding:10px 12px;display:flex;gap:7px;align-items:flex-start}
 .mk-ai-card p{font-size:10px;color:#9B9990;line-height:1.5;margin:0}
-@keyframes rpulse{0%,100%{filter:none}50%{filter:none}}
 @media(max-width:768px){
   .mk-bento-top{grid-template-columns:1fr!important}
   .mk-stats-grid{grid-template-columns:1fr 1fr!important}
   .mk-sb{display:none!important}
 }
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-play-state:paused!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+  .lp-reveal{opacity:1!important;transform:none!important;transition:none!important}
+}
       ` }} />
 
-        <div style={{ minHeight: "100vh" }}>
+        <main style={{ minHeight: "100vh" }}>
 
           {/* ═══ HERO ═══ */}
           <section className="lp-hero" ref={h}>
@@ -396,8 +399,6 @@ a{color:inherit;text-decoration:none}
             <div className="lp-pt" style={{ width: 3, height: 3, opacity: 0.15, top: "30%", left: "15%", animation: "lp-f1 12s ease-in-out infinite" }} />
             <div className="lp-pt" style={{ width: 2, height: 2, opacity: 0.1, top: "60%", right: "20%", animation: "lp-f2 16s ease-in-out infinite" }} />
             <div className="lp-pt" style={{ width: 4, height: 4, opacity: 0.07, top: "45%", left: "70%", animation: "lp-f3 20s ease-in-out infinite" }} />
-            <div className="lp-pt" style={{ width: 2, height: 2, opacity: 0.12, top: "25%", right: "30%", animation: "lp-f1 14s ease-in-out infinite reverse" }} />
-            <div className="lp-pt" style={{ width: 3, height: 3, opacity: 0.06, bottom: "30%", left: "25%", animation: "lp-f2 18s ease-in-out infinite" }} />
 
             {/* App Name — massive t72t-style */}
             <div className={rv(hv)}>
@@ -413,8 +414,8 @@ a{color:inherit;text-decoration:none}
             </p>
 
             <div className={`${rv(hv, "lp-d3")} lp-ctas`} style={{ display: "flex", gap: 12, marginTop: 44, position: "relative", zIndex: 1 }}>
-              <a href="/register" className="lp-btn-p">Get started free {Ic.arrow}</a>
-              <a href="/login" className="lp-btn-g">Sign in</a>
+              <Link href="/register" className="lp-btn-p">Get started free {Ic.arrow}</Link>
+              <Link href="/login" className="lp-btn-g">Sign in</Link>
             </div>
 
             <div className={rv(hv, "lp-d4")} style={{ marginTop: 24, position: "relative", zIndex: 1 }}>
@@ -894,9 +895,9 @@ a{color:inherit;text-decoration:none}
                 Start tracking <span style={{ color: "var(--g)" }}>today.</span>
               </h2>
               <p style={{ fontSize: 15, color: "var(--t3)", marginBottom: 36 }}>Free forever. No ads. No data sold.</p>
-              <a href="/register" className="lp-btn-p" style={{ fontSize: 15, padding: "15px 40px" }}>
+              <Link href="/register" className="lp-btn-p" style={{ fontSize: 15, padding: "15px 40px" }}>
                 Get started free {Ic.arrow}
-              </a>
+              </Link>
             </div>
           </section>
 
@@ -908,7 +909,7 @@ a{color:inherit;text-decoration:none}
             <span style={{ margin: "0 10px", opacity: 0.3 }}>·</span>
             <a href="https://github.com/utsaaham/arogyamandiram" target="_blank" rel="noopener noreferrer">GitHub</a>
           </footer>
-        </div>
+        </main>
       </>
   );
 }
