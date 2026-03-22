@@ -66,7 +66,10 @@ export default function Sidebar({ collapsed: controlledCollapsed, onCollapsedCha
         'fixed left-0 top-0 z-40 hidden h-screen-safe flex-col transition-all duration-300 lg:flex',
         collapsed ? 'w-[64px]' : 'w-[232px]'
       )}
-      style={{ background: 'rgba(8, 14, 10, 0.88)', paddingTop: 'var(--sat, env(safe-area-inset-top, 0px))' }}
+      style={{
+        background: 'linear-gradient(160deg, #111712 0%, #0c1410 100%)',
+        paddingTop: 'var(--sat, env(safe-area-inset-top, 0px))',
+      }}
     >
       {/* Logo */}
       <div className="shrink-0 px-[18px] pb-3 pt-5">

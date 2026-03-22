@@ -565,6 +565,7 @@ function RecentBadges({ earnedBadges }: { earnedBadges: UserBadge[] }) {
   const recent = [...earnedBadges]
     .sort((a, b) => (b.earnedAt || '').localeCompare(a.earnedAt || ''))
     .slice(0, 5);
+  const slots = Array.from({ length: 5 }, (_, index) => recent[index] ?? null);
 
   return (
     <div className="glass-card recent-badges-card card-glow flex h-full min-h-0 flex-col">
@@ -577,14 +578,22 @@ function RecentBadges({ earnedBadges }: { earnedBadges: UserBadge[] }) {
         </Link>
       </div>
       <div className="recent-badges-grid min-h-0 flex-1">
-        {recent.map((badge) => (
-          <BadgeCard
-            key={badge.id}
-            badge={badge}
-            locked={false}
-            onClick={() => setSelectedBadge(badge)}
-          />
-        ))}
+        {slots.map((badge, index) =>
+          badge ? (
+            <BadgeCard
+              key={badge.id}
+              badge={badge}
+              locked={false}
+              onClick={() => setSelectedBadge(badge)}
+            />
+          ) : (
+            <div
+              key={`empty-slot-${index}`}
+              className="recent-badge-empty-slot"
+              aria-hidden="true"
+            />
+          )
+        )}
       </div>
       {selectedBadge && (
         <BadgeDetailModal badge={selectedBadge} onClose={() => setSelectedBadge(null)} />
@@ -755,4 +764,3 @@ function MacroBar({ label, value, max, color, unit = 'g' }: { label: string; val
     </div>
   );
 }
-

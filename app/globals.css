@@ -233,6 +233,13 @@ body {
   .recent-badges-grid .portrait-card {
     width: calc(230px * 5 / 7);
   }
+  .recent-badge-empty-slot {
+    width: calc(230px * 5 / 7);
+    aspect-ratio: 5 / 7;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: linear-gradient(160deg, #111712 0%, #0c1410 100%);
+  }
   @media (min-width: 1024px) {
     /* Force horizontal scroll without creating outer side gaps. */
     .recent-badges-grid > * {
@@ -242,6 +249,11 @@ body {
     }
     .recent-badges-grid .portrait-card {
       width: 196px;
+    }
+    .recent-badge-empty-slot {
+      width: 196px;
+      height: 230px;
+      aspect-ratio: auto;
     }
   }
   .ring-card {
