@@ -345,7 +345,7 @@ export default function WorkoutPage() {
         titleClassName="text-neutral-400"
         rightDesktop={actionButtons}
         mobileVariant="card"
-        mobileCardClassName="border border-transparent bg-workout-bg text-text-primary shadow-[0_4px_20px_rgba(0,0,0,0.4)]"
+        mobileCardClassName="dashboard-unified-card border text-text-primary"
       />
 
       <div className="mobile-fade-up mobile-dash-px lg:hidden">

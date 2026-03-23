@@ -337,7 +337,7 @@ body {
   .achievements-page .dashboard-page-header-card {
     background:
       linear-gradient(145deg, rgba(255, 223, 0, 0.10) 0%, #0a0a0a 32%, #000000 100%);
-    border: 1px solid rgba(255, 255, 255, 0.04);
+    border: none !important;
     box-shadow: none;
   }
 
@@ -346,7 +346,7 @@ body {
   .achievements-page .glass-card-elevated,
   .achievements-page .achievements-gold-card {
     background-color: #171717;
-    border: 1px solid rgba(255, 255, 255, 0.04);
+    border: none !important;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
     box-shadow: none !important;
@@ -880,7 +880,7 @@ body {
   /* Sleep page (mobile): header card uses same flat Midnight surface as other cards */
   .sleep-page .dashboard-page-header-card {
     border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.04);
     background: #0b1220;
     box-shadow: none;
     backdrop-filter: none;
@@ -1738,3 +1738,44 @@ input[type='date'].date-input {
 /* 9. Typing cursor blink */
 @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
 .cursor-blink { animation: blink 1.1s step-start infinite; }
+
+/* Unified dashboard surfaces */
+.app-viewport main {
+  background-color: #090d0b;
+}
+.dashboard-unified-card {
+  background: linear-gradient(160deg, #111712 0%, #0c1410 100%) !important;
+  border: none !important;
+}
+.app-viewport main .glass-card,
+.app-viewport main .glass-card-elevated,
+.app-viewport main .dashboard-page-header-card,
+.app-viewport main .more-card,
+.app-viewport main [class^='more-card-'],
+.app-viewport main [class*=' more-card-'] {
+  background: linear-gradient(160deg, #111712 0%, #0c1410 100%) !important;
+  border: none !important;
+}
+
+/* Normalize bright border utility variants on dashboard pages */
+.app-viewport main [class*='border-white/[0.06]'],
+.app-viewport main [class*='border-white/10'],
+.app-viewport main [class*='border-neutral-800'],
+.app-viewport main [class*='border-zinc-800'] {
+  border-color: transparent !important;
+}
+
+/* Achievements: hard-disable card borders/shadows, including active states */
+.achievements-page .deck-card:not(.deck-card-locked),
+.achievements-page .streak-card,
+.achievements-page .glass-card,
+.achievements-page .glass-card-elevated,
+.achievements-page .achievements-gold-card {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Any utility border class in achievements should not render a visible edge */
+.achievements-page [class*='border-'] {
+  border-color: transparent !important;
+}

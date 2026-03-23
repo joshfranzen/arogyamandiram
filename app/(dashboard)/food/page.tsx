@@ -329,7 +329,7 @@ export default function FoodLogPage() {
   );
 
   return (
-    <div className="food-page animate-fade-in flex flex-col max-lg:mobile-dash cards-stack-desktop min-h-screen bg-neutral-950">
+    <div className="food-page animate-fade-in flex flex-col max-lg:mobile-dash cards-stack-desktop min-h-screen">
       <DashboardPageShell
         title="Food Log"
         subtitle={formatDate(today)}
@@ -395,7 +395,7 @@ export default function FoodLogPage() {
           </div>
 
           {/* Single content area: recent items or search results */}
-          <div className="flex min-h-0 flex-col rounded-2xl border border-neutral-800 bg-neutral-900/50 p-4 shadow-lg sm:p-5 lg:min-h-0 lg:flex-1">
+          <div className="dashboard-unified-card flex min-h-0 flex-col rounded-2xl border p-4 sm:p-5 lg:min-h-0 lg:flex-1">
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pr-1 hide-scrollbar lg:min-h-0">
             {selectedTab === 'logged' ? (
               meals.length === 0 ? (
@@ -515,7 +515,7 @@ export default function FoodLogPage() {
         {/* Right Column: Today's Log */}
         <div className="flex flex-col gap-4 lg:h-[760px]">
           {/* Calorie Summary */}
-          <div className="flex flex-col items-center gap-4 rounded-2xl border border-neutral-800 bg-neutral-900/50 p-4 shadow-lg sm:p-6">
+          <div className="dashboard-unified-card flex flex-col items-center gap-4 rounded-2xl border p-4 sm:p-6">
             <ProgressRing
               progress={calPercent}
               size={120}
@@ -577,7 +577,7 @@ export default function FoodLogPage() {
           </div>
 
           {/* Logged Meals */}
-          <div className="flex-1 min-h-0 flex flex-col rounded-2xl border border-neutral-800 bg-neutral-900/50 p-4 shadow-lg sm:p-5">
+          <div className="dashboard-unified-card flex-1 min-h-0 flex flex-col rounded-2xl border p-4 sm:p-5">
             <div className="mb-3 flex shrink-0 items-center justify-between">
               <h3 className="text-sm font-semibold text-neutral-400">Logged Meals</h3>
               <span className="text-xs text-neutral-400">{meals.length} items</span>
@@ -680,7 +680,7 @@ export default function FoodLogPage() {
       </div>
 
       {/* Daily calories history – hidden on mobile */}
-      <div className="hidden lg:block rounded-2xl border border-neutral-800 bg-neutral-900/50 p-4 shadow-lg sm:p-6 lg:mt-4">
+      <div className="dashboard-unified-card hidden rounded-2xl border p-4 sm:p-6 lg:mt-4 lg:block">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-base font-semibold text-neutral-400">Daily Calories</h2>
           <div className="flex gap-1.5">

@@ -253,7 +253,7 @@ export default function AiInsightsPage() {
       </div>
 
       {/* Tab Content */}
-      <div className="relative rounded-2xl border border-zinc-800 bg-zinc-950 p-5 sm:p-6">
+      <div className="dashboard-unified-card relative rounded-2xl border p-5 sm:p-6">
         {/* Insights content (Year / Month / Week / Yesterday tabs) */}
         <div className="relative z-10">
             <p className="mb-4 flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-sm text-zinc-400 sm:rounded-xl sm:mb-3 sm:mx-0 mx-1.5">
