@@ -13,8 +13,6 @@ import {
   formatWater,
   formatNumber,
   calcPercent,
-  getToday,
-  formatDate,
   cn,
 } from '@/lib/utils';
 import { getLevelProgress, BASE_LEVEL_XP } from '@/lib/level';
@@ -72,7 +70,6 @@ export default function DashboardPage() {
   const remaining = Math.max(targets.dailyCalories - totalCal, 0);
   const calPercent = calcPercent(totalCal, targets.dailyCalories);
   const meals = log?.meals || [];
-  const today = getToday();
 
   const xpTotal = achievements?.xpTotal ?? 0;
   const loggingStreak = achievements?.streaks.current.logging ?? 0;
@@ -102,7 +99,7 @@ export default function DashboardPage() {
               {userName ? `, ${userName}` : ''} 👋
             </h1>
             <p className="font-body mt-1.5 text-[13px] text-text-muted">
-              {formatDate(today)} · Let&apos;s make today count.
+              Build momentum one healthy choice at a time.
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2.5 rounded-xl px-4 py-2.5" style={{ background: 'linear-gradient(160deg, #111712 0%, #0c1410 100%)' }}>
@@ -264,7 +261,7 @@ export default function DashboardPage() {
                   </span>
                 </div>
                 <p className="mt-1 text-[11px]" style={{ color: '#3a4460' }}>
-                  {new Date(today + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                  Stay steady today and your future self will thank you.
                 </p>
               </div>
 

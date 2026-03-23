@@ -266,7 +266,7 @@ export default function AIFoodLoggerModal({ onClose, onAdd, onAddBatch, onDebugL
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       <div
-        className="relative z-10 mx-4 w-full max-w-md overflow-y-auto rounded-3xl sm:rounded-2xl border border-neutral-800 bg-neutral-900/95 p-6 shadow-lg animate-slide-up"
+        className="relative z-10 mx-4 w-full max-w-md overflow-y-auto rounded-3xl sm:rounded-2xl border border-neutral-800 bg-[#0f1b14]/95 p-6 shadow-lg animate-slide-up"
         style={{
           maxHeight:
             'min(70dvh, calc(100dvh - max(env(safe-area-inset-top), 12px) - max(env(safe-area-inset-bottom), 16px) - 32px))',
@@ -300,7 +300,7 @@ export default function AIFoodLoggerModal({ onClose, onAdd, onAddBatch, onDebugL
             <button
               onClick={handleLookup}
               disabled={fetching || !text.trim()}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors duration-200 hover:bg-orange-400 disabled:opacity-50"
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-black transition-colors duration-200 hover:bg-emerald-400 disabled:opacity-50"
             >
               {fetching ? (
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -317,7 +317,7 @@ export default function AIFoodLoggerModal({ onClose, onAdd, onAddBatch, onDebugL
             <button
               type="button"
               onClick={handleBack}
-              className="mt-2 text-xs text-orange-400 hover:underline"
+              className="mt-2 text-xs text-emerald-400 hover:underline"
             >
               ← Change description
             </button>
@@ -333,7 +333,7 @@ export default function AIFoodLoggerModal({ onClose, onAdd, onAddBatch, onDebugL
                 {items.map((item, idx) => (
                   <div
                     key={`${item.name}-${idx}`}
-                    className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3"
+                    className="rounded-xl border border-neutral-800 bg-emerald-500/5 p-3"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
@@ -363,7 +363,7 @@ export default function AIFoodLoggerModal({ onClose, onAdd, onAddBatch, onDebugL
                       className={cn(
                         'flex flex-col items-center gap-1 rounded-xl px-2 py-2.5 text-xs font-medium transition-all text-neutral-400',
                         mealType === mt.key
-                          ? 'bg-orange-500/15 ring-1 ring-orange-400/40'
+                          ? 'bg-emerald-500/15 ring-1 ring-emerald-400/40'
                           : 'bg-white/[0.04] hover:bg-white/[0.06]'
                       )}
                     >
@@ -386,7 +386,7 @@ export default function AIFoodLoggerModal({ onClose, onAdd, onAddBatch, onDebugL
             <button
               onClick={handleAdd}
               disabled={loading}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors duration-200 hover:bg-orange-400 disabled:opacity-50"
+              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-black transition-colors duration-200 hover:bg-emerald-400 disabled:opacity-50"
             >
               {loading ? (
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />

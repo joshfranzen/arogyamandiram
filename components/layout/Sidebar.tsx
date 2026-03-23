@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import {
@@ -77,11 +78,18 @@ export default function Sidebar({ collapsed: controlledCollapsed, onCollapsedCha
           <div
             className={cn(
               'font-bold tracking-[0.08em] leading-tight',
-              collapsed ? 'w-full text-center text-xs text-accent-emerald' : 'text-[15px]'
+              collapsed ? 'w-full text-center text-accent-emerald' : 'text-[15px]'
             )}
           >
             {collapsed ? (
-              'AM'
+              <Image
+                src="/favicon-mark.svg"
+                alt="Arogyamandiram"
+                width={28}
+                height={28}
+                className="mx-auto h-7 w-7"
+                priority
+              />
             ) : (
               <>
                 <span className="bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-300 bg-clip-text text-transparent">
@@ -107,7 +115,7 @@ export default function Sidebar({ collapsed: controlledCollapsed, onCollapsedCha
               href={item.href}
               className={cn(
                 'flex items-center rounded-xl py-2 text-[13px] font-medium transition-all duration-150',
-                collapsed ? 'mx-1.5 justify-center px-0' : 'mx-2 gap-2.5 justify-start px-3',
+                collapsed ? 'mx-2 justify-center px-0' : 'mx-2 gap-2.5 justify-start px-3',
                 isActive
                   ? 'bg-emerald-500/10 text-emerald-400 font-medium'
                   : 'text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100'
@@ -134,7 +142,7 @@ export default function Sidebar({ collapsed: controlledCollapsed, onCollapsedCha
                   href={item.href}
                   className={cn(
                     'flex items-center rounded-xl py-2 text-[13px] font-medium transition-all duration-150',
-                    collapsed ? 'mx-1.5 justify-center px-0' : 'mx-2 gap-2.5 justify-start px-3',
+                    collapsed ? 'mx-2 justify-center px-0' : 'mx-2 gap-2.5 justify-start px-3',
                     isActive
                   ? 'bg-emerald-500/10 text-emerald-400 font-medium'
                   : 'text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100'
@@ -160,7 +168,7 @@ export default function Sidebar({ collapsed: controlledCollapsed, onCollapsedCha
             href="/project"
             className={cn(
               'flex items-center rounded-xl py-2 text-[13px] font-medium transition-all duration-150',
-              collapsed ? 'mx-1.5 justify-center px-0' : 'mx-2 gap-2.5 justify-start px-3',
+              collapsed ? 'mx-2 justify-center px-0' : 'mx-2 gap-2.5 justify-start px-3',
               pathname === '/project' || pathname.startsWith('/project/')
                 ? 'bg-emerald-500/10 text-emerald-400'
                 : 'text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100'
@@ -182,7 +190,7 @@ export default function Sidebar({ collapsed: controlledCollapsed, onCollapsedCha
             href="/settings"
             className={cn(
               'flex items-center rounded-xl py-2 text-[13px] font-medium transition-all duration-150',
-              collapsed ? 'mx-1.5 justify-center px-0' : 'mx-2 gap-2.5 justify-start px-3',
+              collapsed ? 'mx-2 justify-center px-0' : 'mx-2 gap-2.5 justify-start px-3',
               pathname === '/settings' || pathname.startsWith('/settings/')
                 ? 'bg-emerald-500/10 text-emerald-400'
                 : 'text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100'
@@ -204,7 +212,9 @@ export default function Sidebar({ collapsed: controlledCollapsed, onCollapsedCha
             onClick={() => signOut({ callbackUrl: '/login' })}
             className={cn(
               'flex items-center rounded-xl py-2 text-[13px] font-medium transition-all duration-150',
-              collapsed ? 'mx-1.5 w-[calc(100%-0.75rem)] justify-center px-0' : 'mx-2 w-[calc(100%-1rem)] gap-2.5 justify-start px-3',
+              collapsed
+                ? 'mx-2 w-[calc(100%-1rem)] justify-center px-0'
+                : 'mx-2 w-[calc(100%-1rem)] gap-2.5 justify-start px-3',
               'text-rose-400 hover:bg-white/[0.04] hover:text-rose-300'
             )}
             title={collapsed ? 'Sign Out' : undefined}

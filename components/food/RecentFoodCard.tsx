@@ -17,12 +17,12 @@ export default function RecentFoodCard({ name, count, onSelect }: RecentFoodCard
       </div>
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-orange-400">{name}</p>
+        <p className="truncate text-sm font-medium text-emerald-400">{name}</p>
         <p className="text-[11px] text-neutral-400">{count}× logged</p>
       </div>
 
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-orange-500/15">
-        <Plus className="h-4 w-4 text-orange-400" />
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15">
+        <Plus className="h-4 w-4 text-emerald-400" />
       </div>
     </button>
   );

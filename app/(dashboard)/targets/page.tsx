@@ -151,8 +151,7 @@ export default function TargetsPage() {
         title="Targets"
         subtitle="Fine-tune daily goals for calories, water, and macros"
         icon={Target}
-        iconClassName="text-accent-amber"
-        mobileVariant="minimal"
+        mobileVariant="card"
       />
 
       {/* Summary + content */}

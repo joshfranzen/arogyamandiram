@@ -18,7 +18,7 @@ import HealthPlanLogView from '@/components/debug/HealthPlanLogView';
 import { getPageLabel, getAgentLabel, getAgentDescription } from '@/lib/debugLogsConfig';
 import { formatDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { Bug, ChevronDown, ChevronRight } from 'lucide-react';
 import DashboardPageShell from '@/components/layout/DashboardPageShell';
 
 type SectionId = (typeof SECTION_IDS)[number];
@@ -323,7 +323,8 @@ export default function DebugPage() {
       <DashboardPageShell
         title="AI Request Inspector"
         subtitle="Logs stored in .debug-logs/"
-        mobileVariant="minimal"
+        icon={Bug}
+        mobileVariant="card"
       />
       <div className="mobile-fade-up mobile-dash-px lg:px-0 flex-1 min-h-0 flex flex-col" style={{ animationDelay: '80ms' }}>
     <div className="dashboard-unified-card flex h-[calc(100vh-12rem)] lg:h-[calc(100vh-8rem)] max-h-[calc(100vh-12rem)] lg:max-h-[calc(100vh-8rem)] flex-col overflow-hidden rounded-2xl border">

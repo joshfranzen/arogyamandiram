@@ -39,7 +39,6 @@ import {
   formatTime,
   calcPercent,
   getToday,
-  formatDate,
 } from '@/lib/utils';
 
 interface FoodItem {
@@ -332,11 +331,8 @@ export default function FoodLogPage() {
     <div className="food-page animate-fade-in flex flex-col max-lg:mobile-dash cards-stack-desktop min-h-screen">
       <DashboardPageShell
         title="Food Log"
-        subtitle={formatDate(today)}
+        subtitle="Nourish your day with smarter meal tracking"
         icon={Utensils}
-        iconClassName="text-neutral-400"
-        titleClassName="text-neutral-400"
-        subtitleClassName="text-neutral-400"
         rightDesktop={actionButtons}
         mobileVariant="card"
       />
@@ -367,7 +363,7 @@ export default function FoodLogPage() {
                     setQuery('');
                     doSearch('', selectedTab === 'recent' ? 'all' : selectedTab);
                   }}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-orange-400"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-emerald-400"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -384,7 +380,7 @@ export default function FoodLogPage() {
                   className={cn(
                     'shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-all',
                     selectedTab === tab.key
-                      ? 'bg-orange-500/15 text-neutral-400 border border-white/10'
+                      ? 'bg-emerald-500/15 text-neutral-400 border border-white/10'
                       : 'bg-neutral-900/70 text-neutral-400 hover:bg-neutral-800 border border-transparent'
                   )}
                 >
@@ -448,7 +444,7 @@ export default function FoodLogPage() {
             ) : selectedTab === 'recent' ? (
               recentLoading ? (
               <div className="flex items-center justify-center py-12">
-                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-orange-400 border-t-transparent" />
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
                 </div>
               ) : recentFoods.length === 0 ? (
               <div className="flex flex-col items-center gap-3 py-12 text-center">
@@ -477,7 +473,7 @@ export default function FoodLogPage() {
               )
             ) : searching ? (
               <div className="flex items-center justify-center py-12">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-orange-400 border-t-transparent" />
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
               </div>
             ) : results.length > 0 ? (
               <div className="space-y-2">
@@ -496,7 +492,7 @@ export default function FoodLogPage() {
                 <p className="text-sm text-neutral-400">No foods found</p>
                 <button
                   onClick={() => setShowCustom(true)}
-                  className="text-xs font-medium text-orange-400 hover:underline"
+                  className="text-xs font-medium text-emerald-400 hover:underline"
                 >
                   Add custom food instead
                 </button>
@@ -539,8 +535,8 @@ export default function FoodLogPage() {
                 label="Carbs"
                 current={log?.totalCarbs || 0}
                 target={targets.carbs}
-                color="bg-accent-amber/70"
-                bgColor="bg-accent-amber/20"
+                color="bg-accent-emerald/70"
+                bgColor="bg-accent-emerald/20"
               />
               <MacroBar
                 label="Fat"
@@ -562,8 +558,8 @@ export default function FoodLogPage() {
                 current={log?.totalSugar || 0}
                 target={50}
                 unit="g"
-                color="bg-amber-400/70"
-                bgColor="bg-amber-400/20"
+                color="bg-emerald-400/70"
+                bgColor="bg-emerald-400/20"
               />
               <MacroBar
                 label="Sodium"
@@ -692,7 +688,7 @@ export default function FoodLogPage() {
                 className={cn(
                   'rounded-full px-3 py-1.5 text-xs font-medium transition-all',
                   caloriePeriod === opt
-                    ? 'bg-orange-500/15 text-neutral-400 border border-white/10'
+                    ? 'bg-emerald-500/15 text-neutral-400 border border-white/10'
                     : 'bg-neutral-900/70 text-neutral-400 hover:bg-neutral-800 border border-transparent'
                 )}
               >
@@ -704,7 +700,7 @@ export default function FoodLogPage() {
 
         {calorieHistoryLoading ? (
           <div className="flex h-56 items-center justify-center">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-orange-400 border-t-transparent" />
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
           </div>
         ) : (
           <MetricChart
@@ -712,7 +708,7 @@ export default function FoodLogPage() {
               date: entry.date,
               value: entry.totalCalories,
             }))}
-            color="#f97316"
+            color="#10b981"
             gradientId="caloriesGrad"
             unit=""
             tooltipUnit=" kcal"

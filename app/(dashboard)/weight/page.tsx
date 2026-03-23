@@ -147,9 +147,8 @@ export default function WeightPage() {
     <div className="weight-page animate-fade-in flex flex-col max-lg:mobile-dash cards-stack-desktop">
       <DashboardPageShell
         title="Weight Journal"
-        subtitle={formatDate(today)}
+        subtitle="Track progress, trends, and healthy momentum"
         icon={Scale}
-        iconClassName="text-accent-violet"
         mobileVariant="card"
       />
 
@@ -194,7 +193,7 @@ export default function WeightPage() {
         <button
           onClick={handleLogWeight}
           disabled={saving || !weight}
-          className="flex items-center justify-center gap-2 rounded-xl bg-purple-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-purple-500/30 transition-all duration-200 hover:bg-purple-400 hover:shadow-purple-400/40 active:scale-95 disabled:opacity-50"
+          className="flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 py-2.5 text-sm font-semibold text-black shadow-lg shadow-emerald-500/30 transition-all duration-200 hover:bg-emerald-400 hover:shadow-emerald-400/40 active:scale-95 disabled:opacity-50"
         >
           {saving ? (
             <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -216,7 +215,7 @@ export default function WeightPage() {
             icon: Scale,
             label: 'Current',
             value: currentWeight ? formatWeight(currentWeight, units) : '—',
-            color: 'text-accent-violet',
+            color: 'text-accent-emerald',
           },
           {
             icon: weightChange <= 0 ? TrendingDown : TrendingUp,
@@ -281,7 +280,7 @@ export default function WeightPage() {
                 className={cn(
                   'rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
                   period === opt.key
-                    ? 'bg-accent-violet/15 text-accent-violet ring-1 ring-accent-violet/30'
+                    ? 'bg-accent-emerald/15 text-accent-emerald ring-1 ring-accent-emerald/30'
                     : 'bg-white/[0.04] text-text-muted hover:bg-white/[0.08]'
                 )}
               >
@@ -293,12 +292,12 @@ export default function WeightPage() {
 
         {loading ? (
           <div className="flex h-56 items-center justify-center">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent-violet border-t-transparent" />
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent-emerald border-t-transparent" />
           </div>
         ) : (
           <MetricChart
             data={chartData}
-            color="#8b5cf6"
+            color="#10b981"
             gradientId="weightGrad"
             unit={units === 'metric' ? ' kg' : ' lbs'}
             height={240}
@@ -421,7 +420,7 @@ export default function WeightPage() {
             <div className="dashboard-unified-card rounded-2xl border p-5">
               <h3 className="mb-3 text-sm font-semibold text-text-primary">BMI Details</h3>
               <div className="mb-3 text-center">
-                <p className="text-3xl font-bold text-accent-violet">{bmi.toFixed(1)}</p>
+                <p className="text-3xl font-bold text-accent-emerald">{bmi.toFixed(1)}</p>
                 <p className={cn(
                   'text-sm font-medium',
                   bmi < 18.5 ? 'text-accent-cyan'
@@ -462,7 +461,7 @@ export default function WeightPage() {
           {/* Entries count – desktop only */}
           <div className="dashboard-unified-card hidden rounded-2xl border p-5 lg:block">
             <div className="flex items-center gap-3">
-              <Calendar className="h-5 w-5 text-accent-violet" />
+              <Calendar className="h-5 w-5 text-accent-emerald" />
               <div>
                 <p className="text-lg font-bold text-text-primary">{history.length}</p>
                 <p className="text-xs text-text-muted">weigh-ins recorded</p>

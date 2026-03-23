@@ -163,11 +163,8 @@ export default function SleepPage() {
     <div className="sleep-page cards-stack-desktop flex flex-col animate-fade-in max-lg:mobile-dash">
       <DashboardPageShell
         title="Sleep Tracker"
-        subtitle={`Last night · ${formatDate(todayDate)}`}
+        subtitle="Recover better with consistent nightly sleep"
         icon={Moon}
-        iconClassName="text-[#a3a3a3]"
-        titleClassName="text-[#a3a3a3]"
-        subtitleClassName="text-[#a3a3a3]"
         mobileVariant="card"
       />
 

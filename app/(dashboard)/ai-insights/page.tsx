@@ -173,7 +173,6 @@ export default function AiInsightsPage() {
         title="Insights"
         subtitle="Yesterday, weekly, monthly, and yearly insights from your data"
         icon={Sparkles}
-        iconClassName="text-emerald-400"
         mobileVariant="card"
       />
 

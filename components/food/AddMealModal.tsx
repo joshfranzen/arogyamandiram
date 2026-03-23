@@ -237,7 +237,7 @@ export default function AddMealModal({ food, onClose, onAdd, loading }: AddMealM
             <p className="text-[10px] text-text-muted">Protein</p>
           </div>
           <div className="text-center">
-            <p className="text-base font-bold text-accent-amber">{scaledCarbs}g</p>
+            <p className="text-base font-bold text-accent-emerald">{scaledCarbs}g</p>
             <p className="text-[10px] text-text-muted">Carbs</p>
           </div>
           <div className="text-center">
