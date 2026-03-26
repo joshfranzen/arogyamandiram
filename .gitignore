@@ -20,3 +20,12 @@ out/
 
 # Debug logs (persisted locally, not committed)
 .debug-logs/
+
+# Local agent workspace: keeps prompts, notes, and other agent-only scratch files out of git
+.air/
+
+# Agent-specific files (e.g., for Claude)
+.claude
+
+# Cursor-specific files (e.g., for Cursor)
+.cursor

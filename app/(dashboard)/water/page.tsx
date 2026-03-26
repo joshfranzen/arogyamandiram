@@ -138,13 +138,9 @@ export default function WaterPage() {
     <div className="water-page animate-fade-in flex flex-col max-lg:mobile-dash cards-stack-desktop">
       <DashboardPageShell
         title="Water Tracker"
-        subtitle={formatDate(today)}
+        subtitle="Stay hydrated and maintain your daily flow"
         icon={Droplets}
-        iconClassName="text-[#A3A3A3]"
-        titleClassName="text-[#A3A3A3]"
-        subtitleClassName="text-[#94A3B8]"
         mobileVariant="card"
-        mobileCardClassName="bg-[#0d161c]"
       />
 
       <div className="water-page-cards mobile-fade-up mobile-dash-px lg:px-0" style={{ animationDelay: '80ms' }}>

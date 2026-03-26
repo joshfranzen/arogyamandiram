@@ -126,7 +126,7 @@ export function BadgeCard({ badge, locked, onClick }: BadgeCardProps) {
         </div>
 
         {/* TYPE / ELEMENT footer – pinned to bottom */}
-        <div className="deck-type-footer border-t border-white/10 py-0.5 text-center text-[8px] text-white/70 sm:py-1 sm:text-[10px]">
+        <div className="deck-type-footer py-0.5 text-center text-[8px] text-white/70 sm:py-1 sm:text-[10px]">
           {typeLabel}
         </div>
       </button>

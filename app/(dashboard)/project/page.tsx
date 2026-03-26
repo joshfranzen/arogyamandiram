@@ -13,7 +13,6 @@ export default function ProjectPage() {
         title="Project"
         subtitle="Open‑source health & wellness project you can contribute to"
         icon={Code2}
-        iconClassName="text-white"
         mobileVariant="card"
       />
 

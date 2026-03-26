@@ -163,11 +163,8 @@ export default function SleepPage() {
     <div className="sleep-page cards-stack-desktop flex flex-col animate-fade-in max-lg:mobile-dash">
       <DashboardPageShell
         title="Sleep Tracker"
-        subtitle={`Last night · ${formatDate(todayDate)}`}
+        subtitle="Recover better with consistent nightly sleep"
         icon={Moon}
-        iconClassName="text-[#a3a3a3]"
-        titleClassName="text-[#a3a3a3]"
-        subtitleClassName="text-[#a3a3a3]"
         mobileVariant="card"
       />
 
@@ -178,8 +175,7 @@ export default function SleepPage() {
             {/* Progress Ring + Sleep Score – match card shape */}
             <div
               className={cn(
-              'relative flex flex-col items-center rounded-2xl bg-[#0b1220] border border-white/[0.06]',
-              'lg:bg-[#060b14] lg:border-white/[0.04]',
+              'dashboard-unified-card relative flex flex-col items-center rounded-2xl border',
               'p-6 md:p-7'
               )}
             >
@@ -210,7 +206,7 @@ export default function SleepPage() {
             </div>
 
           {/* Sleep Logger – styled similar to weight log card */}
-          <div className="bg-[#0b1220] rounded-2xl border border-white/[0.06] lg:bg-[#060b14] lg:border-white/[0.04] p-5 flex lg:min-h-[280px] flex-col gap-3 md:p-6">
+          <div className="dashboard-unified-card rounded-2xl border p-5 flex lg:min-h-[280px] flex-col gap-3 md:p-6">
             <h2 className="flex items-center gap-2 text-base font-semibold text-[#a3a3a3]">
               <BedDouble className="h-4 w-4 text-[#a3a3a3]" />
               Log Sleep
@@ -256,8 +252,8 @@ export default function SleepPage() {
                       className={cn(
                         'flex h-9 w-9 items-center justify-center rounded-xl border text-xs transition-all',
                         quality === q
-                          ? 'border-[#a3a3a3]/70 bg-white/[0.06] text-[#a3a3a3]'
-                          : 'border-white/[0.06] bg-black/40 text-[#a3a3a3] hover:bg-white/[0.06]'
+                          ? 'border-white/[0.04] bg-white/[0.06] text-[#a3a3a3]'
+                          : 'border-white/[0.04] bg-black/40 text-[#a3a3a3] hover:bg-white/[0.06]'
                       )}
                     >
                       <Star className="h-4 w-4 fill-current" />
@@ -296,7 +292,7 @@ export default function SleepPage() {
         {/* Right: Chart + Recent (match vertical gaps with left) */}
         <div className="flex flex-col gap-2.5">
           {/* Weekly Sleep Chart – hidden on mobile, match card shape */}
-          <div className="hidden overflow-visible rounded-2xl bg-[#0b1220] border border-white/[0.06] lg:block lg:bg-[#060b14] lg:border-white/[0.04] p-6">
+          <div className="dashboard-unified-card hidden overflow-visible rounded-2xl border p-6 lg:block">
             <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-[#a3a3a3]">
               <Sunrise className="h-4 w-4 text-[#a3a3a3]" />
               Last 7 Days
@@ -347,7 +343,7 @@ export default function SleepPage() {
           </div>
 
           {/* Recent Sleep Log – match card shape */}
-          <div className="flex min-h-0 flex-1 flex-col rounded-2xl bg-[#0b1220] border border-white/[0.06] lg:bg-[#060b14] lg:border-white/[0.04] p-6">
+          <div className="dashboard-unified-card flex min-h-0 flex-1 flex-col rounded-2xl border p-6">
             <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-[#a3a3a3]">
               <Clock className="h-4 w-4 text-[#a3a3a3]" />
               Recent Sleep

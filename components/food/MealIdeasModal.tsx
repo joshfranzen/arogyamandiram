@@ -94,7 +94,7 @@ export default function MealIdeasModal({ onClose, onDebugLog }: MealIdeasModalPr
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       <div
-        className="relative z-10 mx-4 flex w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-neutral-800 bg-neutral-900/95 shadow-lg animate-slide-up sm:rounded-2xl"
+        className="relative z-10 mx-4 flex w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-neutral-800 bg-[#0f1b14]/95 shadow-lg animate-slide-up sm:rounded-2xl"
         style={{
           maxHeight:
             'min(70dvh, calc(100dvh - max(env(safe-area-inset-top), 12px) - max(env(safe-area-inset-bottom), 16px) - 32px))',
@@ -113,12 +113,12 @@ export default function MealIdeasModal({ onClose, onDebugLog }: MealIdeasModalPr
           </div>
 
           {!hasApiKey && (
-            <div className="flex items-start gap-3 rounded-xl border border-accent-amber/20 bg-accent-amber/5 p-3">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-accent-amber" />
+            <div className="flex items-start gap-3 rounded-xl border border-accent-emerald/20 bg-accent-emerald/5 p-3">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-accent-emerald" />
               <div>
                 <p className="text-xs font-medium text-neutral-400">Connect your OpenAI API key</p>
                 <p className="mt-0.5 text-[11px] text-neutral-400">
-                  Add a key in <Link href="/settings" className="text-accent-violet hover:underline">Settings → API Keys</Link> to get AI meal suggestions.
+                  Add a key in <Link href="/settings" className="text-emerald-400 hover:underline">Settings → API Keys</Link> to get AI meal suggestions.
                 </p>
               </div>
             </div>
@@ -155,7 +155,7 @@ export default function MealIdeasModal({ onClose, onDebugLog }: MealIdeasModalPr
               <button
                 onClick={fetchMeals}
                 disabled={loading || !hasApiKey || selectedMealTypes.length === 0}
-                className="flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-orange-400 disabled:opacity-50"
+                className="flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-medium text-black transition-colors duration-200 hover:bg-emerald-400 disabled:opacity-50"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChefHat className="h-4 w-4" />}
                 {meals ? 'Regenerate' : 'Get Suggestions'}
@@ -175,7 +175,7 @@ export default function MealIdeasModal({ onClose, onDebugLog }: MealIdeasModalPr
         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-6 pb-6 hide-scrollbar">
         {loading && (
           <div className="flex flex-col items-center gap-3 py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-orange-400" />
+            <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
                 <p className="text-sm text-neutral-400">Generating meal ideas…</p>
           </div>
         )}
@@ -185,7 +185,7 @@ export default function MealIdeasModal({ onClose, onDebugLog }: MealIdeasModalPr
             {meals.map((meal, i) => (
               <div
                 key={i}
-                className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4 shadow-lg"
+                className="rounded-2xl border border-neutral-800 bg-emerald-500/5 p-4 shadow-lg"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
@@ -201,9 +201,9 @@ export default function MealIdeasModal({ onClose, onDebugLog }: MealIdeasModalPr
                   )}
                 </div>
                 <p className="mt-2 text-xs leading-relaxed text-neutral-400">{meal.description}</p>
-                <div className="mt-4 grid grid-cols-4 gap-1 rounded-lg border border-neutral-800 bg-black/40 p-2">
+                <div className="mt-4 grid grid-cols-4 gap-1 rounded-lg border border-neutral-800 bg-black/30 p-2">
                   <div className="text-center">
-                    <p className="text-xs font-bold text-orange-400">{meal.calories}</p>
+                    <p className="text-xs font-bold text-emerald-400">{meal.calories}</p>
                     <p className="text-[9px] text-text-muted">kcal</p>
                   </div>
                   <div className="text-center">
@@ -211,7 +211,7 @@ export default function MealIdeasModal({ onClose, onDebugLog }: MealIdeasModalPr
                     <p className="text-[9px] text-text-muted">P</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-xs font-bold text-accent-amber">{meal.carbs}g</p>
+                    <p className="text-xs font-bold text-accent-emerald">{meal.carbs}g</p>
                     <p className="text-[9px] text-text-muted">C</p>
                   </div>
                   <div className="text-center">

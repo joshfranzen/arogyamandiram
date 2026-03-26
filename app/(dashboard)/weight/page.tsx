@@ -147,15 +147,14 @@ export default function WeightPage() {
     <div className="weight-page animate-fade-in flex flex-col max-lg:mobile-dash cards-stack-desktop">
       <DashboardPageShell
         title="Weight Journal"
-        subtitle={formatDate(today)}
+        subtitle="Track progress, trends, and healthy momentum"
         icon={Scale}
-        iconClassName="text-accent-violet"
         mobileVariant="card"
       />
 
-      {/* Log Weight Card – same surface as Weight History / Range / BMI (bg-gray-900/50 + backdrop-blur) */}
+      {/* Log Weight Card */}
       <div className={cn('mobile-fade-up mobile-dash-px lg:px-0')} style={{ animationDelay: '80ms' }}>
-      <div className="rounded-2xl bg-gray-900/50 p-6 backdrop-blur-sm flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-6">
+      <div className="dashboard-unified-card rounded-2xl border p-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-6">
         <div className="flex-1">
           <label className="text-xs font-medium text-text-muted">
             Today&apos;s Weight ({units === 'metric' ? 'kg' : 'lbs'})
@@ -194,7 +193,7 @@ export default function WeightPage() {
         <button
           onClick={handleLogWeight}
           disabled={saving || !weight}
-          className="flex items-center justify-center gap-2 rounded-xl bg-purple-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-purple-500/30 transition-all duration-200 hover:bg-purple-400 hover:shadow-purple-400/40 active:scale-95 disabled:opacity-50"
+          className="flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 py-2.5 text-sm font-semibold text-black shadow-lg shadow-emerald-500/30 transition-all duration-200 hover:bg-emerald-400 hover:shadow-emerald-400/40 active:scale-95 disabled:opacity-50"
         >
           {saving ? (
             <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -216,7 +215,7 @@ export default function WeightPage() {
             icon: Scale,
             label: 'Current',
             value: currentWeight ? formatWeight(currentWeight, units) : '—',
-            color: 'text-accent-violet',
+            color: 'text-accent-emerald',
           },
           {
             icon: weightChange <= 0 ? TrendingDown : TrendingUp,
@@ -253,7 +252,7 @@ export default function WeightPage() {
         ].map((s) => (
           <div
             key={s.label}
-            className="bg-gray-900/50 rounded-2xl px-3.5 py-4 flex items-center gap-3 backdrop-blur-sm"
+            className="dashboard-unified-card rounded-2xl border px-3.5 py-4 flex items-center gap-3"
           >
             <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', s.color.includes('accent-violet') ? 'bg-accent-violet/15' : s.color.includes('accent-emerald') ? 'bg-accent-emerald/15' : s.color.includes('accent-cyan') ? 'bg-accent-cyan/15' : s.color.includes('accent-amber') ? 'bg-accent-amber/15' : 'bg-white/[0.04]', s.color)}>
               <s.icon className="h-4.5 w-4.5" />
@@ -270,7 +269,7 @@ export default function WeightPage() {
 
       {/* Chart – desktop only */}
       <div className="mobile-fade-up mobile-dash-px hidden lg:block lg:px-0" style={{ animationDelay: '240ms' }}>
-      <div className="bg-gray-900/50 rounded-2xl p-6 backdrop-blur-sm">
+      <div className="dashboard-unified-card rounded-2xl border p-6">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-base font-semibold text-text-primary">Weight Trend</h2>
           <div className="flex gap-1.5">
@@ -281,7 +280,7 @@ export default function WeightPage() {
                 className={cn(
                   'rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
                   period === opt.key
-                    ? 'bg-accent-violet/15 text-accent-violet ring-1 ring-accent-violet/30'
+                    ? 'bg-accent-emerald/15 text-accent-emerald ring-1 ring-accent-emerald/30'
                     : 'bg-white/[0.04] text-text-muted hover:bg-white/[0.08]'
                 )}
               >
@@ -293,12 +292,12 @@ export default function WeightPage() {
 
         {loading ? (
           <div className="flex h-56 items-center justify-center">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent-violet border-t-transparent" />
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent-emerald border-t-transparent" />
           </div>
         ) : (
           <MetricChart
             data={chartData}
-            color="#8b5cf6"
+            color="#10b981"
             gradientId="weightGrad"
             unit={units === 'metric' ? ' kg' : ' lbs'}
             height={240}
@@ -314,7 +313,7 @@ export default function WeightPage() {
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
         {/* History */}
         <div className="flex flex-col lg:col-span-2">
-          <div className="bg-gray-900/50 flex flex-1 flex-col rounded-2xl p-6 backdrop-blur-sm">
+          <div className="dashboard-unified-card flex flex-1 flex-col rounded-2xl border p-6">
             <h2 className="mb-4 text-base font-semibold text-text-primary">Weight History</h2>
 
             {history.length === 0 ? (
@@ -381,7 +380,7 @@ export default function WeightPage() {
         {/* Insights Sidebar */}
         <div className="space-y-4">
           {/* Range Card */}
-          <div className="bg-gray-900/50 rounded-2xl p-5 backdrop-blur-sm">
+          <div className="dashboard-unified-card rounded-2xl border p-5">
             <h3 className="mb-3 text-sm font-semibold text-text-primary">Range</h3>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -418,10 +417,10 @@ export default function WeightPage() {
 
           {/* BMI Details */}
           {bmi && (
-            <div className="bg-gray-900/50 rounded-2xl p-5 backdrop-blur-sm">
+            <div className="dashboard-unified-card rounded-2xl border p-5">
               <h3 className="mb-3 text-sm font-semibold text-text-primary">BMI Details</h3>
               <div className="mb-3 text-center">
-                <p className="text-3xl font-bold text-accent-violet">{bmi.toFixed(1)}</p>
+                <p className="text-3xl font-bold text-accent-emerald">{bmi.toFixed(1)}</p>
                 <p className={cn(
                   'text-sm font-medium',
                   bmi < 18.5 ? 'text-accent-cyan'
@@ -460,9 +459,9 @@ export default function WeightPage() {
           )}
 
           {/* Entries count – desktop only */}
-          <div className="bg-gray-900/50 hidden rounded-2xl p-5 lg:block backdrop-blur-sm">
+          <div className="dashboard-unified-card hidden rounded-2xl border p-5 lg:block">
             <div className="flex items-center gap-3">
-              <Calendar className="h-5 w-5 text-accent-violet" />
+              <Calendar className="h-5 w-5 text-accent-emerald" />
               <div>
                 <p className="text-lg font-bold text-text-primary">{history.length}</p>
                 <p className="text-xs text-text-muted">weigh-ins recorded</p>
@@ -471,7 +470,7 @@ export default function WeightPage() {
           </div>
 
           {/* Tips – desktop only */}
-          <div className="bg-gray-900/50 hidden rounded-2xl p-5 lg:block backdrop-blur-sm">
+          <div className="dashboard-unified-card hidden rounded-2xl border p-5 lg:block">
             <h3 className="mb-2 text-sm font-semibold text-text-primary">💡 Tip</h3>
             <p className="text-xs leading-relaxed text-text-muted">
               Weigh yourself at the same time each day, ideally in the morning before eating, for the most consistent readings. Daily fluctuations of 0.5–1 kg are normal.

@@ -108,13 +108,13 @@ export default function CustomFoodModal({ onClose, onAdd, loading }: CustomFoodM
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       <div
-        className="relative z-10 mx-4 flex w-full max-w-md flex-col overflow-x-visible overflow-y-hidden rounded-3xl border border-neutral-800 bg-neutral-900/95 px-5 pb-5 shadow-lg animate-slide-up sm:rounded-2xl"
+        className="relative z-10 mx-4 flex w-full max-w-md flex-col overflow-x-visible overflow-y-hidden rounded-3xl border border-neutral-800 bg-[#0f1b14]/95 px-5 pb-5 shadow-lg animate-slide-up sm:rounded-2xl"
         style={{
           maxHeight:
             'min(70dvh, calc(100dvh - max(env(safe-area-inset-top), 12px) - max(env(safe-area-inset-bottom), 16px) - 32px))',
         }}
       >
-        <div className="sticky top-0 z-10 -mx-5 mb-2 flex items-center justify-between bg-neutral-900/95 px-5 py-2">
+        <div className="sticky top-0 z-10 -mx-5 mb-2 flex items-center justify-between bg-[#0f1b14]/95 px-5 py-2">
           <h3 className="text-lg font-semibold text-neutral-400">Add Custom Food</h3>
           <button
             onClick={onClose}
@@ -254,7 +254,7 @@ export default function CustomFoodModal({ onClose, onAdd, loading }: CustomFoodM
                   className={cn(
                     'flex flex-col items-center gap-1 rounded-xl px-2 py-2.5 text-xs font-medium transition-all text-neutral-400',
                     mealType === mt.key
-                      ? 'bg-orange-500/15 ring-1 ring-orange-400/40'
+                      ? 'bg-emerald-500/15 ring-1 ring-emerald-400/40'
                       : 'bg-white/[0.04] hover:bg-white/[0.06]'
                   )}
                 >
@@ -281,7 +281,7 @@ export default function CustomFoodModal({ onClose, onAdd, loading }: CustomFoodM
           <button
             onClick={handleSubmit}
             disabled={loading || !name.trim() || !calories}
-            className="mb-1 flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors duration-200 hover:bg-orange-400 disabled:opacity-50"
+            className="mb-1 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-black transition-colors duration-200 hover:bg-emerald-400 disabled:opacity-50"
           >
             {loading ? (
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />

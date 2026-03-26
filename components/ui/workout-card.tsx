@@ -9,7 +9,7 @@ export default function WorkoutCard({ className, ...props }: WorkoutCardProps) {
   return (
     <div
       className={cn(
-        'relative rounded-2xl bg-workout-bg text-text-primary shadow-[0_4px_20px_rgba(0,0,0,0.4)]',
+        'dashboard-unified-card relative rounded-2xl border text-text-primary',
         'overflow-hidden',
         className,
       )}
@@ -17,4 +17,3 @@ export default function WorkoutCard({ className, ...props }: WorkoutCardProps) {
     />
   );
 }
-
