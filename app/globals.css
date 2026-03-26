@@ -1210,7 +1210,7 @@ body {
   }
 
   .deck-card-legendary {
-    border-color: #b45309;
+    border-color: transparent;
     background: linear-gradient(180deg, rgba(180, 83, 9, 0.35) 0%, rgba(30, 30, 40, 0.95) 40%);
   }
 
@@ -1288,6 +1288,7 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.08em;
     opacity: 0.9;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
   }
 }
 
@@ -1701,17 +1702,11 @@ input[type='date'].date-input {
   border-color: transparent !important;
 }
 
-/* Achievements: hard-disable card borders/shadows, including active states */
-.achievements-page .deck-card:not(.deck-card-locked),
+/* Achievements: hard-disable card borders/shadows for glass/layout cards only */
 .achievements-page .streak-card,
 .achievements-page .glass-card,
 .achievements-page .glass-card-elevated,
 .achievements-page .achievements-gold-card {
   border: none !important;
   box-shadow: none !important;
-}
-
-/* Any utility border class in achievements should not render a visible edge */
-.achievements-page [class*='border-'] {
-  border-color: transparent !important;
 }
