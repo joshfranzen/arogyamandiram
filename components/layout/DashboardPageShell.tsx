@@ -40,7 +40,7 @@ export default function DashboardPageShell({
   title,
   subtitle,
   icon: Icon,
-  iconClassName = 'text-accent-violet',
+  iconClassName = 'dashboard-page-header-icon',
   rightDesktop,
   mobileVariant = 'card',
   mobileExtra,
@@ -63,7 +63,7 @@ export default function DashboardPageShell({
           <div className="flex flex-col">
             <h1
               className={cn(
-                'font-heading text-[28px] font-normal tracking-[0.03em] leading-tight text-text-primary',
+                'dashboard-page-header-title font-heading text-[28px] font-normal tracking-[0.03em] leading-tight',
                 titleClassName
               )}
             >
@@ -72,7 +72,7 @@ export default function DashboardPageShell({
             {subtitle != null && (
               <p
                 className={cn(
-                  'font-body mt-0.5 text-[13px] text-text-muted',
+                  'dashboard-page-header-subtitle font-body mt-0.5 text-[13px]',
                   subtitleClassName
                 )}
               >
@@ -95,7 +95,7 @@ export default function DashboardPageShell({
               <div className="flex flex-col">
                 <p
                   className={cn(
-                    'm-0 text-white text-[22px] font-extrabold leading-tight',
+                    'dashboard-page-header-title m-0 text-[22px] font-extrabold leading-tight',
                     titleClassName
                   )}
                   style={{ fontFamily: 'var(--font-outfit), system-ui, sans-serif' }}
@@ -105,7 +105,7 @@ export default function DashboardPageShell({
                 {subtitle != null && (
                   <p
                     className={cn(
-                      'mt-1 text-[11px] text-neutral-400',
+                      'dashboard-page-header-subtitle mt-1 text-[11px]',
                       subtitleClassName
                     )}
                   >
@@ -125,7 +125,7 @@ export default function DashboardPageShell({
           <div>
             <h1
               className={cn(
-                'font-heading text-2xl font-normal tracking-tight text-text-primary flex items-center gap-3',
+                'dashboard-page-header-title font-heading text-2xl font-normal tracking-tight flex items-center gap-3',
                 titleClassName
               )}
             >
@@ -135,7 +135,7 @@ export default function DashboardPageShell({
             {subtitle != null && (
               <p
                 className={cn(
-                  'mt-1 text-sm text-text-muted',
+                  'dashboard-page-header-subtitle mt-1 text-sm',
                   subtitleClassName
                 )}
               >

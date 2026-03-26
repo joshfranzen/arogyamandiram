@@ -18,7 +18,7 @@ import HealthPlanLogView from '@/components/debug/HealthPlanLogView';
 import { getPageLabel, getAgentLabel, getAgentDescription } from '@/lib/debugLogsConfig';
 import { formatDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { Bug, ChevronDown, ChevronRight } from 'lucide-react';
 import DashboardPageShell from '@/components/layout/DashboardPageShell';
 
 type SectionId = (typeof SECTION_IDS)[number];
@@ -305,7 +305,7 @@ export default function DebugPage() {
 
   if (!isDebugMode) {
     return (
-      <div className="rounded-xl border border-white/10 bg-[#0a0a0a] p-6 text-center">
+      <div className="dashboard-unified-card rounded-xl border p-6 text-center">
         <p className="text-sm text-zinc-500">
           Debug panel is only available when NEXT_PUBLIC_DEBUG_MODE is true.
         </p>
@@ -323,11 +323,12 @@ export default function DebugPage() {
       <DashboardPageShell
         title="AI Request Inspector"
         subtitle="Logs stored in .debug-logs/"
-        mobileVariant="minimal"
+        icon={Bug}
+        mobileVariant="card"
       />
       <div className="mobile-fade-up mobile-dash-px lg:px-0 flex-1 min-h-0 flex flex-col" style={{ animationDelay: '80ms' }}>
-    <div className="flex h-[calc(100vh-12rem)] lg:h-[calc(100vh-8rem)] max-h-[calc(100vh-12rem)] lg:max-h-[calc(100vh-8rem)] flex-col overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0a0a0a]">
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[#1e1e1e] px-4 py-3">
+    <div className="dashboard-unified-card flex h-[calc(100vh-12rem)] lg:h-[calc(100vh-8rem)] max-h-[calc(100vh-12rem)] lg:max-h-[calc(100vh-8rem)] flex-col overflow-hidden rounded-2xl border">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] px-4 py-3">
         <div>
           <p className="text-[11px] text-zinc-500">
             Pages using AI · Select an agent to view logs
@@ -335,19 +336,19 @@ export default function DebugPage() {
         </div>
         <div className="flex items-center gap-3">
           <p className="text-[10px] uppercase tracking-widest text-zinc-600">
-            <kbd className="rounded border border-[#1e1e1e] bg-white/5 px-1.5 py-0.5 font-mono">C</kbd> collapse ·{' '}
-            <kbd className="rounded border border-[#1e1e1e] bg-white/5 px-1.5 py-0.5 font-mono">E</kbd> expand
+            <kbd className="rounded border border-white/[0.06] bg-white/[0.04] px-1.5 py-0.5 font-mono">C</kbd> collapse ·{' '}
+            <kbd className="rounded border border-white/[0.06] bg-white/[0.04] px-1.5 py-0.5 font-mono">E</kbd> expand
           </p>
         </div>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[11rem_11rem_1fr] gap-px bg-[#1e1e1e]">
+      <div className="grid min-h-0 flex-1 grid-cols-[11rem_11rem_1fr] gap-px bg-white/[0.06]">
         {/* Bar 1 — Pages */}
         <aside
-          className="flex flex-col overflow-hidden rounded-l-lg border border-[#1e1e1e] border-r-0 bg-[#0a0a0a]"
+          className="dashboard-unified-card flex flex-col overflow-hidden rounded-l-lg border border-white/[0.06] border-r-0"
           aria-label="Pages"
         >
-          <div className="shrink-0 border-b border-[#1e1e1e] px-3 py-2">
+          <div className="shrink-0 border-b border-white/[0.06] px-3 py-2">
             <span className="text-[10px] font-medium uppercase tracking-widest text-zinc-600">
               Pages using AI
             </span>
@@ -374,7 +375,7 @@ export default function DebugPage() {
                       </span>
                     </button>
                     {isPageOpen && (
-                      <ul className="ml-4 mt-0.5 space-y-0.5 border-l border-[#1e1e1e] pl-2">
+                      <ul className="ml-4 mt-0.5 space-y-0.5 border-l border-white/[0.06] pl-2">
                         {t.agents.map((ag) => {
                           const isSelected =
                             selectedAgent?.page === t.page && selectedAgent?.agent === ag;
@@ -407,9 +408,9 @@ export default function DebugPage() {
         </aside>
 
         {/* Bar 2 + 3: agent header, log list, log view */}
-        <div className="col-span-2 flex min-h-0 flex-col overflow-hidden rounded-r-lg border border-[#1e1e1e] border-l-0 bg-[#0a0a0a]">
+        <div className="dashboard-unified-card col-span-2 flex min-h-0 flex-col overflow-hidden rounded-r-lg border border-white/[0.06] border-l-0">
           {selectedAgent && (
-            <div className="shrink-0 border-b border-[#1e1e1e] bg-white/[0.02] px-4 py-3">
+            <div className="shrink-0 border-b border-white/[0.06] bg-white/[0.02] px-4 py-3">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span className="text-sm font-medium text-zinc-300">{selectedPageLabel}</span>
                 <span className="text-zinc-600">›</span>
@@ -434,7 +435,7 @@ export default function DebugPage() {
           )}
 
           {!selectedAgent ? (
-            <div className="flex flex-1 flex-col items-center justify-center border border-dashed border-[#1e1e1e] bg-white/[0.02] text-center">
+            <div className="flex flex-1 flex-col items-center justify-center border border-dashed border-white/[0.06] bg-white/[0.02] text-center">
               <p className="text-[11px] font-medium uppercase tracking-widest text-zinc-500">
                 Select an agent
               </p>
@@ -443,10 +444,10 @@ export default function DebugPage() {
               </p>
             </div>
           ) : (
-            <div className="grid min-h-0 flex-1 grid-cols-[11rem_1fr] gap-px bg-[#1e1e1e]">
+            <div className="grid min-h-0 flex-1 grid-cols-[11rem_1fr] gap-px bg-white/[0.06]">
               {/* Bar 2 — Logs by date (same color as Bar 1) */}
-              <div className="flex flex-col overflow-hidden border border-[#1e1e1e] border-r-0 bg-[#0a0a0a]">
-                <div className="shrink-0 border-b border-[#1e1e1e] px-3 py-2">
+              <div className="dashboard-unified-card flex flex-col overflow-hidden border border-white/[0.06] border-r-0">
+                <div className="shrink-0 border-b border-white/[0.06] px-3 py-2">
                   <span className="text-[10px] font-medium uppercase tracking-widest text-zinc-600">
                     Logs by date
                   </span>
@@ -473,7 +474,7 @@ export default function DebugPage() {
                             <button
                               type="button"
                               onClick={() => toggleDate(dateStr)}
-                              className="sticky top-0 z-10 flex w-full items-center justify-between gap-2 border-b border-[#1e1e1e] bg-[#0a0a0a] py-1.5 px-1 text-left hover:bg-white/[0.04]"
+                              className="sticky top-0 z-10 flex w-full items-center justify-between gap-2 border-b border-white/[0.06] bg-transparent py-1.5 px-1 text-left hover:bg-white/[0.04]"
                             >
                               {isDateOpen ? (
                                 <ChevronDown className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
@@ -535,7 +536,7 @@ export default function DebugPage() {
               </div>
 
               {/* Bar 3 — Log view */}
-              <main className="flex min-w-0 flex-1 flex-col overflow-hidden border border-[#1e1e1e] border-l-0 bg-[#0a0a0a]">
+              <main className="dashboard-unified-card flex min-w-0 flex-1 flex-col overflow-hidden border border-white/[0.06] border-l-0">
                 <div
                   className={cn(
                     'min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-4',

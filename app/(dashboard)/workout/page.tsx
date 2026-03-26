@@ -47,7 +47,6 @@ import {
   cn,
   formatNumber,
   getToday,
-  formatDate,
   getAgeFromDateOfBirth,
 } from '@/lib/utils';
 
@@ -339,13 +338,11 @@ export default function WorkoutPage() {
     <div className="workout-page animate-fade-in flex flex-col max-lg:mobile-dash cards-stack-desktop">
       <DashboardPageShell
         title="Workouts"
-        subtitle={formatDate(today)}
+        subtitle="Build consistency with every session"
         icon={Dumbbell}
-        iconClassName="text-neutral-400"
-        titleClassName="text-neutral-400"
         rightDesktop={actionButtons}
         mobileVariant="card"
-        mobileCardClassName="border border-transparent bg-workout-bg text-text-primary shadow-[0_4px_20px_rgba(0,0,0,0.4)]"
+        mobileCardClassName="dashboard-unified-card border text-text-primary"
       />
 
       <div className="mobile-fade-up mobile-dash-px lg:hidden">

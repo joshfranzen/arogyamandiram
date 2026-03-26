@@ -71,8 +71,7 @@ export default function PreferencesPage() {
         title="Preferences"
         subtitle="Units and reminders across your trackers"
         icon={Bell}
-        iconClassName="text-accent-violet"
-        mobileVariant="minimal"
+        mobileVariant="card"
       />
 
       {/* Summary */}

@@ -79,9 +79,8 @@ export default function ApiKeysPage() {
         title="API Keys"
         subtitle="Connect AI and nutrition providers securely"
         icon={Key}
-        iconClassName="text-accent-violet"
         rightDesktop={actions}
-        mobileVariant="minimal"
+        mobileVariant="card"
       />
 
       {/* Status summary + forms */}

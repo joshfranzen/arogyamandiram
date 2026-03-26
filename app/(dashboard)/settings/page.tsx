@@ -128,7 +128,6 @@ export default function SettingsPage() {
         title="Settings"
         subtitle="Update your profile to keep targets accurate"
         icon={Settings}
-        iconClassName="text-emerald-400"
         mobileVariant="card"
       />
 

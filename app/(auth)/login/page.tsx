@@ -61,15 +61,18 @@ export default function LoginPage() {
         @keyframes auth-f1 { 0%,100% { transform:translate(0,0); } 25% { transform:translate(15px,-25px); } 50% { transform:translate(-10px,-40px); } 75% { transform:translate(20px,-15px); } }
         @keyframes auth-f2 { 0%,100% { transform:translate(0,0); } 33% { transform:translate(-20px,-30px); } 66% { transform:translate(15px,-20px); } }
         @keyframes auth-f3 { 0%,100% { transform:translate(0,0) scale(1); } 50% { transform:translate(10px,-35px) scale(1.2); } }
-        .auth-input { width:100%; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:9px; padding:11px 14px; font-size:14px; color:#F0EEEB; outline:none; transition:border-color 0.2s, background 0.2s; font-family:inherit; }
+        .auth-input { width:100%; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:9px; padding:13px 14px; min-height:44px; font-size:14px; color:#F0EEEB; outline:none; transition:border-color 0.2s, background 0.2s; font-family:inherit; }
         .auth-input::placeholder { color:rgba(255,255,255,0.2); }
-        .auth-input:focus { border-color:rgba(30,221,139,0.35); background:rgba(30,221,139,0.03); }
+        .auth-input:focus { border-color:rgba(30,221,139,0.35); background:rgba(30,221,139,0.03); outline:2px solid rgba(30,221,139,0.2); outline-offset:2px; }
         .auth-input-pw { padding-right:42px; }
         .auth-btn { background:#1EDD8B; color:#060806; border:none; border-radius:9px; padding:13px 24px; font-size:14px; font-weight:600; cursor:pointer; transition:all 0.25s cubic-bezier(0.16,1,0.3,1); width:100%; display:flex; align-items:center; justify-content:center; gap:8px; margin-top:4px; font-family:inherit; }
         .auth-btn:hover:not(:disabled) { background:#25F09A; transform:translateY(-2px); box-shadow:0 6px 30px rgba(30,221,139,0.25); }
         .auth-btn:disabled { opacity:0.65; cursor:not-allowed; }
         .auth-link { color:#1EDD8B; text-decoration:none; }
         .auth-link:hover { text-decoration:underline; }
+        @media(prefers-reduced-motion:reduce){
+          *,*::before,*::after{animation-play-state:paused!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+        }
       `}</style>
 
       <main style={{ position: 'fixed', inset: 0, background: '#060806', overflowX: 'hidden', overflowY: 'auto', paddingTop: 'var(--sat, env(safe-area-inset-top, 0px))', paddingBottom: 'var(--sab, env(safe-area-inset-bottom, 0px))' }}>
@@ -84,14 +87,13 @@ export default function LoginPage() {
         <div style={{ position: 'absolute', width: 3, height: 3, borderRadius: '50%', background: '#1EDD8B', opacity: 0.15, top: '20%', left: '15%', animation: 'auth-f1 12s ease-in-out infinite', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', width: 2, height: 2, borderRadius: '50%', background: '#1EDD8B', opacity: 0.1, top: '70%', right: '18%', animation: 'auth-f2 16s ease-in-out infinite', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', width: 4, height: 4, borderRadius: '50%', background: '#1EDD8B', opacity: 0.07, top: '40%', left: '78%', animation: 'auth-f3 20s ease-in-out infinite', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', width: 2, height: 2, borderRadius: '50%', background: '#1EDD8B', opacity: 0.12, top: '28%', right: '28%', animation: 'auth-f1 14s ease-in-out infinite reverse', pointerEvents: 'none' }} />
 
         <div style={{ position: 'relative', zIndex: 1, minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 16px' }}>
           <div style={{ width: '100%', maxWidth: 420 }}>
 
             {/* Header */}
             <div style={{ textAlign: 'center', marginBottom: 32 }}>
-              <h1 style={{ fontFamily: 'var(--font-outfit, Outfit, system-ui, sans-serif)', fontWeight: 800, fontSize: 'clamp(28px, 7vw, 44px)', letterSpacing: '-0.03em', lineHeight: 1.0, background: 'linear-gradient(135deg, #1EDD8B 0%, #0fa968 40%, #1EDD8B 80%, #7EFCBA 100%)', backgroundSize: '200% 200%', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', animation: 'auth-gs 6s ease-in-out infinite' }}>
+              <h1 style={{ fontFamily: 'var(--font-outfit, Outfit, system-ui, sans-serif)', fontWeight: 800, fontSize: 'clamp(28px, 7vw, 44px)', letterSpacing: '-0.03em', lineHeight: 1.0, background: 'linear-gradient(135deg, #1EDD8B 0%, #0fa968 40%, #1EDD8B 80%, #7EFCBA 100%)', backgroundSize: '200% 200%', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', animation: 'auth-gs 12s ease-in-out infinite' }}>
                 AROGYAMANDIRAM
               </h1>
               <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#5C5A53', marginTop: 8 }}>
@@ -138,6 +140,7 @@ export default function LoginPage() {
                     />
                     <button
                       type="button"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
                       onClick={() => setShowPassword(!showPassword)}
                       style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.3)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', padding: 0 }}
                     >
@@ -160,12 +163,6 @@ export default function LoginPage() {
               Don&apos;t have an account?{' '}
               <Link
                 href="/register"
-                onClick={(e) => {
-                  if (e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
-                    e.preventDefault();
-                    router.push('/register');
-                  }
-                }}
                 className="auth-link"
               >
                 Create one

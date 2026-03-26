@@ -39,11 +39,11 @@ export default function FoodResultCard({ food, onSelect }: FoodResultCardProps) 
 
       {/* Food info */}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-orange-400">{food.name}</p>
+        <p className="truncate text-sm font-medium text-emerald-400">{food.name}</p>
         <p className="text-[11px] text-neutral-400">
           {food.servingSize}
           {food.servingUnit} ·
-          <span className="ml-1 font-semibold text-orange-400">{food.calories} kcal</span>
+          <span className="ml-1 font-semibold text-emerald-400">{food.calories} kcal</span>
           <span className="ml-2 capitalize text-neutral-500">{food.category.replace('_', ' ')}</span>
         </p>
       </div>
@@ -51,22 +51,22 @@ export default function FoodResultCard({ food, onSelect }: FoodResultCardProps) 
       {/* Macros */}
       <div className="hidden shrink-0 items-center gap-3 sm:flex">
         <div className="text-center">
-          <p className="text-xs font-semibold text-orange-400">{food.protein}g</p>
+          <p className="text-xs font-semibold text-emerald-400">{food.protein}g</p>
           <p className="text-[9px] text-neutral-400">P</p>
         </div>
         <div className="text-center">
-          <p className="text-xs font-semibold text-orange-400">{food.carbs}g</p>
+          <p className="text-xs font-semibold text-emerald-400">{food.carbs}g</p>
           <p className="text-[9px] text-neutral-400">C</p>
         </div>
         <div className="text-center">
-          <p className="text-xs font-semibold text-orange-400">{food.fat}g</p>
+          <p className="text-xs font-semibold text-emerald-400">{food.fat}g</p>
           <p className="text-[9px] text-neutral-400">F</p>
         </div>
       </div>
 
       {/* Add icon */}
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-orange-500/15">
-        <Plus className="h-4 w-4 text-orange-400" />
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15">
+        <Plus className="h-4 w-4 text-emerald-400" />
       </div>
     </button>
   );

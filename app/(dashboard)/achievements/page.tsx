@@ -50,7 +50,6 @@ export default function AchievementsPage() {
         title="Achievements"
         subtitle="Turn your healthy routines into a streak of wins."
         icon={Trophy}
-        iconClassName="text-text-primary"
         mobileVariant="card"
       />
 
@@ -189,4 +188,3 @@ export default function AchievementsPage() {
     </div>
   );
 }
-

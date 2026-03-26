@@ -178,8 +178,8 @@ body {
   }
   .bento-ring-stats {
     display: grid;
-    /* Keep calorie + water cards identical width in both sidebar states. */
-    grid-template-columns: minmax(240px, 240px) minmax(0, 1fr) minmax(240px, 240px);
+    /* Keep calorie + water cards identical and slightly wider for cleaner spacing balance. */
+    grid-template-columns: minmax(272px, 272px) minmax(0, 1fr) minmax(272px, 272px);
     grid-template-rows: 1fr;
     gap: 12px;
     grid-column: 1 / -1;
@@ -191,6 +191,7 @@ body {
   .bento-ring-badges {
     grid-column: 2;
     grid-row: 1;
+    display: flex;
     min-width: 0;
     min-height: 0;
     overflow: hidden;
@@ -202,20 +203,58 @@ body {
     @apply px-3 py-3;
   }
   .recent-badges-grid {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-start;
     gap: 10px;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
     min-height: 0;
-    padding-bottom: 0;
+    padding: 0 6px 4px;
+    scroll-padding-inline: 6px;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
   }
   .recent-badges-grid::-webkit-scrollbar {
     display: none;
   }
-  /* Desktop: each recent badge fills available width equally. */
+  /* Keep dashboard badges in the same portrait proportions as achievements cards. */
   .recent-badges-grid > * {
-    min-width: 0;
-    max-width: none;
+    /* Add wrapper horizontal padding (0.25rem + 0.25rem = 0.5rem) to preserve visible card width. */
+    flex: 0 0 calc((230px * 5 / 7) + 0.5rem);
+    min-width: calc((230px * 5 / 7) + 0.5rem);
+    max-width: calc((230px * 5 / 7) + 0.5rem);
+    align-self: center;
+    scroll-snap-align: start;
+  }
+  .recent-badges-grid .portrait-card {
+    width: calc(230px * 5 / 7);
+  }
+  .recent-badge-empty-slot {
+    width: calc(230px * 5 / 7);
+    aspect-ratio: 5 / 7;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: linear-gradient(160deg, #111712 0%, #0c1410 100%);
+  }
+  @media (min-width: 1024px) {
+    /* Force horizontal scroll without creating outer side gaps. */
+    .recent-badges-grid > * {
+      flex: 0 0 204px;
+      min-width: 204px;
+      max-width: 204px;
+    }
+    .recent-badges-grid .portrait-card {
+      width: 196px;
+    }
+    .recent-badge-empty-slot {
+      width: 196px;
+      height: 230px;
+      aspect-ratio: auto;
+    }
   }
   .ring-card {
     @apply flex h-full flex-col items-center justify-center gap-3 px-5 py-5;
@@ -249,13 +288,6 @@ body {
     background: linear-gradient(145deg, rgba(239, 68, 68, 0.08) 0%, rgba(255, 255, 255, 0.02) 65%);
     border-color: rgba(239, 68, 68, 0.18);
   }
-  /* Water page: header card matches water cards (water blue tint, subtle border, no glow) */
-  .water-page .dashboard-page-header-card {
-    background-color: #0d161c;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    box-shadow: none;
-  }
-
   /* Water page: ensure gaps between buttons and between summary cards are visible */
   .water-page .grid.grid-cols-4 {
     gap: 1rem;
@@ -271,17 +303,6 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.04);
     box-shadow: none;
   }
-  @media (max-width: 1023px) {
-    .food-page .dashboard-page-header-card {
-      /* Match Logged Meals card surface: rounded-2xl, neutral border, neutral-900/50 bg, no extra glow */
-      border-radius: 1rem; /* rounded-2xl */
-      background-color: rgba(23, 23, 23, 0.5); /* approx Tailwind bg-neutral-900/50 */
-      border: 1px solid rgba(255, 255, 255, 0.04); /* same as .food-page .border-neutral-800 override */
-      box-shadow: none;
-      backdrop-filter: none;
-      -webkit-backdrop-filter: none;
-    }
-  }
   /* Food page: all bordered cards – normal border, no glow */
   .food-page .border-neutral-800 {
     border-color: rgba(255, 255, 255, 0.04);
@@ -295,19 +316,12 @@ body {
     background-color: transparent;
   }
 
-  .achievements-page .dashboard-page-header-card {
-    background:
-      linear-gradient(145deg, rgba(255, 223, 0, 0.10) 0%, #0a0a0a 32%, #000000 100%);
-    border: 1px solid rgba(255, 255, 255, 0.04);
-    box-shadow: none;
-  }
-
   /* Foreground cards are flat, neutral dark with subtle border depth */
   .achievements-page .glass-card,
   .achievements-page .glass-card-elevated,
   .achievements-page .achievements-gold-card {
     background-color: #171717;
-    border: 1px solid rgba(255, 255, 255, 0.04);
+    border: none !important;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
     box-shadow: none !important;
@@ -336,24 +350,11 @@ body {
   }
 
   /* Project page: soft neutral charcoal cards */
-  .project-page .dashboard-page-header-card,
   .project-page .glass-card {
     background-color: #18181b; /* ~bg-zinc-900 */
     border-radius: 16px;
     border: 1px solid rgba(255, 255, 255, 0.04); /* normal border */
     box-shadow: none; /* remove glow/depth */
-  }
-
-  /* Project page: clearer typography hierarchy */
-  .project-page h1,
-  .project-page h2,
-  .project-page h3 {
-    color: #ffffff;
-  }
-
-  .project-page p,
-  .project-page li {
-    color: #ffffff;
   }
 
   /* Workout page:
@@ -368,24 +369,10 @@ body {
     background: linear-gradient(145deg, rgba(15, 23, 42, 0.9) 0%, rgba(2, 6, 23, 0.98) 65%);
     border-color: rgba(148, 163, 184, 0.3);
   }
-  @media (max-width: 1023px) {
-    .weight-page .dashboard-page-header-card {
-      background: linear-gradient(145deg, rgba(15, 23, 42, 0.9) 0%, rgba(2, 6, 23, 0.98) 65%);
-      border-color: transparent;
-      box-shadow: none;
-    }
-  }
-
   /* Settings page: charcoal + pale blush tint for cards and header, but keep default subtle border (no extra highlight) */
   .settings-page .glass-card {
     background: linear-gradient(145deg, rgba(15, 15, 23, 0.92) 0%, rgba(252, 228, 236, 0.06) 65%);
   }
-  @media (max-width: 1023px) {
-    .settings-page .dashboard-page-header-card {
-      background: linear-gradient(145deg, rgba(15, 15, 23, 0.92) 0%, rgba(252, 228, 236, 0.06) 65%);
-    }
-  }
-
   /* "More" page tiles – bring back soft per-feature color, no heavy glow */
   .more-card {
     background: radial-gradient(circle at top, rgba(15, 23, 42, 0.7), rgba(8, 8, 13, 0.98));
@@ -451,15 +438,6 @@ body {
   .insights-page .glass-card {
     /* Legacy cyan gradient removed in component-level classes */
   }
-  @media (max-width: 1023px) {
-    .insights-page .dashboard-page-header-card {
-      background-color: #09090b; /* bg-zinc-950 */
-      border-color: #27272a;     /* border-zinc-800 */
-      border-radius: 1rem;       /* rounded-2xl to match main cards */
-      box-shadow: none;          /* remove old glow */
-    }
-  }
-
   /* Food page: secondary glass buttons use amber tint */
   .food-page .glass-button-secondary {
     background-color: rgba(10, 10, 10, 0.96);
@@ -503,11 +481,8 @@ body {
     transition: padding 300ms ease;
   }
 
-  /* Sidebar collapsed (desktop): grow calorie + water cards in both width and height. */
+  /* Sidebar collapsed (desktop): keep ring/water visuals larger but do not resize badge lane. */
   @media (min-width: 1024px) {
-    .sidebar-collapsed .bento-ring-stats {
-      grid-template-columns: minmax(276px, 276px) minmax(0, 1fr) minmax(276px, 276px);
-    }
     .sidebar-collapsed .ring-card,
     .sidebar-collapsed .water-beaker-card {
       padding-top: 1.75rem;
@@ -841,13 +816,10 @@ body {
     background: #111520;
     box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
   }
-  /* Sleep page (mobile): header card uses same flat Midnight surface as other cards */
-  .sleep-page .dashboard-page-header-card {
-    border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: #0b1220;
-    box-shadow: none;
-    backdrop-filter: none;
+  .dashboard-page-header-title,
+  .dashboard-page-header-subtitle,
+  .dashboard-page-header-icon {
+    color: #a3a3a3;
   }
   /* Sleep page (mobile): same distance as home page – mb-3 (12px) between every card */
   .sleep-page > div.mobile-fade-up {
@@ -1002,17 +974,19 @@ body {
     max-width: 260px;
   }
 
-  /* iPad-sized (md) – switch to a proper 3‑column grid to mirror the achievements page card sizing. */
+  /* iPad-sized (md): keep horizontal scroll with same-sized cards. */
   @media (min-width: 768px) and (max-width: 1023px) {
     .mobile-dash .recent-badges-grid {
-      display: grid;
-      grid-auto-flow: row;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      overflow-x: visible;
+      display: flex;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scroll-snap-type: x proximity;
     }
     .mobile-dash .recent-badges-grid > * {
-      flex: initial;
-      max-width: none;
+      flex: 0 0 220px;
+      max-width: 220px;
+      scroll-snap-align: start;
     }
   }
 
@@ -1700,3 +1674,44 @@ input[type='date'].date-input {
 /* 9. Typing cursor blink */
 @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
 .cursor-blink { animation: blink 1.1s step-start infinite; }
+
+/* Unified dashboard surfaces */
+.app-viewport main {
+  background-color: #090d0b;
+}
+.dashboard-unified-card {
+  background: linear-gradient(160deg, #111712 0%, #0c1410 100%) !important;
+  border: none !important;
+}
+.app-viewport main .glass-card,
+.app-viewport main .glass-card-elevated,
+.app-viewport main .dashboard-page-header-card,
+.app-viewport main .more-card,
+.app-viewport main [class^='more-card-'],
+.app-viewport main [class*=' more-card-'] {
+  background: linear-gradient(160deg, #111712 0%, #0c1410 100%) !important;
+  border: none !important;
+}
+
+/* Normalize bright border utility variants on dashboard pages */
+.app-viewport main [class*='border-white/[0.06]'],
+.app-viewport main [class*='border-white/10'],
+.app-viewport main [class*='border-neutral-800'],
+.app-viewport main [class*='border-zinc-800'] {
+  border-color: transparent !important;
+}
+
+/* Achievements: hard-disable card borders/shadows, including active states */
+.achievements-page .deck-card:not(.deck-card-locked),
+.achievements-page .streak-card,
+.achievements-page .glass-card,
+.achievements-page .glass-card-elevated,
+.achievements-page .achievements-gold-card {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Any utility border class in achievements should not render a visible edge */
+.achievements-page [class*='border-'] {
+  border-color: transparent !important;
+}

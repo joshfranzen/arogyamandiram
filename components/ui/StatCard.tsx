@@ -50,7 +50,7 @@ export default function StatCard({
         'flex text-left transition-all duration-200',
         isWorkout ? 'items-center' : 'items-start',
         isWorkout
-          ? 'relative rounded-2xl bg-workout-bg text-text-primary border border-white/[0.06] shadow-[0_4px_20px_rgba(0,0,0,0.4)]'
+          ? 'dashboard-unified-card relative rounded-2xl border text-text-primary'
           : 'glass-card',
         compact ? 'gap-2.5 rounded-xl p-2.5' : isWorkout ? 'gap-3 rounded-2xl p-4' : 'gap-4 rounded-2xl p-4',
         onClick && !isWorkout && 'cursor-pointer hover:border-white/[0.08] hover:bg-bg-hover',
