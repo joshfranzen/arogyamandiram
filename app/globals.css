@@ -958,20 +958,21 @@ body {
     display: flex;
     flex-direction: row;
     flex-wrap: nowrap;
-    gap: 12px; /* X between recent badge cards on small phones */
+    gap: 6px; /* X between recent badge cards on small phones */
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none;
     -ms-overflow-style: none;
     padding-bottom: 4px;
+    padding-left: 4px;
   }
   .mobile-dash .recent-badges-grid::-webkit-scrollbar {
     display: none;
   }
-  /* Phone: horizontal scroll, show ~2 cards; all equal width. */
+  /* Phone: horizontal scroll, show ~2.5 cards; all equal width. */
   .mobile-dash .recent-badges-grid > * {
-    flex: 0 0 60%;
-    max-width: 260px;
+    flex: 0 0 42%;
+    max-width: 200px;
   }
 
   /* iPad-sized (md): keep horizontal scroll with same-sized cards. */
