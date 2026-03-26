@@ -14,18 +14,14 @@ export function StreakCard({ label, current, best }: StreakCardProps) {
 
   return (
     <div
-      className={cn(
-        'glass-card flex h-16 items-center gap-3 rounded-2xl border border-transparent p-3 text-left transition-all duration-200 sm:h-14 sm:gap-2 sm:p-2.5',
-        active && 'border-[#f5d76e66] bg-white/[0.03]',
-        !active && 'border-white/[0.04] bg-white/[0.01]'
-      )}
+      className="flex h-16 items-center gap-3 rounded-xl bg-black/40 p-3 text-left transition-all duration-200 sm:h-14 sm:gap-2 sm:p-2.5"
     >
       <div
         className={cn(
-          'flex h-9 w-9 flex-none items-center justify-center rounded-xl sm:h-8 sm:w-8 sm:rounded-lg border border-transparent',
+          'flex h-9 w-9 flex-none items-center justify-center rounded-xl sm:h-8 sm:w-8 sm:rounded-lg',
           active
-            ? 'bg-white/[0.08] text-text-primary border-[#f5d76e80]'
-            : 'bg-white/[0.04] text-text-muted opacity-60 border-white/[0.04]'
+            ? 'bg-white/[0.08] text-text-primary'
+            : 'bg-white/[0.04] text-text-muted opacity-60'
         )}
       >
         <Flame
