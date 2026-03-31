@@ -5,19 +5,23 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import { CURRENT_DASHBOARD_TOUR_VERSION } from '@/lib/constants';
 import { DebugLogsProvider } from '@/contexts/DebugLogsContext';
+import { OrchestratorSidebarProvider, useOrchestratorSidebar } from '@/contexts/OrchestratorSidebarContext';
 import Sidebar from '@/components/layout/Sidebar';
 import MobileNav from '@/components/layout/MobileNav';
+import OrchestratorSidebar from '@/components/layout/OrchestratorSidebar';
+import OrchestratorToggleButton from '@/components/layout/OrchestratorToggleButton';
 import DashboardTour from '@/components/tour/DashboardTour';
 import api from '@/lib/apiClient';
 import { cn } from '@/lib/utils';
 
-export default function DashboardLayoutClient({ children }: { children: ReactNode }) {
+function DashboardLayoutInner({ children }: { children: ReactNode }) {
   const { data: session, status } = useSession();
   const router = useRouter();
   const pathname = usePathname();
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
   const [showTour, setShowTour] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const { isOpen: rightOpen, sidebarWidth } = useOrchestratorSidebar();
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -50,10 +54,8 @@ export default function DashboardLayoutClient({ children }: { children: ReactNod
                 window.sessionStorage.getItem(seenKey) === String(envVersion);
 
               if (storedVersion >= envVersion || alreadySeenSession) {
-                // Already seen this version; never show again unless env version increases.
                 setShowTour(false);
               } else {
-                // Mark as seen immediately in DB and this browser session, then show once.
                 window.sessionStorage.setItem(seenKey, String(envVersion));
                 void api.updateSettings({ dashboardTourVersion: envVersion });
                 setShowTour(true);
@@ -101,15 +103,27 @@ export default function DashboardLayoutClient({ children }: { children: ReactNod
       <main
         className={cn(
           'min-h-full pb-[max(3.25rem,calc(var(--sab,env(safe-area-inset-bottom,0px))+2.5rem))] lg:pb-0 lg:pt-0 transition-[padding-left] duration-300',
-          sidebarCollapsed ? 'lg:pl-[64px] sidebar-collapsed' : 'lg:pl-[232px]'
+          sidebarCollapsed ? 'lg:pl-[64px] sidebar-collapsed' : 'lg:pl-[232px]',
         )}
+        style={{ paddingRight: rightOpen ? `${sidebarWidth}px` : undefined }}
       >
         <div className="w-full px-4 pt-3 pb-0 sm:px-6 sm:pt-8 sm:pb-4 lg:px-6 lg:pt-8">
           {showTour && <DashboardTour onClose={() => setShowTour(false)} />}
-          <DebugLogsProvider>{children}</DebugLogsProvider>
+          {children}
         </div>
       </main>
+      <OrchestratorToggleButton />
+      <OrchestratorSidebar />
     </div>
   );
 }
 
+export default function DashboardLayoutClient({ children }: { children: ReactNode }) {
+  return (
+    <DebugLogsProvider>
+      <OrchestratorSidebarProvider>
+        <DashboardLayoutInner>{children}</DashboardLayoutInner>
+      </OrchestratorSidebarProvider>
+    </DebugLogsProvider>
+  );
+}

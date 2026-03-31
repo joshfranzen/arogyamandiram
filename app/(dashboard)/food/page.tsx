@@ -13,8 +13,6 @@ import {
   X,
   ChevronDown,
   ChevronUp,
-  Sparkles,
-  ChefHat,
 } from 'lucide-react';
 import DashboardPageShell from '@/components/layout/DashboardPageShell';
 import ProgressRing from '@/components/ui/ProgressRing';
@@ -23,10 +21,6 @@ import MetricChart from '@/components/ui/MetricChart';
 import FoodResultCard from '@/components/food/FoodResultCard';
 import RecentFoodCard from '@/components/food/RecentFoodCard';
 import AddMealModal from '@/components/food/AddMealModal';
-import CustomFoodModal from '@/components/food/CustomFoodModal';
-import MealIdeasModal from '@/components/food/MealIdeasModal';
-import AIFoodLoggerModal from '@/components/food/AIFoodLoggerModal';
-import { useDebugLogs } from '@/contexts/DebugLogsContext';
 import { CardSkeleton } from '@/components/ui/Skeleton';
 import { showToast } from '@/components/ui/Toast';
 import { useDailyLog } from '@/hooks/useDailyLog';
@@ -95,7 +89,6 @@ const tabs = [{ key: 'logged', label: 'Logged' }, { key: 'recent', label: 'Recen
 export default function FoodLogPage() {
   const { user, loading: userLoading } = useUser();
   const { log, loading: logLoading, refetch } = useDailyLog();
-  const { addMealIdeasLog, setAiLoggerLog } = useDebugLogs();
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<FoodItem[]>([]);
@@ -104,9 +97,6 @@ export default function FoodLogPage() {
   const [recentLoading, setRecentLoading] = useState(true);
   const [selectedTab, setSelectedTab] = useState<string>('logged');
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
-  const [showCustom, setShowCustom] = useState(false);
-  const [showMealIdeas, setShowMealIdeas] = useState(false);
-  const [showAILogger, setShowAILogger] = useState(false);
   const [addingMeal, setAddingMeal] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [expandedMealType, setExpandedMealType] = useState<string | null>(null);
@@ -216,36 +206,12 @@ export default function FoodLogPage() {
       if (res.success) {
         showToast(`${meal.name} added to ${mealLabels[(meal.mealType as string) || 'snack']}`, 'success');
         setSelectedFood(null);
-        setShowCustom(false);
-        setShowMealIdeas(false);
-        setShowAILogger(false);
         refetch();
       } else {
         showToast(res.error || 'Failed to add meal', 'error');
       }
     } catch {
       showToast('Failed to add meal', 'error');
-    } finally {
-      setAddingMeal(false);
-    }
-  };
-
-  const handleAddMealBatch = async (meals: Record<string, unknown>[]) => {
-    if (!meals.length) return;
-    setAddingMeal(true);
-    try {
-      for (const meal of meals) {
-        const res = await api.addMeal(today, meal);
-        if (!res.success) {
-          showToast(res.error || 'Failed to add some items', 'error');
-          return;
-        }
-      }
-      showToast(`${meals.length} item${meals.length === 1 ? '' : 's'} added`, 'success');
-      setShowAILogger(false);
-      refetch();
-    } catch {
-      showToast('Failed to add meals', 'error');
     } finally {
       setAddingMeal(false);
     }
@@ -297,50 +263,14 @@ export default function FoodLogPage() {
     return acc;
   }, {});
 
-  const actionButtons = (
-    <div className="flex min-h-[44px] flex-nowrap items-center gap-2 overflow-x-auto">
-      <button
-        onClick={() => setShowCustom(true)}
-      className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border border-neutral-800 bg-neutral-900/50 px-3 py-2.5 text-sm font-medium text-neutral-400 shadow-lg sm:px-4"
-      >
-        <PlusCircle className="h-4 w-4 text-neutral-400" />
-        Custom Food
-      </button>
-      {user?.hasOpenAiKey && (
-        <>
-          <button
-            onClick={() => setShowMealIdeas(true)}
-          className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border border-neutral-800 bg-neutral-900/50 px-3 py-2.5 text-sm font-medium text-neutral-400 shadow-lg sm:px-4"
-          >
-            <ChefHat className="h-4 w-4 text-neutral-400" />
-            Meal Ideas
-          </button>
-          <button
-            onClick={() => setShowAILogger(true)}
-          className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border border-neutral-800 bg-neutral-900/50 px-3 py-2.5 text-sm font-medium text-neutral-400 shadow-lg sm:px-4"
-          >
-            <Sparkles className="h-4 w-4 text-neutral-400" />
-            AI Logger
-          </button>
-        </>
-      )}
-    </div>
-  );
-
   return (
     <div className="food-page animate-fade-in flex flex-col max-lg:mobile-dash cards-stack-desktop min-h-screen">
       <DashboardPageShell
         title="Food Log"
         subtitle="Nourish your day with smarter meal tracking"
         icon={Utensils}
-        rightDesktop={actionButtons}
         mobileVariant="card"
       />
-
-      {/* Mobile: action buttons below header */}
-      <div className="mobile-fade-up mobile-dash-px flex flex-nowrap gap-2 overflow-x-auto lg:hidden" style={{ animationDelay: '80ms' }}>
-        {actionButtons}
-      </div>
 
       <div className="mobile-fade-up mobile-dash-px lg:px-0" style={{ animationDelay: '160ms' }}>
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-3 lg:gap-4">
@@ -490,12 +420,9 @@ export default function FoodLogPage() {
               <div className="flex flex-col items-center gap-3 py-12 text-center">
                 <Utensils className="h-8 w-8 text-neutral-600" />
                 <p className="text-sm text-neutral-400">No foods found</p>
-                <button
-                  onClick={() => setShowCustom(true)}
-                  className="text-xs font-medium text-emerald-400 hover:underline"
-                >
-                  Add custom food instead
-                </button>
+                <p className="text-xs text-neutral-500">
+                  Use the AI Assistant to log custom meals
+                </p>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-3 py-12 text-center">
@@ -729,51 +656,6 @@ export default function FoodLogPage() {
         />
       )}
 
-      {showMealIdeas && (
-        <MealIdeasModal
-          onClose={() => setShowMealIdeas(false)}
-          onDebugLog={(log) => {
-            const debugLog = log as import('@/contexts/DebugLogsContext').MealIdeasDebugLog;
-            addMealIdeasLog(debugLog);
-            if (process.env.NEXT_PUBLIC_DEBUG_MODE === 'true') {
-              fetch('/api/debug-logs', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ page: 'food', agent: 'meal-ideas', log: debugLog }),
-                credentials: 'include',
-              }).catch(() => {});
-            }
-          }}
-        />
-      )}
-
-      {showCustom && (
-        <CustomFoodModal
-          onClose={() => setShowCustom(false)}
-          onAdd={(meal) => handleAddMeal(meal as Record<string, unknown>)}
-          loading={addingMeal}
-        />
-      )}
-
-      {showAILogger && (
-        <AIFoodLoggerModal
-          onClose={() => setShowAILogger(false)}
-          onAdd={(meal) => handleAddMeal(meal as Record<string, unknown>)}
-          onAddBatch={(batch) => handleAddMealBatch(batch as Record<string, unknown>[])}
-          onDebugLog={(log) => {
-            setAiLoggerLog(log);
-            if (process.env.NEXT_PUBLIC_DEBUG_MODE === 'true') {
-              fetch('/api/debug-logs', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ page: 'food', agent: 'ai-logger', log }),
-                credentials: 'include',
-              }).catch(() => {});
-            }
-          }}
-          loading={addingMeal}
-        />
-      )}
     </div>
   );
 }

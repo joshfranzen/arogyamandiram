@@ -9,6 +9,7 @@ export const PAGE_LABELS: Record<string, string> = {
   insights: 'Insights',
   targets: 'Targets',
   sleep: 'Sleep',
+  'ai-assistant': 'AI Assistant',
 };
 
 export const AGENT_LABELS: Record<string, string> = {
@@ -22,6 +23,7 @@ export const AGENT_LABELS: Record<string, string> = {
   'weekly': 'Weekly insights',
   'monthly': 'Monthly insights',
   'yearly': 'Yearly insights',
+  'orchestrator': 'Orchestrator',
 };
 
 export const AGENT_DESCRIPTIONS: Record<string, string> = {
@@ -31,6 +33,7 @@ export const AGENT_DESCRIPTIONS: Record<string, string> = {
   'ai-logger': 'Logs food entries via natural language.',
   'health-plan': 'Generates personalized targets from your profile.',
   'sleep-coach': 'Provides sleep tips and analysis.',
+  'orchestrator': 'Routes natural language commands to the correct health logging tool.',
   'yesterday': "Yesterday's AI insights.",
   'weekly': 'Weekly AI insights.',
   'monthly': 'Monthly AI insights.',

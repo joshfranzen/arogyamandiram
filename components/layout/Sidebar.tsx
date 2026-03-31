@@ -43,10 +43,7 @@ const extraNavItems = [
 ];
 
 const debugNavItem = { href: '/debug', icon: Bug, label: 'Debugger' };
-const allExtraItems =
-  process.env.NEXT_PUBLIC_DEBUG_MODE === 'true'
-    ? [...extraNavItems, debugNavItem]
-    : extraNavItems;
+const allExtraItems = [...extraNavItems, debugNavItem];
 
 type SidebarProps = {
   collapsed?: boolean;
