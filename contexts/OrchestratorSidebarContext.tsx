@@ -97,6 +97,15 @@ export interface ConversationEntry {
   timestamp: string;
 }
 
+// Maps tool names to their tracking page routes
+const TOOL_ROUTE: Partial<Record<OrchestratorTool, string>> = {
+  water: '/water',
+  weight: '/weight',
+  sleep: '/sleep',
+  'food-ai-logger': '/food',
+  'workout-ai-logger': '/workout',
+};
+
 interface OrchestratorSidebarContextValue {
   isOpen: boolean;
   sidebarWidth: number;
@@ -106,9 +115,9 @@ interface OrchestratorSidebarContextValue {
   closeSidebar: () => void;
   toggleSidebar: () => void;
   submitCommand: (text: string, imageBase64?: string, imageMimeType?: string) => Promise<void>;
-  confirmSimpleEntry: (id: string) => Promise<void>;
-  confirmFoodEntry: (id: string, mealType: string) => Promise<void>;
-  confirmWorkoutEntry: (id: string) => Promise<void>;
+  confirmSimpleEntry: (id: string) => Promise<string | undefined>;
+  confirmFoodEntry: (id: string, mealType: string) => Promise<string | undefined>;
+  confirmWorkoutEntry: (id: string) => Promise<string | undefined>;
   cancelEntry: (id: string) => void;
 }
 
@@ -204,9 +213,9 @@ export function OrchestratorSidebarProvider({ children }: { children: ReactNode 
   );
 
   const confirmSimpleEntry = useCallback(
-    async (id: string) => {
+    async (id: string): Promise<string | undefined> => {
       const entry = conversation.find((e) => e.id === id);
-      if (!entry?.result) return;
+      if (!entry?.result) return undefined;
 
       const today = getToday();
       try {
@@ -225,20 +234,22 @@ export function OrchestratorSidebarProvider({ children }: { children: ReactNode 
         }
         updateEntry(id, { status: 'success' });
         window.dispatchEvent(new Event('orchestrator:log-updated'));
+        return entry.tool ? TOOL_ROUTE[entry.tool] : undefined;
       } catch (err) {
         updateEntry(id, {
           status: 'error',
           errorMessage: err instanceof Error ? err.message : 'Failed to log',
         });
+        return undefined;
       }
     },
     [conversation, updateEntry]
   );
 
   const confirmFoodEntry = useCallback(
-    async (id: string, mealType: string) => {
+    async (id: string, mealType: string): Promise<string | undefined> => {
       const entry = conversation.find((e) => e.id === id);
-      if (!entry?.result?.foodItems) return;
+      if (!entry?.result?.foodItems) return undefined;
 
       const today = getToday();
       try {
@@ -247,20 +258,22 @@ export function OrchestratorSidebarProvider({ children }: { children: ReactNode 
         }
         updateEntry(id, { status: 'success' });
         window.dispatchEvent(new Event('orchestrator:log-updated'));
+        return TOOL_ROUTE['food-ai-logger'];
       } catch (err) {
         updateEntry(id, {
           status: 'error',
           errorMessage: err instanceof Error ? err.message : 'Failed to log food',
         });
+        return undefined;
       }
     },
     [conversation, updateEntry]
   );
 
   const confirmWorkoutEntry = useCallback(
-    async (id: string) => {
+    async (id: string): Promise<string | undefined> => {
       const entry = conversation.find((e) => e.id === id);
-      if (!entry?.result?.workoutItems) return;
+      if (!entry?.result?.workoutItems) return undefined;
 
       const today = getToday();
       try {
@@ -269,11 +282,13 @@ export function OrchestratorSidebarProvider({ children }: { children: ReactNode 
         }
         updateEntry(id, { status: 'success' });
         window.dispatchEvent(new Event('orchestrator:log-updated'));
+        return TOOL_ROUTE['workout-ai-logger'];
       } catch (err) {
         updateEntry(id, {
           status: 'error',
           errorMessage: err instanceof Error ? err.message : 'Failed to log workout',
         });
+        return undefined;
       }
     },
     [conversation, updateEntry]

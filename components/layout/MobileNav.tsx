@@ -7,16 +7,16 @@ import {
   Moon,
   Droplets,
   Utensils,
-  MoreHorizontal,
+  Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const mobileNav = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/ai', icon: Sparkles, label: 'AI' },
   { href: '/sleep', icon: Moon, label: 'Sleep' },
   { href: '/water', icon: Droplets, label: 'Water' },
   { href: '/food', icon: Utensils, label: 'Food' },
-  { href: '/more', icon: MoreHorizontal, label: 'More' },
 ];
 
 export default function MobileNav() {

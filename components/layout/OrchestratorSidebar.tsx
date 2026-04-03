@@ -94,7 +94,7 @@ export default function OrchestratorSidebar() {
           </div>
           <button
             onClick={closeSidebar}
-            className="flex h-7 w-7 items-center justify-center text-neutral-500 hover:text-neutral-300 transition-colors lg:hidden"
+            className="flex h-7 w-7 items-center justify-center text-neutral-500 hover:text-neutral-300 transition-colors"
           >
             <X className="h-4 w-4" />
           </button>

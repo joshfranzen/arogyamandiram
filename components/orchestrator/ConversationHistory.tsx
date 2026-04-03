@@ -6,10 +6,11 @@ import MessageBubble from './MessageBubble';
 
 interface ConversationHistoryProps {
   entries: ConversationEntry[];
-  onConfirmSimple: (id: string) => Promise<void>;
-  onConfirmFood: (id: string, mealType: string) => Promise<void>;
-  onConfirmWorkout: (id: string) => Promise<void>;
+  onConfirmSimple: (id: string) => Promise<string | undefined>;
+  onConfirmFood: (id: string, mealType: string) => Promise<string | undefined>;
+  onConfirmWorkout: (id: string) => Promise<string | undefined>;
   onCancel: (id: string) => void;
+  onConfirmSuccess?: (route: string) => void;
 }
 
 export default function ConversationHistory({
@@ -18,6 +19,7 @@ export default function ConversationHistory({
   onConfirmFood,
   onConfirmWorkout,
   onCancel,
+  onConfirmSuccess,
 }: ConversationHistoryProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -37,9 +39,18 @@ export default function ConversationHistory({
           <MessageBubble
             key={entry.id}
             entry={entry}
-            onConfirmSimple={() => onConfirmSimple(entry.id)}
-            onConfirmFood={(mealType) => onConfirmFood(entry.id, mealType)}
-            onConfirmWorkout={() => onConfirmWorkout(entry.id)}
+            onConfirmSimple={async () => {
+              const route = await onConfirmSimple(entry.id);
+              if (route) onConfirmSuccess?.(route);
+            }}
+            onConfirmFood={async (mealType) => {
+              const route = await onConfirmFood(entry.id, mealType);
+              if (route) onConfirmSuccess?.(route);
+            }}
+            onConfirmWorkout={async () => {
+              const route = await onConfirmWorkout(entry.id);
+              if (route) onConfirmSuccess?.(route);
+            }}
             onCancel={() => onCancel(entry.id)}
           />
         ))}
