@@ -15,18 +15,16 @@ export default function ApiKeysPage() {
   const { user, loading, refetch } = useUser();
   const [saving, setSaving] = useState(false);
   const [openaiKey, setOpenaiKey] = useState('');
-  const [edamamAppId, setEdamamAppId] = useState('');
-  const [edamamAppKey, setEdamamAppKey] = useState('');
+  const [fdcKey, setFdcKey] = useState('');
   const [showOpenai, setShowOpenai] = useState(false);
-  const [showEdamam, setShowEdamam] = useState(false);
+  const [showFdc, setShowFdc] = useState(false);
 
   const saveApiKeys = async () => {
     setSaving(true);
     try {
       const keys: Record<string, string> = {};
       if (openaiKey) keys.openai = openaiKey;
-      if (edamamAppId) keys.edamamAppId = edamamAppId;
-      if (edamamAppKey) keys.edamamAppKey = edamamAppKey;
+      if (fdcKey) keys.fdcApiKey = fdcKey;
 
       if (Object.keys(keys).length === 0) {
         showToast('No keys to save', 'info');
@@ -38,8 +36,7 @@ export default function ApiKeysPage() {
       if (res.success) {
         showToast('API keys saved securely', 'success');
         setOpenaiKey('');
-        setEdamamAppId('');
-        setEdamamAppKey('');
+        setFdcKey('');
         refetch();
       } else {
         showToast(res.error || 'Failed to save keys', 'error');
@@ -61,7 +58,7 @@ export default function ApiKeysPage() {
   }
 
   const openAiActive = !!user?.hasOpenAiKey;
-  const edamamActive = !!user?.hasEdamamKey;
+  const fdcActive = !!user?.hasFdcKey;
 
   const actions = (
     <Link
@@ -97,11 +94,11 @@ export default function ApiKeysPage() {
         />
         <StatCard
           icon={Utensils}
-          label="Edamam"
-          value={edamamActive ? 'Active' : 'Optional'}
-          subtitle="Adds international foods to search"
-          iconColor={edamamActive ? 'text-accent-emerald' : 'text-text-muted'}
-          className={cn(!edamamActive && 'opacity-90')}
+          label="USDA FoodData Central"
+          value={fdcActive ? 'Active' : 'Not connected'}
+          subtitle="300k+ foods — free key at fdc.nal.usda.gov"
+          iconColor={fdcActive ? 'text-accent-emerald' : 'text-text-muted'}
+          className={cn(!fdcActive && 'opacity-90')}
         />
       </div>
 
@@ -142,7 +139,7 @@ export default function ApiKeysPage() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-text-primary">Food</p>
-                  <p className="text-[11px] text-text-muted">AI meal ideas + broader search</p>
+                  <p className="text-[11px] text-text-muted">AI meal ideas + USDA food search</p>
                 </div>
                 <Link href="/food" className="ml-auto text-xs font-medium text-accent-violet hover:underline">
                   Open
@@ -164,7 +161,7 @@ export default function ApiKeysPage() {
           </div>
         </div>
 
-        {/* Right: forms */}
+        {/* Right: form */}
         <div className="glass-card flex h-full flex-col rounded-2xl p-6 space-y-5 lg:min-h-0">
           <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
             <div className="flex items-center justify-between">
@@ -199,48 +196,37 @@ export default function ApiKeysPage() {
             </div>
           </div>
 
-          <div className="rounded-xl bg-white/[0.02] p-4">
+          <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-text-primary">Edamam API Key</span>
-                {edamamActive && (
+                <span className="text-sm font-medium text-text-primary">USDA FoodData Central API Key</span>
+                {fdcActive && (
                   <span className="flex items-center gap-1 rounded-md bg-accent-emerald/10 px-2 py-0.5 text-[10px] font-medium text-accent-emerald">
                     <CheckCircle2 className="h-3 w-3" /> Active
                   </span>
                 )}
-                <span className="rounded-md bg-white/[0.06] px-2 py-0.5 text-[10px] text-text-muted">Optional</span>
               </div>
             </div>
             <p className="mt-1 text-xs text-text-muted">
-              Adds 900k+ international foods to search alongside the built-in Indian database.
+              Required for food search. Get a free key at{' '}
+              <span className="text-accent-violet">fdc.nal.usda.gov/api-key-signup</span>
             </p>
-            <div className="mt-3 space-y-2">
-              <div className="relative">
-                <input
-                  type={showEdamam ? 'text' : 'password'}
-                  value={edamamAppId}
-                  onChange={(e) => setEdamamAppId(e.target.value)}
-                  placeholder="App ID"
-                  className="glass-input w-full rounded-xl px-3 py-2 text-sm"
-                />
-              </div>
-              <div className="relative">
-                <input
-                  type={showEdamam ? 'text' : 'password'}
-                  value={edamamAppKey}
-                  onChange={(e) => setEdamamAppKey(e.target.value)}
-                  placeholder="App Key"
-                  className="glass-input w-full rounded-xl px-3 py-2 pr-10 text-sm"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowEdamam(!showEdamam)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
-                  aria-label={showEdamam ? 'Hide Edamam keys' : 'Show Edamam keys'}
-                >
-                  {showEdamam ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
+            <div className="relative mt-3">
+              <input
+                type={showFdc ? 'text' : 'password'}
+                value={fdcKey}
+                onChange={(e) => setFdcKey(e.target.value)}
+                placeholder={fdcActive ? '••••••••••••••••' : 'Your FDC API key'}
+                className="glass-input w-full rounded-xl px-3 py-2 pr-10 text-sm"
+              />
+              <button
+                type="button"
+                onClick={() => setShowFdc(!showFdc)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
+                aria-label={showFdc ? 'Hide FDC key' : 'Show FDC key'}
+              >
+                {showFdc ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
           </div>
 

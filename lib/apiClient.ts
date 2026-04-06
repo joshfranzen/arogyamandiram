@@ -109,7 +109,7 @@ export const api = {
     }),
 
   // API Keys (sent via dedicated secure endpoint)
-  saveApiKeys: (keys: { openai?: string; edamamAppId?: string; edamamAppKey?: string }) =>
+  saveApiKeys: (keys: { openai?: string; fdcApiKey?: string }) =>
     apiFetch('/user/api-keys', {
       method: 'PUT',
       body: JSON.stringify(keys),

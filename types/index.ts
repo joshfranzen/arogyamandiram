@@ -30,10 +30,7 @@ export interface UserProfile {
 
 export interface UserApiKeys {
   openai?: string;       // AES-256 encrypted
-  edamam?: {
-    appId: string;       // AES-256 encrypted
-    appKey: string;      // AES-256 encrypted
-  };
+  fdcApiKey?: string;    // AES-256 encrypted — USDA FoodData Central
 }
 
 export interface UserSettings {
@@ -219,14 +216,20 @@ export interface IDailyLog {
 
 // ---------- Food Database Types ----------
 
+/** A single serving option for a food, e.g. { label: "1 large", grams: 50 } */
+export interface FoodMeasure {
+  label: string;  // display label, e.g. "1 large", "1 cup", "1 tbsp"
+  grams: number;  // gram (or ml) equivalent of 1 unit of this measure
+}
+
 export interface FoodItem {
   id: string;
   name: string;
   nameHindi?: string;
   category: FoodCategory;
-  servingSize: number;
-  servingUnit: string;
-  calories: number;       // per serving
+  servingSize: number;    // always 100 — nutritional values are per 100g/ml
+  servingUnit: string;    // 'g' or 'ml'
+  calories: number;       // per 100g/ml
   protein: number;
   carbs: number;
   fat: number;
@@ -234,6 +237,7 @@ export interface FoodItem {
   isVegetarian: boolean;
   isVegan: boolean;
   tags: string[];
+  measures?: FoodMeasure[]; // natural serving options from USDA (e.g. 1 egg, 1 cup)
 }
 
 export type FoodCategory =
@@ -274,7 +278,7 @@ export interface SafeUser {
   targets: UserTargets;
   onboardingComplete: boolean;
   hasOpenAiKey: boolean;    // boolean only, never the actual key
-  hasEdamamKey: boolean;    // boolean only
+  hasFdcKey: boolean;       // boolean only
   createdAt?: string;      // ISO date string, for "at least one week" checks
 }
 

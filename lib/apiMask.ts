@@ -15,9 +15,7 @@ const SENSITIVE_FIELDS = [
   'apiKeys',
   '__v',
   'apiKeys.openai',
-  'apiKeys.edamam',
-  'apiKeys.edamam.appId',
-  'apiKeys.edamam.appKey',
+  'apiKeys.fdcApiKey',
 ];
 
 // Internal fields to strip from responses
@@ -63,11 +61,7 @@ export function maskUser(user: IUser | Record<string, unknown>): SafeUser {
     targets: targets as unknown as SafeUser['targets'],
     onboardingComplete: u.onboardingComplete as boolean,
     hasOpenAiKey: Boolean(apiKeys?.openai),
-    hasEdamamKey: Boolean(
-      apiKeys?.edamam &&
-        (apiKeys.edamam as Record<string, unknown>).appId &&
-        (apiKeys.edamam as Record<string, unknown>).appKey
-    ),
+    hasFdcKey: Boolean(apiKeys?.fdcApiKey),
     ...(createdAtStr && { createdAt: createdAtStr }),
   };
 }

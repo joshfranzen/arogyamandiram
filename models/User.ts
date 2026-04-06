@@ -60,11 +60,8 @@ const UserSchema = new Schema<IUserDocument>(
       avatarUrl: { type: String, default: '' },
     },
     apiKeys: {
-      openai: { type: String, default: '', select: false },     // AES-256 encrypted
-      edamam: {
-        appId: { type: String, default: '', select: false },    // AES-256 encrypted
-        appKey: { type: String, default: '', select: false },   // AES-256 encrypted
-      },
+      openai:     { type: String, default: '', select: false },  // AES-256 encrypted
+      fdcApiKey:  { type: String, default: '', select: false },  // AES-256 encrypted — USDA FoodData Central
     },
     settings: {
       theme: { type: String, enum: ['dark', 'light'], default: 'dark' },

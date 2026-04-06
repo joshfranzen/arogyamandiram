@@ -95,7 +95,7 @@ export default function FoodLogPage() {
   const [searching, setSearching] = useState(false);
   const [recentFoods, setRecentFoods] = useState<{ name: string; lastDate: string; count: number }[]>([]);
   const [recentLoading, setRecentLoading] = useState(true);
-  const [selectedTab, setSelectedTab] = useState<string>('logged');
+  const [selectedTab, setSelectedTab] = useState<string>('all');
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
   const [addingMeal, setAddingMeal] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -117,9 +117,11 @@ export default function FoodLogPage() {
         const data = res.data as { foods?: FoodItem[]; edamamFoods?: FoodItem[] };
         const combined = [...(data.foods || []), ...(data.edamamFoods || [])];
         setResults(combined);
+      } else if (!res.success) {
+        showToast('Food search failed. Check your connection and try again.', 'error');
       }
     } catch {
-      // silently handle
+      showToast('Food search failed. Check your connection and try again.', 'error');
     } finally {
       setSearching(false);
     }
@@ -129,7 +131,8 @@ export default function FoodLogPage() {
     setQuery(value);
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     const cat = selectedTab === 'recent' || selectedTab === 'logged' ? 'all' : selectedTab;
-    searchTimerRef.current = setTimeout(() => doSearch(value, cat), 300);
+    if (value.length > 0 && value.length < 3) return; // wait for 3+ chars
+    searchTimerRef.current = setTimeout(() => doSearch(value, cat), 600);
   };
 
   const handleTabChange = (key: string) => {
