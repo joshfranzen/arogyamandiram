@@ -115,6 +115,46 @@ export const api = {
       body: JSON.stringify(keys),
     }),
 
+  // Email Settings (SMTP + IMAP — passwords are encrypted server-side)
+  saveEmailSettings: (body: {
+    smtp?: {
+      host?: string; port?: number; secure?: boolean;
+      user?: string; pass?: string; fromName?: string;
+    };
+    imap?: {
+      host?: string; port?: number; secure?: boolean;
+      user?: string; pass?: string;
+    };
+  }) =>
+    apiFetch('/user/email-settings', {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+
+  deleteEmailSettings: (type: 'smtp' | 'imap') =>
+    apiFetch('/user/email-settings', {
+      method: 'DELETE',
+      body: JSON.stringify({ type }),
+    }),
+
+  testEmailReminder: (reminderType: string) =>
+    apiFetch('/email/send-reminder', {
+      method: 'POST',
+      body: JSON.stringify({ reminderType }),
+    }),
+
+  sendEmailTest: (testMode: 'smtp_test' | 'imap_test') =>
+    apiFetch('/email/send-reminder', {
+      method: 'POST',
+      body: JSON.stringify({ testMode }),
+    }),
+
+  verifyImapTestReply: () =>
+    apiFetch<{ verified: boolean; verifiedAt?: string; checked?: boolean }>('/email/verify-imap', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }),
+
   // Food Search
   searchFoods: (query: string, category?: string) => {
     let endpoint = `/foods?q=${encodeURIComponent(query)}`;

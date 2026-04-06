@@ -71,11 +71,62 @@ const UserSchema = new Schema<IUserDocument>(
         meals: { type: Boolean, default: true },
         weighIn: { type: Boolean, default: true },
         workout: { type: Boolean, default: true },
+        sleep: { type: Boolean, default: true },
       },
       // Whether the user has completed the main dashboard walkthrough
       dashboardTourComplete: { type: Boolean, default: false },
       // Version of the dashboard tour the user has last completed
       dashboardTourVersion: { type: Number, default: 0 },
+      // Recipient list for reminder emails
+      recipientEmails: { type: [String], default: [] },
+      // Legacy key retained for backward compatibility
+      ccEmails: { type: [String], default: [] },
+      reminderSchedule: {
+        timezone: { type: String, default: 'Asia/Kolkata' },
+        waterHourlyEnabled: { type: Boolean, default: true },
+        mealTimes: {
+          breakfast: { type: String, default: '08:00' },
+          lunch: { type: String, default: '13:00' },
+          dinner: { type: String, default: '20:00' },
+        },
+        sleepTime: { type: String, default: '22:30' },
+        lastSentAt: {
+          water: { type: Date },
+          breakfast: { type: Date },
+          lunch: { type: Date },
+          dinner: { type: Date },
+          workout: { type: Date },
+          weighIn: { type: Date },
+          sleep: { type: Date },
+        },
+      },
+      emailSetupChecklist: {
+        smtpSaved: { type: Boolean, default: false },
+        smtpTestSent: { type: Boolean, default: false },
+        imapSaved: { type: Boolean, default: false },
+        imapTestSent: { type: Boolean, default: false },
+        recipientListSaved: { type: Boolean, default: false },
+        imapReplyVerifiedAt: { type: Date },
+        lastUpdatedAt: { type: Date },
+      },
+      // SMTP/IMAP settings for email reminders — passwords are AES-256 encrypted
+      emailSettings: {
+        smtp: {
+          host:     { type: String, default: '' },
+          port:     { type: Number, default: 587 },
+          secure:   { type: Boolean, default: false },
+          user:     { type: String, default: '' },
+          pass:     { type: String, default: '' },  // AES-256 encrypted — stripped in maskUser + toJSON
+          fromName: { type: String, default: 'ArogyaMandiram' },
+        },
+        imap: {
+          host:   { type: String, default: '' },
+          port:   { type: Number, default: 993 },
+          secure: { type: Boolean, default: true },
+          user:   { type: String, default: '' },
+          pass:   { type: String, default: '' },  // AES-256 encrypted — stripped in maskUser + toJSON
+        },
+      },
     },
     targets: {
       dailyCalories: { type: Number, default: 2000 },
@@ -136,6 +187,17 @@ const UserSchema = new Schema<IUserDocument>(
       transform(_doc, ret: Record<string, unknown>) {
         // Always strip sensitive fields on JSON serialization (omit instead of delete for strict TS)
         const { password, apiKeys, __v, ...safe } = ret;
+        // Strip email passwords from nested settings
+        const settings = safe.settings as Record<string, unknown> | undefined;
+        if (settings) {
+          const es = settings.emailSettings as Record<string, unknown> | undefined;
+          if (es) {
+            const smtp = es.smtp as Record<string, unknown> | undefined;
+            const imap = es.imap as Record<string, unknown> | undefined;
+            if (smtp) { const { pass: _sp, ...smtpSafe } = smtp; es.smtp = smtpSafe; }
+            if (imap) { const { pass: _ip, ...imapSafe } = imap; es.imap = imapSafe; }
+          }
+        }
         return safe;
       },
     },

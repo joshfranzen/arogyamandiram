@@ -32,6 +32,7 @@ const DEBUG_TREE: { page: string; agents: string[] }[] = [
   { page: 'insights', agents: ['yesterday', 'weekly', 'monthly', 'yearly'] },
   { page: 'workout', agents: ['ai-logger', 'workout-planner'] },
   { page: 'targets', agents: ['health-plan'] },
+  { page: 'email', agents: ['smtp', 'imap'] },
 ];
 
 function getLogTimestamp(log: Record<string, unknown>): string {
@@ -325,7 +326,7 @@ export default function DebugPage() {
   return (
     <div className="animate-fade-in flex flex-col max-lg:mobile-dash cards-stack-desktop">
       <DashboardPageShell
-        title="AI Request Inspector"
+        title="Request Inspector"
         subtitle="Logs stored in .debug-logs/"
         icon={Bug}
         mobileVariant="card"
@@ -335,13 +336,13 @@ export default function DebugPage() {
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] px-4 py-3">
         <div>
           <p className="text-[11px] text-zinc-500">
-            Pages using AI · Select an agent to view logs
+            Pages · Select an agent to view logs
           </p>
         </div>
         <div className="flex items-center gap-3">
           <p className="text-[10px] uppercase tracking-widest text-zinc-600">
-            <kbd className="rounded border border-white/[0.06] bg-white/[0.04] px-1.5 py-0.5 font-mono">C</kbd> collapse ·{' '}
-            <kbd className="rounded border border-white/[0.06] bg-white/[0.04] px-1.5 py-0.5 font-mono">E</kbd> expand
+            <kbd className="rounded border border-white/[0.06] bg-black px-1.5 py-0.5 font-mono">C</kbd> collapse ·{' '}
+            <kbd className="rounded border border-white/[0.06] bg-black px-1.5 py-0.5 font-mono">E</kbd> expand
           </p>
         </div>
       </div>
@@ -354,7 +355,7 @@ export default function DebugPage() {
         >
           <div className="shrink-0 border-b border-white/[0.06] px-3 py-2">
             <span className="text-[10px] font-medium uppercase tracking-widest text-zinc-600">
-              Pages using AI
+              Pages
             </span>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

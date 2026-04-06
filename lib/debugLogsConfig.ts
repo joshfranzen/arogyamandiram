@@ -1,6 +1,6 @@
 /**
  * Display names and descriptions for debug log pages/agents.
- * Used by the AI Request Inspector sidebar and agent header.
+ * Used by the Request Inspector sidebar and agent header.
  */
 
 export const PAGE_LABELS: Record<string, string> = {
@@ -10,6 +10,7 @@ export const PAGE_LABELS: Record<string, string> = {
   targets: 'Targets',
   sleep: 'Sleep',
   'ai-assistant': 'AI Assistant',
+  email: 'Email',
 };
 
 export const AGENT_LABELS: Record<string, string> = {
@@ -24,6 +25,8 @@ export const AGENT_LABELS: Record<string, string> = {
   'monthly': 'Monthly insights',
   'yearly': 'Yearly insights',
   'orchestrator': 'Orchestrator',
+  'smtp': 'SMTP Sends',
+  'imap': 'IMAP Polls',
 };
 
 export const AGENT_DESCRIPTIONS: Record<string, string> = {
@@ -38,6 +41,8 @@ export const AGENT_DESCRIPTIONS: Record<string, string> = {
   'weekly': 'Weekly AI insights.',
   'monthly': 'Monthly AI insights.',
   'yearly': 'Yearly AI insights.',
+  'smtp': 'Outbound reminder emails sent via SMTP, by userId and type.',
+  'imap': 'Inbound email reply polls, replies found, and what was logged.',
 };
 
 export function getPageLabel(slug: string): string {

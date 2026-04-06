@@ -32,8 +32,39 @@ export function maskUser(user: IUser | Record<string, unknown>): SafeUser {
 
   const profile = (u.profile ? { ...(u.profile as Record<string, unknown>) } : {}) as Record<string, unknown>;
   const apiKeys = u.apiKeys as Record<string, unknown> | undefined;
-  const settings = u.settings as Record<string, unknown> | undefined;
   const targets = u.targets as Record<string, unknown> | undefined;
+
+  // Deep-clone settings and strip encrypted pass fields before sending to client
+  const rawSettings = u.settings as Record<string, unknown> | undefined;
+  const emailSettings = (rawSettings?.emailSettings as Record<string, unknown> | undefined);
+  const smtpSettings = emailSettings?.smtp as Record<string, unknown> | undefined;
+  const imapSettings = emailSettings?.imap as Record<string, unknown> | undefined;
+
+  // Build a clean settings object with pass fields removed
+  const settings: Record<string, unknown> | undefined = rawSettings
+    ? {
+        ...rawSettings,
+        ...(emailSettings && {
+          emailSettings: {
+            ...emailSettings,
+            ...(smtpSettings && {
+              smtp: { ...smtpSettings, pass: undefined },
+            }),
+            ...(imapSettings && {
+              imap: { ...imapSettings, pass: undefined },
+            }),
+          },
+        }),
+      }
+    : undefined;
+
+  if (settings) {
+    const recipientEmails = settings.recipientEmails as string[] | undefined;
+    const legacyCcEmails = settings.ccEmails as string[] | undefined;
+    if (!recipientEmails?.length && legacyCcEmails?.length) {
+      settings.recipientEmails = legacyCcEmails;
+    }
+  }
 
   // Compute age and normalize dateOfBirth to YYYY-MM-DD for client (e.g. input type="date")
   if (profile.dateOfBirth) {
@@ -62,7 +93,11 @@ export function maskUser(user: IUser | Record<string, unknown>): SafeUser {
     onboardingComplete: u.onboardingComplete as boolean,
     hasOpenAiKey: Boolean(apiKeys?.openai),
     hasFdcKey: Boolean(apiKeys?.fdcApiKey),
-    ...(createdAtStr && { createdAt: createdAtStr }),
+    hasSmtp: Boolean(smtpSettings?.pass),
+    hasImap: Boolean(imapSettings?.pass),
+    smtpUser: smtpSettings?.user ? (smtpSettings.user as string) : undefined,
+    imapUser: imapSettings?.user ? (imapSettings.user as string) : undefined,
+    ...(createdAtStr ? { createdAt: createdAtStr } : {}),
   };
 }
 

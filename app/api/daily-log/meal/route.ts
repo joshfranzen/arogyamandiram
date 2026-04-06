@@ -7,7 +7,7 @@ import mongoose from 'mongoose';
 import connectDB from '@/lib/db';
 import DailyLog from '@/models/DailyLog';
 import { maskedResponse, errorResponse, stripSensitive } from '@/lib/apiMask';
-import { getAuthUserId, isUserId } from '@/lib/session';
+import { getAuthUserId, getAuthUserIdWithBypass, isUserId } from '@/lib/session';
 import { getToday, recalcTotalsFromMeals } from '@/lib/utils';
 import { awardDailyXp } from '@/lib/xp';
 
@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
 // POST /api/daily-log/meal - Add a meal
 export async function POST(req: NextRequest) {
   try {
-    const userId = await getAuthUserId();
+    const userId = await getAuthUserIdWithBypass(req);
     if (!isUserId(userId)) return userId;
 
     const { date, meal } = await req.json();

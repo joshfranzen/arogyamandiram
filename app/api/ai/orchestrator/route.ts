@@ -132,12 +132,19 @@ async function callInternalRoute(
   body: Record<string, unknown>
 ) {
   const { origin } = new URL(req.url);
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    cookie: req.headers.get('cookie') ?? '',
+  };
+  // Forward cron bypass headers so sub-routes can also skip auth
+  const cronSecret = req.headers.get('x-cron-secret');
+  const internalUserId = req.headers.get('x-internal-user-id');
+  if (cronSecret) headers['x-cron-secret'] = cronSecret;
+  if (internalUserId) headers['x-internal-user-id'] = internalUserId;
+
   const res = await fetch(`${origin}${path}`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      cookie: req.headers.get('cookie') ?? '',
-    },
+    headers,
     body: JSON.stringify(body),
   });
   const json = await res.json() as { success: boolean; data?: unknown; error?: string };
@@ -150,8 +157,23 @@ export async function POST(req: NextRequest) {
   const startMs = Date.now();
 
   try {
-    const userId = await getAuthUserId();
-    if (!isUserId(userId)) return userId;
+    // Allow cron-originated calls to bypass session auth using an internal header.
+    // Only accepted when X-Cron-Secret matches the CRON_SECRET env var.
+    const cronSecret = req.headers.get('x-cron-secret');
+    const internalUserId = req.headers.get('x-internal-user-id');
+    const isCronBypass =
+      Boolean(process.env.CRON_SECRET) &&
+      cronSecret === process.env.CRON_SECRET &&
+      Boolean(internalUserId);
+
+    let userId: string;
+    if (isCronBypass) {
+      userId = internalUserId!;
+    } else {
+      const authResult = await getAuthUserId();
+      if (!isUserId(authResult)) return authResult;
+      userId = authResult;
+    }
 
     const body = (await req.json()) as { text?: string; imageBase64?: string; imageMimeType?: string };
     const { imageBase64, imageMimeType } = body;

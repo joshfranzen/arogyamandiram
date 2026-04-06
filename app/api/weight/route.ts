@@ -6,7 +6,7 @@ import { NextRequest } from 'next/server';
 import connectDB from '@/lib/db';
 import DailyLog from '@/models/DailyLog';
 import { maskedResponse, errorResponse } from '@/lib/apiMask';
-import { getAuthUserId, isUserId } from '@/lib/session';
+import { getAuthUserId, getAuthUserIdWithBypass, isUserId } from '@/lib/session';
 import { getToday, toLocalDateString } from '@/lib/utils';
 import { awardDailyXp } from '@/lib/xp';
 
@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
 // POST /api/weight - Log today's weight
 export async function POST(req: NextRequest) {
   try {
-    const userId = await getAuthUserId();
+    const userId = await getAuthUserIdWithBypass(req);
     if (!isUserId(userId)) return userId;
 
     const { date, weight } = await req.json();

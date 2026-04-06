@@ -33,6 +33,48 @@ export interface UserApiKeys {
   fdcApiKey?: string;    // AES-256 encrypted — USDA FoodData Central
 }
 
+export interface SmtpSettings {
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  pass: string;      // AES-256 encrypted on server; never sent to client
+  fromName: string;
+}
+
+export interface ImapSettings {
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  pass: string;      // AES-256 encrypted on server; never sent to client
+}
+
+export interface EmailSettings {
+  smtp?: SmtpSettings;
+  imap?: ImapSettings;
+}
+
+export interface ReminderScheduleSettings {
+  timezone?: string;
+  waterHourlyEnabled?: boolean;
+  mealTimes?: {
+    breakfast?: string;
+    lunch?: string;
+    dinner?: string;
+  };
+  sleepTime?: string;
+  lastSentAt?: {
+    water?: string;
+    breakfast?: string;
+    lunch?: string;
+    dinner?: string;
+    workout?: string;
+    weighIn?: string;
+    sleep?: string;
+  };
+}
+
 export interface UserSettings {
   theme: 'dark' | 'light';
   units: UnitSystem;
@@ -41,6 +83,7 @@ export interface UserSettings {
     meals: boolean;
     weighIn: boolean;
     workout: boolean;
+    sleep?: boolean;
   };
   /** Whether the main dashboard tour has been completed at least once. */
   dashboardTourComplete?: boolean;
@@ -50,6 +93,24 @@ export interface UserSettings {
    * and you want to re-show the tour once.
    */
   dashboardTourVersion?: number;
+  /** SMTP/IMAP configuration for email reminders. Passwords are server-only. */
+  emailSettings?: EmailSettings;
+  /** Recipient list for reminder emails. */
+  recipientEmails?: string[];
+  /** Legacy key kept for backward compatibility. */
+  ccEmails?: string[];
+  /** Reminder schedule controls (timezone-aware). */
+  reminderSchedule?: ReminderScheduleSettings;
+  /** Status of SMTP/IMAP configuration checks shown in Preferences checklist. */
+  emailSetupChecklist?: {
+    smtpSaved?: boolean;
+    smtpTestSent?: boolean;
+    imapSaved?: boolean;
+    imapTestSent?: boolean;
+    recipientListSaved?: boolean;
+    imapReplyVerifiedAt?: string;
+    lastUpdatedAt?: string;
+  };
 }
 
 export interface UserTargets {
@@ -279,6 +340,10 @@ export interface SafeUser {
   onboardingComplete: boolean;
   hasOpenAiKey: boolean;    // boolean only, never the actual key
   hasFdcKey: boolean;       // boolean only
+  hasSmtp: boolean;         // true if SMTP is configured
+  hasImap: boolean;         // true if IMAP is configured
+  smtpUser?: string;        // display username only (no password)
+  imapUser?: string;        // display username only (no password)
   createdAt?: string;      // ISO date string, for "at least one week" checks
 }
 
