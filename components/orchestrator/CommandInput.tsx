@@ -134,7 +134,7 @@ export default function CommandInput({ onSubmit, disabled, open }: CommandInputP
   const hasContent = text.trim().length > 0 || !!image;
 
   return (
-    <div className="px-3 pb-0 pt-2">
+    <div className="px-3 pb-2 pt-2">
       {/* Image preview */}
       {image && (
         <div className="mb-2 flex items-center gap-2 px-1">

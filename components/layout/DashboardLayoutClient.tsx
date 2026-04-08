@@ -99,18 +99,23 @@ function DashboardLayoutInner({ children }: { children: ReactNode }) {
       <MobileNav />
       <main
         className={cn(
-          'min-h-full pb-[max(3.25rem,calc(var(--sab,env(safe-area-inset-bottom,0px))+2.5rem))] lg:pb-0 lg:pt-0 transition-[padding-left] duration-300',
+          'min-h-full transition-[padding-left] duration-300',
+          pathname !== '/ai' && 'pb-[max(3.25rem,calc(var(--sab,env(safe-area-inset-bottom,0px))+2.5rem))] lg:pb-0 lg:pt-0',
           sidebarCollapsed ? 'lg:pl-[64px] sidebar-collapsed' : 'lg:pl-[232px]',
         )}
         style={{ paddingRight: rightOpen && pathname !== '/ai' ? `${sidebarWidth}px` : undefined }}
       >
-        <div
-          className="w-full px-4 pt-3 pb-0 sm:px-6 sm:pt-8 sm:pb-4 lg:px-6 lg:pt-8"
-          style={{ paddingTop: 'calc(var(--sat, env(safe-area-inset-top, 0px)) + 0.75rem)' }}
-        >
-          {showTour && <DashboardTour onClose={() => setShowTour(false)} />}
-          {children}
-        </div>
+        {pathname === '/ai' ? (
+          children
+        ) : (
+          <div
+            className="w-full px-4 pt-3 pb-0 sm:px-6 sm:pt-8 sm:pb-4 lg:px-6 lg:pt-8"
+            style={{ paddingTop: 'calc(var(--sat, env(safe-area-inset-top, 0px)) + 0.75rem)' }}
+          >
+            {showTour && <DashboardTour onClose={() => setShowTour(false)} />}
+            {children}
+          </div>
+        )}
       </main>
       {pathname !== '/ai' && <OrchestratorToggleButton />}
       {pathname !== '/ai' && <OrchestratorSidebar />}
