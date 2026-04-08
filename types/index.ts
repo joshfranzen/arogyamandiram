@@ -12,6 +12,9 @@ export type Goal = 'lose' | 'maintain' | 'gain';
 export type UnitSystem = 'metric' | 'imperial';
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 export type WorkoutCategory = 'cardio' | 'strength' | 'flexibility' | 'sports' | 'other';
+export type BodyType = 'ectomorph' | 'mesomorph' | 'endomorph';
+export type FitnessLevel = 'beginner' | 'intermediate' | 'advanced';
+export type FatFocusArea = 'belly' | 'thighs' | 'arms' | 'chest' | 'overall';
 
 export interface UserProfile {
   name: string;
@@ -26,13 +29,58 @@ export interface UserProfile {
   goal: Goal;
   targetWeight: number;
   avatarUrl?: string;
+  // Body composition — used for AI plan personalization
+  bodyType?: BodyType;
+  bodyFat?: number;             // body fat percentage
+  fatFocusAreas?: FatFocusArea[];
+  fitnessLevelDerived?: FitnessLevel; // auto-calculated from workout logs
+  fitnessLevelUser?: FitnessLevel;    // optional manual override
 }
 
 export interface UserApiKeys {
   openai?: string;       // AES-256 encrypted
-  edamam?: {
-    appId: string;       // AES-256 encrypted
-    appKey: string;      // AES-256 encrypted
+  fdcApiKey?: string;    // AES-256 encrypted — USDA FoodData Central
+}
+
+export interface SmtpSettings {
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  pass: string;      // AES-256 encrypted on server; never sent to client
+  fromName: string;
+}
+
+export interface ImapSettings {
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  pass: string;      // AES-256 encrypted on server; never sent to client
+}
+
+export interface EmailSettings {
+  smtp?: SmtpSettings;
+  imap?: ImapSettings;
+}
+
+export interface ReminderScheduleSettings {
+  timezone?: string;
+  waterHourlyEnabled?: boolean;
+  mealTimes?: {
+    breakfast?: string;
+    lunch?: string;
+    dinner?: string;
+  };
+  sleepTime?: string;
+  lastSentAt?: {
+    water?: string;
+    breakfast?: string;
+    lunch?: string;
+    dinner?: string;
+    workout?: string;
+    weighIn?: string;
+    sleep?: string;
   };
 }
 
@@ -44,6 +92,7 @@ export interface UserSettings {
     meals: boolean;
     weighIn: boolean;
     workout: boolean;
+    sleep?: boolean;
   };
   /** Whether the main dashboard tour has been completed at least once. */
   dashboardTourComplete?: boolean;
@@ -53,6 +102,24 @@ export interface UserSettings {
    * and you want to re-show the tour once.
    */
   dashboardTourVersion?: number;
+  /** SMTP/IMAP configuration for email reminders. Passwords are server-only. */
+  emailSettings?: EmailSettings;
+  /** Recipient list for reminder emails. */
+  recipientEmails?: string[];
+  /** Legacy key kept for backward compatibility. */
+  ccEmails?: string[];
+  /** Reminder schedule controls (timezone-aware). */
+  reminderSchedule?: ReminderScheduleSettings;
+  /** Status of SMTP/IMAP configuration checks shown in Preferences checklist. */
+  emailSetupChecklist?: {
+    smtpSaved?: boolean;
+    smtpTestSent?: boolean;
+    imapSaved?: boolean;
+    imapTestSent?: boolean;
+    recipientListSaved?: boolean;
+    imapReplyVerifiedAt?: string;
+    lastUpdatedAt?: string;
+  };
 }
 
 export interface UserTargets {
@@ -219,14 +286,20 @@ export interface IDailyLog {
 
 // ---------- Food Database Types ----------
 
+/** A single serving option for a food, e.g. { label: "1 large", grams: 50 } */
+export interface FoodMeasure {
+  label: string;  // display label, e.g. "1 large", "1 cup", "1 tbsp"
+  grams: number;  // gram (or ml) equivalent of 1 unit of this measure
+}
+
 export interface FoodItem {
   id: string;
   name: string;
   nameHindi?: string;
   category: FoodCategory;
-  servingSize: number;
-  servingUnit: string;
-  calories: number;       // per serving
+  servingSize: number;    // always 100 — nutritional values are per 100g/ml
+  servingUnit: string;    // 'g' or 'ml'
+  calories: number;       // per 100g/ml
   protein: number;
   carbs: number;
   fat: number;
@@ -234,6 +307,7 @@ export interface FoodItem {
   isVegetarian: boolean;
   isVegan: boolean;
   tags: string[];
+  measures?: FoodMeasure[]; // natural serving options from USDA (e.g. 1 egg, 1 cup)
 }
 
 export type FoodCategory =
@@ -274,7 +348,11 @@ export interface SafeUser {
   targets: UserTargets;
   onboardingComplete: boolean;
   hasOpenAiKey: boolean;    // boolean only, never the actual key
-  hasEdamamKey: boolean;    // boolean only
+  hasFdcKey: boolean;       // boolean only
+  hasSmtp: boolean;         // true if SMTP is configured
+  hasImap: boolean;         // true if IMAP is configured
+  smtpUser?: string;        // display username only (no password)
+  imapUser?: string;        // display username only (no password)
   createdAt?: string;      // ISO date string, for "at least one week" checks
 }
 
@@ -295,15 +373,56 @@ export interface AiMealSuggestion {
 export interface AiWorkoutPlan {
   name: string;
   description: string;
+  progressionTip?: string;
+  reasoning?: string;
   exercises: {
     name: string;
     sets: number;
     reps: string;
+    durationMinutes?: number;
     restSeconds: number;
+    intensity?: 'low' | 'medium' | 'high';
     category: WorkoutCategory;
   }[];
   estimatedCalories: number;
   durationMinutes: number;
+}
+
+export interface DailyPlanData {
+  _id: string;
+  date: string;
+  generatedAt: string;
+  status: 'generating' | 'ready' | 'failed';
+  topInsight?: string;
+  foodPlan?: {
+    suggestions: AiMealSuggestion[];
+    reasoning?: string;
+  };
+  workoutPlan?: AiWorkoutPlan & { reasoning?: string };
+  prediction?: {
+    weeklyWeightChangeKg: number;
+    projectedWeightKg: number;
+    basis: string;
+  };
+  fitnessLevelDerived?: FitnessLevel;
+  feedback?: {
+    workoutDifficulty?: 'too_easy' | 'just_right' | 'too_hard';
+    skippedWorkoutReason?: 'no_time' | 'tired' | 'injury' | 'other';
+    dislikedFoods?: string[];
+    replacedMeals?: { original: string; replacement: string }[];
+    submittedAt?: string;
+  };
+  generationContext?: {
+    yesterdayProteinG?: number;
+    proteinGapG?: number;
+    yesterdayCalories?: number;
+    calorieGap?: number;
+    recentWorkoutsPerWeek?: number;
+    avgWorkoutDurationMin?: number;
+  };
+  yesterdayFeedback?: {
+    workoutDifficulty?: 'too_easy' | 'just_right' | 'too_hard';
+  };
 }
 
 export interface AiInsight {

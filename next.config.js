@@ -3,8 +3,9 @@ const nextConfig = {
   reactStrictMode: true,
   // Default NextAuth URL in development so auth works without .env
   env: {
-    NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3000',
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:30000',
   },
+  devIndicators: false,
   images: {
     domains: ['lh3.googleusercontent.com', 'avatars.githubusercontent.com'],
   },

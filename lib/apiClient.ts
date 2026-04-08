@@ -83,12 +83,6 @@ export const api = {
   // Auth & User
   getUser: () => apiFetch('/user'),
 
-  updateProfile: (profile: Record<string, unknown>) =>
-    apiFetch('/user', {
-      method: 'PUT',
-      body: JSON.stringify({ profile }),
-    }),
-
   /** Update user profile and/or username in one request. */
   updateUser: (body: { profile?: Record<string, unknown>; username?: string }) =>
     apiFetch('/user', {
@@ -115,10 +109,50 @@ export const api = {
     }),
 
   // API Keys (sent via dedicated secure endpoint)
-  saveApiKeys: (keys: { openai?: string; edamamAppId?: string; edamamAppKey?: string }) =>
+  saveApiKeys: (keys: { openai?: string; fdcApiKey?: string }) =>
     apiFetch('/user/api-keys', {
       method: 'PUT',
       body: JSON.stringify(keys),
+    }),
+
+  // Email Settings (SMTP + IMAP — passwords are encrypted server-side)
+  saveEmailSettings: (body: {
+    smtp?: {
+      host?: string; port?: number; secure?: boolean;
+      user?: string; pass?: string; fromName?: string;
+    };
+    imap?: {
+      host?: string; port?: number; secure?: boolean;
+      user?: string; pass?: string;
+    };
+  }) =>
+    apiFetch('/user/email-settings', {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+
+  deleteEmailSettings: (type: 'smtp' | 'imap') =>
+    apiFetch('/user/email-settings', {
+      method: 'DELETE',
+      body: JSON.stringify({ type }),
+    }),
+
+  testEmailReminder: (reminderType: string) =>
+    apiFetch('/email/send-reminder', {
+      method: 'POST',
+      body: JSON.stringify({ reminderType }),
+    }),
+
+  sendEmailTest: (testMode: 'smtp_test' | 'imap_test') =>
+    apiFetch('/email/send-reminder', {
+      method: 'POST',
+      body: JSON.stringify({ testMode }),
+    }),
+
+  verifyImapTestReply: () =>
+    apiFetch<{ verified: boolean; verifiedAt?: string; checked?: boolean }>('/email/verify-imap', {
+      method: 'POST',
+      body: JSON.stringify({}),
     }),
 
   // Food Search
@@ -137,12 +171,6 @@ export const api = {
 
   getRecentFoods: (limit: number = 30, days: number = 60) =>
     apiFetch(`/daily-log/recent-foods?limit=${limit}&days=${days}`),
-
-  createOrUpdateLog: (date: string, data: Record<string, unknown>) =>
-    apiFetch('/daily-log', {
-      method: 'POST',
-      body: JSON.stringify({ date, ...data }),
-    }),
 
   // Water
   addWater: (date: string, amount: number) =>
@@ -178,31 +206,12 @@ export const api = {
     return apiFetch(`/daily-log/meal?${new URLSearchParams(params).toString()}`, { method: 'DELETE' });
   },
 
-  aiFoodLogger: (text: string) =>
-    apiFetch<{
-      items: Record<string, unknown>[];
-      total?: Record<string, unknown>;
-      debugLog?: unknown;
-    }>('/ai/food-logger', {
-      method: 'POST',
-      body: JSON.stringify({ text }),
-    }),
-
-  aiWorkoutLogger: (text: string) =>
-    apiFetch<{ workouts: Record<string, unknown>[]; debugLog?: unknown }>('/ai/workout-logger', {
-      method: 'POST',
-      body: JSON.stringify({ text }),
-    }),
-
   // Workouts
   addWorkout: (date: string, workout: Record<string, unknown>) =>
     apiFetch('/workouts', {
       method: 'POST',
       body: JSON.stringify({ date, workout }),
     }),
-
-  getWorkoutExercises: (days: number = 90) =>
-    apiFetch(`/workouts/exercises?days=${days}`),
 
   updateWorkout: (date: string, workoutId: string, workout: Record<string, unknown>) =>
     apiFetch('/workouts', {
@@ -230,31 +239,6 @@ export const api = {
     apiFetch(`/sleep?days=${days}`),
 
   // AI
-  getMealSuggestions: (params: { selectedMealTypes: string[]; preferences?: string }) =>
-    apiFetch<{ suggestions: Array<{
-      name: string;
-      description: string;
-      calories: number;
-      protein: number;
-      carbs: number;
-      fat: number;
-      mealType: string;
-      ingredients: string[];
-      isVegetarian: boolean;
-    }>; debugLog?: unknown }>('/ai/meal-ideas', {
-      method: 'POST',
-      body: JSON.stringify({
-        selectedMealTypes: params.selectedMealTypes,
-        preferences: params.preferences ?? '',
-      }),
-    }),
-
-  getWorkoutPlan: (context: Record<string, unknown>) =>
-    apiFetch<{ plan?: Record<string, unknown>; debugLog?: unknown }>('/ai/recommendations', {
-      method: 'POST',
-      body: JSON.stringify({ type: 'workout', ...context }),
-    }),
-
   getInsightsEligibility: () =>
     apiFetch('/ai/insights-eligibility'),
 
@@ -264,10 +248,28 @@ export const api = {
       body: JSON.stringify({ type: 'insights', ...params }),
     }),
 
-  getSleepTips: () =>
-    apiFetch('/ai/recommendations', {
+  // Daily Plan
+  getTodaysPlan: (date?: string) =>
+    apiFetch<{ plan: Record<string, unknown> | null; todayLog: Record<string, unknown> | null; yesterdayFeedback: Record<string, unknown> | null }>(
+      `/ai/daily-plan${date ? `?date=${date}` : ''}`
+    ),
+
+  generatePlanNow: (type?: 'food' | 'workout' | 'overview' | 'full') =>
+    apiFetch<{ plan: Record<string, unknown> }>('/ai/daily-plan', {
       method: 'POST',
-      body: JSON.stringify({ type: 'sleep' }),
+      body: JSON.stringify({ type: type ?? 'full' }),
+    }),
+
+  submitPlanFeedback: (data: {
+    date: string;
+    workoutDifficulty?: string;
+    skippedWorkoutReason?: string;
+    dislikedFoods?: string[];
+    replacedMeals?: { original: string; replacement: string }[];
+  }) =>
+    apiFetch<{ success: boolean }>('/ai/daily-plan/feedback', {
+      method: 'POST',
+      body: JSON.stringify(data),
     }),
 
   generateHealthPlan: () =>
@@ -285,6 +287,17 @@ export const api = {
     apiFetch('/user/onboarding', {
       method: 'POST',
       body: JSON.stringify(data),
+    }),
+
+  // AI Orchestrator
+  callOrchestrator: (text: string, imageBase64?: string, imageMimeType?: string) =>
+    apiFetch<{
+      tool: string;
+      result: Record<string, unknown>;
+      debugLog: Record<string, unknown>;
+    }>('/ai/orchestrator', {
+      method: 'POST',
+      body: JSON.stringify({ text, imageBase64, imageMimeType }),
     }),
 };
 

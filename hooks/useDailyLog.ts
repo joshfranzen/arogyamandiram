@@ -99,6 +99,13 @@ export function useDailyLog(date?: string) {
 
   const refetch = useCallback(() => fetchLog(true), [fetchLog]);
 
+  // Refresh when the orchestrator logs something
+  useEffect(() => {
+    const handler = () => fetchLog(true);
+    window.addEventListener('orchestrator:log-updated', handler);
+    return () => window.removeEventListener('orchestrator:log-updated', handler);
+  }, [fetchLog]);
+
   // If the page stays open across midnight, automatically refresh the log
   useEffect(() => {
     const now = new Date();

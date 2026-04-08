@@ -1,8 +1,8 @@
 ---
 state: populated
 created: 2026-03-26
-last_updated: 2026-03-26
-last_read: 2026-03-26
+last_updated: 2026-04-07
+last_read: 2026-04-07
 updated_by: claude-sonnet-4-6
 staleness_days: 3
 ---
@@ -19,8 +19,8 @@ staleness_days: 3
 
 | Section | Last Updated | Updated By | Stale After | Status |
 |---------|-------------|------------|-------------|--------|
-| context/ | 2026-03-26 | claude-sonnet-4-6 | 3 days | Current |
-| agents/ | 2026-03-26 | claude-sonnet-4-6 | 7 days | Current |
+| context/ | 2026-04-07 | claude-sonnet-4-6 | 3 days | Current |
+| agents/ | 2026-03-26 | claude-sonnet-4-6 | 7 days | Stale |
 | skills/ | 2026-03-26 | claude-sonnet-4-6 | 10 days | Current |
 | rules/ | 2026-03-26 | claude-sonnet-4-6 | 14 days | Current |
 | commands/ | 2026-03-26 | claude-sonnet-4-6 | 14 days | Current |
@@ -44,7 +44,7 @@ staleness_days: 3
 - All API routes check **`getServerSession(authOptions)`** first — 401 if missing
 - Dashboard cards use **`dashboard-unified-card`** class — do not invent new card classes
 - App runs locally on **port 30000** (not 3000)
-- Current branch: `feature/dev-01-uiux-sprint-march-8th` (UI/UX standardization)
+- Current branch: `feature/dev-01-minor-updates-sprint-mar-26` (email reminders, AI daily plans, cleanup)
 
 ---
 

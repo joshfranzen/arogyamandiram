@@ -87,6 +87,11 @@ export default function SleepPage() {
     fetchHistory();
   }, [fetchHistory]);
 
+  useEffect(() => {
+    window.addEventListener('orchestrator:log-updated', fetchHistory);
+    return () => window.removeEventListener('orchestrator:log-updated', fetchHistory);
+  }, [fetchHistory]);
+
   // Pre-fill form from today's log
   useEffect(() => {
     if (currentSleep) {

@@ -64,20 +64,28 @@ export async function GET(req: NextRequest) {
 
     if (page != null && page !== '' && agent != null && agent !== '') {
       const logs: unknown[] = [];
-      const agentDir = getAgentDir(userLogId, page, agent);
-      try {
-        const names = await fs.readdir(agentDir);
-        const jsonNames = names.filter((n) => n.endsWith('.json'));
-        for (const name of jsonNames) {
-          try {
-            const raw = await fs.readFile(path.join(agentDir, name), 'utf-8');
-            logs.push(JSON.parse(raw));
-          } catch {
-            // skip
+
+      // Read from both username folder and raw userId folder (logs may be written under either)
+      const dirsToCheck = Array.from(new Set([
+        getAgentDir(userLogId, page, agent),
+        getAgentDir(userId, page, agent),
+      ]));
+
+      for (const agentDir of dirsToCheck) {
+        try {
+          const names = await fs.readdir(agentDir);
+          const jsonNames = names.filter((n) => n.endsWith('.json'));
+          for (const name of jsonNames) {
+            try {
+              const raw = await fs.readFile(path.join(agentDir, name), 'utf-8');
+              logs.push(JSON.parse(raw));
+            } catch {
+              // skip
+            }
           }
+        } catch {
+          // Dir doesn't exist
         }
-      } catch {
-        // Dir doesn't exist
       }
       // Legacy: flat .debug-logs/{userLogId}/*.json or old .debug-logs/*.json (no user prefix)
       if (page === 'food' && agent === 'meal-ideas') {

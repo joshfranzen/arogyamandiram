@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import {
   Dumbbell,
   Pencil,
-  Plus,
   Trash2,
   Flame,
   Clock,
@@ -15,7 +14,6 @@ import {
   TrendingUp,
   Timer,
   Zap,
-  Sparkles,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -31,10 +29,6 @@ import DashboardPageShell from '@/components/layout/DashboardPageShell';
 import ProgressRing from '@/components/ui/ProgressRing';
 import StatCard from '@/components/ui/StatCard';
 import WorkoutCard from '@/components/ui/workout-card';
-import { Button } from '@/components/ui/button';
-import AddWorkoutModal from '@/components/workout/AddWorkoutModal';
-import AIWorkoutLoggerModal from '@/components/workout/AIWorkoutLoggerModal';
-import AIWorkoutPlanModal from '../../../components/workout/AIWorkoutPlanModal';
 import EditWorkoutModal, { type WorkoutEntryForEdit } from '@/components/workout/EditWorkoutModal';
 import { CardSkeleton } from '@/components/ui/Skeleton';
 import { showToast } from '@/components/ui/Toast';
@@ -84,11 +78,6 @@ interface WorkoutHistoryPoint {
 export default function WorkoutPage() {
   const { user } = useUser();
   const { log, loading, refetch } = useDailyLog();
-  const [showAdd, setShowAdd] = useState(false);
-  const [adding, setAdding] = useState(false);
-  const [showPlan, setShowPlan] = useState(false);
-  const [showAiLogger, setShowAiLogger] = useState(false);
-  const [addingFromAi, setAddingFromAi] = useState(false);
   const [editingWorkout, setEditingWorkout] = useState<WorkoutEntryForEdit | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -100,16 +89,6 @@ export default function WorkoutPage() {
   const totalBurned = log?.caloriesBurned || 0;
   const totalDuration = workouts.reduce((s, w) => s + (w.duration || 0), 0);
   const totalSets = workouts.reduce((s, w) => s + (w.sets || 0), 0);
-
-  const saveDebugLog = (agent: 'ai-logger' | 'workout-planner', debugLog: unknown) => {
-    if (process.env.NEXT_PUBLIC_DEBUG_MODE !== 'true') return;
-    fetch('/api/debug-logs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ page: 'workout', agent, log: debugLog }),
-      credentials: 'include',
-    }).catch(() => {});
-  };
 
   // Fetch workout history (last 7 days)
   useEffect(() => {
@@ -131,76 +110,6 @@ export default function WorkoutPage() {
     acc[cat].duration += w.duration || 0;
     return acc;
   }, {});
-
-  const handleAdd = async (workout: Record<string, unknown>) => {
-    setAdding(true);
-    try {
-      const res = await api.addWorkout(today, workout);
-      if (res.success) {
-        const data = res.data as { isPr?: boolean } | undefined;
-        const name = typeof workout.exercise === 'string' ? workout.exercise : 'Workout';
-        if (data?.isPr) {
-          showToast(`${name} added – new personal record!`, 'success');
-        } else {
-          showToast(`${name} added!`, 'success');
-        }
-        setShowAdd(false);
-        refetch();
-      } else {
-        showToast(res.error || 'Failed to add workout', 'error');
-      }
-    } catch {
-      showToast('Failed to add workout', 'error');
-    } finally {
-      setAdding(false);
-    }
-  };
-
-  const handleAddFromAi = async (
-    aiWorkouts: {
-      exercise: string;
-      category: string;
-      duration: number;
-      caloriesBurned: number;
-      sets?: number;
-      reps?: number;
-      weight?: number;
-      notes?: string;
-    }[],
-  ) => {
-    if (!aiWorkouts || aiWorkouts.length === 0) return;
-    setAddingFromAi(true);
-    try {
-      let successCount = 0;
-
-      for (const workout of aiWorkouts) {
-        const res = await api.addWorkout(today, workout as unknown as Record<string, unknown>);
-        if (res.success) {
-          successCount += 1;
-        } else {
-          showToast(
-            res.error || `Failed to add ${workout.exercise || 'workout'}`,
-            'error',
-          );
-        }
-      }
-
-      if (successCount > 0) {
-        if (successCount === 1) {
-          const name = aiWorkouts[0].exercise || 'Workout';
-          showToast(`${name} added!`, 'success');
-        } else {
-          showToast(`${successCount} workouts added!`, 'success');
-        }
-        setShowAiLogger(false);
-        refetch();
-      }
-    } catch {
-      showToast('Failed to add AI workouts', 'error');
-    } finally {
-      setAddingFromAi(false);
-    }
-  };
 
   const handleEditSave = async (updated: Omit<WorkoutEntryForEdit, 'id'>) => {
     if (!editingWorkout) return;
@@ -305,49 +214,15 @@ export default function WorkoutPage() {
     return result;
   })();
 
-  const actionButtons = (
-    <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 sm:mx-0 sm:pb-0 sm:overflow-visible sm:justify-end">
-      <Button
-        onClick={() => setShowAdd(true)}
-        variant="secondary"
-        className="flex shrink-0 items-center gap-2"
-      >
-        <Plus className="h-4 w-4" />
-        Add Workout
-      </Button>
-      <Button
-        onClick={() => setShowPlan(true)}
-        variant="secondary"
-        className="flex shrink-0 items-center gap-2"
-      >
-        <Dumbbell className="h-4 w-4" />
-        Workout Plan
-      </Button>
-      <Button
-        onClick={() => setShowAiLogger(true)}
-        variant="secondary"
-        className="flex shrink-0 items-center gap-2"
-      >
-        <Sparkles className="h-4 w-4" />
-        AI Logger
-      </Button>
-    </div>
-  );
-
   return (
     <div className="workout-page animate-fade-in flex flex-col max-lg:mobile-dash cards-stack-desktop">
       <DashboardPageShell
         title="Workouts"
         subtitle="Build consistency with every session"
         icon={Dumbbell}
-        rightDesktop={actionButtons}
         mobileVariant="card"
         mobileCardClassName="dashboard-unified-card border text-text-primary"
       />
-
-      <div className="mobile-fade-up mobile-dash-px lg:hidden">
-        {actionButtons}
-      </div>
 
       {/* Stats */}
       <div className="mobile-fade-up mobile-dash-px lg:px-0">
@@ -400,14 +275,7 @@ export default function WorkoutPage() {
                   <Dumbbell className="h-7 w-7 text-text-muted" />
                 </div>
                 <p className="text-sm text-text-muted">No workouts logged today</p>
-                <p className="text-xs text-text-muted">Track your exercises to see calories burned</p>
-                <Button
-                  onClick={() => setShowAdd(true)}
-                  variant="primary"
-                  className="mt-2"
-                >
-                  Add your first workout
-                </Button>
+                <p className="text-xs text-text-muted">Use the AI Assistant to log workouts</p>
               </div>
             ) : (
               <div className="flex-1 space-y-3 overflow-y-auto hide-scrollbar">
@@ -727,27 +595,6 @@ export default function WorkoutPage() {
       </div>
 
       {/* Modals */}
-      {showAdd && (
-        <AddWorkoutModal
-          onClose={() => setShowAdd(false)}
-          onAdd={(workout) => handleAdd(workout as Record<string, unknown>)}
-          loading={adding}
-        />
-      )}
-      {showAiLogger && (
-        <AIWorkoutLoggerModal
-          onClose={() => setShowAiLogger(false)}
-          onAdd={handleAddFromAi}
-          onDebugLog={(logData) => saveDebugLog('ai-logger', logData)}
-          loading={addingFromAi}
-        />
-      )}
-      {showPlan && (
-        <AIWorkoutPlanModal
-          onClose={() => setShowPlan(false)}
-          onDebugLog={(logData) => saveDebugLog('workout-planner', logData)}
-        />
-      )}
       {editingWorkout && (
         <EditWorkoutModal
           workout={editingWorkout}

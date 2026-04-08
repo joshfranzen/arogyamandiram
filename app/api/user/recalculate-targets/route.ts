@@ -56,7 +56,7 @@ export async function POST() {
       { $set: { targets } },
       { new: true, runValidators: true }
     )
-      .select('+apiKeys.openai +apiKeys.edamam.appId +apiKeys.edamam.appKey')
+      .select('+apiKeys.openai +apiKeys.fdcApiKey')
       .lean();
 
     if (!updated) return errorResponse('User not found', 404);

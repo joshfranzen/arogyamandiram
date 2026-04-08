@@ -1,7 +1,6 @@
 // ============================================
 // /api/user/api-keys - Manage User API Keys
 // ============================================
-// Dedicated secure endpoint for API key management.
 // Keys are encrypted with AES-256 before storage.
 
 import { NextRequest } from 'next/server';
@@ -19,7 +18,7 @@ export async function PUT(req: NextRequest) {
     const userId = await getAuthUserId();
     if (!isUserId(userId)) return userId;
 
-    const { openai, edamamAppId, edamamAppKey } = await req.json();
+    const { openai, fdcApiKey } = await req.json();
 
     await connectDB();
 
@@ -28,19 +27,16 @@ export async function PUT(req: NextRequest) {
     if (openai !== undefined) {
       updateData['apiKeys.openai'] = openai ? encrypt(openai) : '';
     }
-
-    if (edamamAppId !== undefined && edamamAppKey !== undefined) {
-      updateData['apiKeys.edamam.appId'] = edamamAppId ? encrypt(edamamAppId) : '';
-      updateData['apiKeys.edamam.appKey'] = edamamAppKey ? encrypt(edamamAppKey) : '';
+    if (fdcApiKey !== undefined) {
+      updateData['apiKeys.fdcApiKey'] = fdcApiKey ? encrypt(fdcApiKey) : '';
     }
 
     await User.findByIdAndUpdate(userId, { $set: updateData });
 
-    // Return only boolean flags - NEVER return the actual keys
     return maskedResponse(
       {
         hasOpenAiKey: Boolean(openai),
-        hasEdamamKey: Boolean(edamamAppId && edamamAppKey),
+        hasFdcKey: Boolean(fdcApiKey),
       },
       { message: 'API keys saved securely' }
     );
@@ -56,7 +52,7 @@ export async function DELETE(req: NextRequest) {
     const userId = await getAuthUserId();
     if (!isUserId(userId)) return userId;
 
-    const { key } = await req.json(); // 'openai' or 'edamam'
+    const { key } = await req.json(); // 'openai' or 'fdc'
 
     await connectDB();
 
@@ -64,9 +60,8 @@ export async function DELETE(req: NextRequest) {
 
     if (key === 'openai') {
       updateData['apiKeys.openai'] = '';
-    } else if (key === 'edamam') {
-      updateData['apiKeys.edamam.appId'] = '';
-      updateData['apiKeys.edamam.appKey'] = '';
+    } else if (key === 'fdc') {
+      updateData['apiKeys.fdcApiKey'] = '';
     } else {
       return errorResponse('Invalid key type', 400);
     }
