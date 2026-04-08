@@ -20,7 +20,7 @@ export default function AIPage() {
   const isEmpty = conversation.length === 0;
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-3.25rem)] lg:h-[calc(100dvh-2rem)]">
+    <div className="flex flex-col h-[calc(100dvh-4rem)] lg:h-[calc(100dvh-2rem)]">
       {/* Header */}
       <div className="shrink-0 flex items-center gap-2.5 px-4 py-3 lg:py-4">
         <Sparkles className="h-4 w-4 text-emerald-400" />

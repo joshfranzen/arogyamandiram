@@ -94,9 +94,6 @@ function DashboardLayoutInner({ children }: { children: ReactNode }) {
   return (
     <div
       className="app-viewport hide-scrollbar fixed inset-0 overflow-y-auto overscroll-behavior-y-contain"
-      style={{
-        paddingTop: 'var(--sat, env(safe-area-inset-top, 0px))',
-      }}
     >
       <Sidebar collapsed={sidebarCollapsed} onCollapsedChange={setSidebarCollapsed} />
       <MobileNav />
@@ -107,7 +104,10 @@ function DashboardLayoutInner({ children }: { children: ReactNode }) {
         )}
         style={{ paddingRight: rightOpen && pathname !== '/ai' ? `${sidebarWidth}px` : undefined }}
       >
-        <div className="w-full px-4 pt-3 pb-0 sm:px-6 sm:pt-8 sm:pb-4 lg:px-6 lg:pt-8">
+        <div
+          className="w-full px-4 pt-3 pb-0 sm:px-6 sm:pt-8 sm:pb-4 lg:px-6 lg:pt-8"
+          style={{ paddingTop: 'calc(var(--sat, env(safe-area-inset-top, 0px)) + 0.75rem)' }}
+        >
           {showTour && <DashboardTour onClose={() => setShowTour(false)} />}
           {children}
         </div>

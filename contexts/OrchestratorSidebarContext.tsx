@@ -128,8 +128,11 @@ const OrchestratorSidebarContext = createContext<OrchestratorSidebarContextValue
 // ─── Provider ───────────────────────────────────────────────────────────────
 
 export function OrchestratorSidebarProvider({ children }: { children: ReactNode }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(232);
+  const [isOpen, setIsOpen] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('orchestratorSidebarOpen') === 'true';
+  });
+  const [sidebarWidth, setSidebarWidth] = useState(464);
   const [conversation, setConversation] = useState<ConversationEntry[]>([]);
   const { addOrchestratorLog } = useDebugLogs();
   const idCounterRef = useRef(0);
@@ -139,9 +142,9 @@ export function OrchestratorSidebarProvider({ children }: { children: ReactNode 
     return `orch-${Date.now()}-${idCounterRef.current}`;
   };
 
-  const openSidebar = useCallback(() => setIsOpen(true), []);
-  const closeSidebar = useCallback(() => setIsOpen(false), []);
-  const toggleSidebar = useCallback(() => setIsOpen((v) => !v), []);
+  const openSidebar = useCallback(() => { setIsOpen(true); localStorage.setItem('orchestratorSidebarOpen', 'true'); }, []);
+  const closeSidebar = useCallback(() => { setIsOpen(false); localStorage.setItem('orchestratorSidebarOpen', 'false'); }, []);
+  const toggleSidebar = useCallback(() => setIsOpen((v) => { const next = !v; localStorage.setItem('orchestratorSidebarOpen', String(next)); return next; }), []);
 
   const updateEntry = useCallback(
     (id: string, patch: Partial<ConversationEntry>) => {

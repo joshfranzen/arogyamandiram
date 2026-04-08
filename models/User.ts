@@ -58,6 +58,12 @@ const UserSchema = new Schema<IUserDocument>(
       },
       targetWeight: { type: Number, min: 20, max: 500 },
       avatarUrl: { type: String, default: '' },
+      // Body composition — used to personalize AI workout + nutrition plans
+      bodyType: { type: String, enum: ['ectomorph', 'mesomorph', 'endomorph'] },
+      bodyFat: { type: Number, min: 1, max: 60 },           // body fat percentage
+      fatFocusAreas: { type: [String], default: [] },        // max 3: belly/thighs/arms/chest/overall
+      fitnessLevelDerived: { type: String, enum: ['beginner', 'intermediate', 'advanced'] }, // auto from logs
+      fitnessLevelUser: { type: String, enum: ['beginner', 'intermediate', 'advanced'] },    // optional override
     },
     apiKeys: {
       openai:     { type: String, default: '', select: false },  // AES-256 encrypted

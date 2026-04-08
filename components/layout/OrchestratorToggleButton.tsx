@@ -1,21 +1,34 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useOrchestratorSidebar } from '@/contexts/OrchestratorSidebarContext';
 
 function CuteRedPandaFace() {
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src="/red-panda.png" alt="AI assistant" width={84} height={84} style={{ objectFit: 'contain' }} />
+    <img src="/red-panda.png" alt="AI assistant" width={84} height={84} style={{ objectFit: 'contain', width: '100%', height: '100%' }} />
   );
 }
 
 export default function OrchestratorToggleButton() {
   const { isOpen, toggleSidebar } = useOrchestratorSidebar();
+  const router = useRouter();
 
   if (isOpen) return null;
 
+  const handleClick = () => {
+    if (window.innerWidth < 1024) {
+      router.push('/ai');
+    } else {
+      toggleSidebar();
+    }
+  };
+
   return (
-    <div className="fixed z-[60] hidden lg:block select-none group" style={{ right: 20, bottom: 12 }}>
+    <div
+      className="fixed z-[60] select-none group bottom-[calc(var(--sab,env(safe-area-inset-bottom,0px))+64px)] lg:bottom-[calc(var(--sab,env(safe-area-inset-bottom,0px))+12px)]"
+      style={{ right: 20 }}
+    >
       {/* Dream thought bubble */}
       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 pointer-events-none opacity-0 group-hover:opacity-84 transition-opacity duration-300">
         <div style={{ paddingTop: 10 }}>
@@ -63,9 +76,9 @@ export default function OrchestratorToggleButton() {
       </div>
 
       <button
-        onClick={toggleSidebar}
+        onClick={handleClick}
         aria-label="Open AI assistant"
-        className="flex items-center justify-center w-[84px] h-[84px] cursor-pointer bg-transparent border-none p-0"
+        className="flex items-center justify-center w-[56px] h-[56px] lg:w-[84px] lg:h-[84px] cursor-pointer bg-transparent border-none p-0"
         style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.4))' }}
       >
         <CuteRedPandaFace />

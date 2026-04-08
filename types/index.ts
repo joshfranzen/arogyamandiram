@@ -12,6 +12,9 @@ export type Goal = 'lose' | 'maintain' | 'gain';
 export type UnitSystem = 'metric' | 'imperial';
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 export type WorkoutCategory = 'cardio' | 'strength' | 'flexibility' | 'sports' | 'other';
+export type BodyType = 'ectomorph' | 'mesomorph' | 'endomorph';
+export type FitnessLevel = 'beginner' | 'intermediate' | 'advanced';
+export type FatFocusArea = 'belly' | 'thighs' | 'arms' | 'chest' | 'overall';
 
 export interface UserProfile {
   name: string;
@@ -26,6 +29,12 @@ export interface UserProfile {
   goal: Goal;
   targetWeight: number;
   avatarUrl?: string;
+  // Body composition — used for AI plan personalization
+  bodyType?: BodyType;
+  bodyFat?: number;             // body fat percentage
+  fatFocusAreas?: FatFocusArea[];
+  fitnessLevelDerived?: FitnessLevel; // auto-calculated from workout logs
+  fitnessLevelUser?: FitnessLevel;    // optional manual override
 }
 
 export interface UserApiKeys {
@@ -364,15 +373,56 @@ export interface AiMealSuggestion {
 export interface AiWorkoutPlan {
   name: string;
   description: string;
+  progressionTip?: string;
+  reasoning?: string;
   exercises: {
     name: string;
     sets: number;
     reps: string;
+    durationMinutes?: number;
     restSeconds: number;
+    intensity?: 'low' | 'medium' | 'high';
     category: WorkoutCategory;
   }[];
   estimatedCalories: number;
   durationMinutes: number;
+}
+
+export interface DailyPlanData {
+  _id: string;
+  date: string;
+  generatedAt: string;
+  status: 'generating' | 'ready' | 'failed';
+  topInsight?: string;
+  foodPlan?: {
+    suggestions: AiMealSuggestion[];
+    reasoning?: string;
+  };
+  workoutPlan?: AiWorkoutPlan & { reasoning?: string };
+  prediction?: {
+    weeklyWeightChangeKg: number;
+    projectedWeightKg: number;
+    basis: string;
+  };
+  fitnessLevelDerived?: FitnessLevel;
+  feedback?: {
+    workoutDifficulty?: 'too_easy' | 'just_right' | 'too_hard';
+    skippedWorkoutReason?: 'no_time' | 'tired' | 'injury' | 'other';
+    dislikedFoods?: string[];
+    replacedMeals?: { original: string; replacement: string }[];
+    submittedAt?: string;
+  };
+  generationContext?: {
+    yesterdayProteinG?: number;
+    proteinGapG?: number;
+    yesterdayCalories?: number;
+    calorieGap?: number;
+    recentWorkoutsPerWeek?: number;
+    avgWorkoutDurationMin?: number;
+  };
+  yesterdayFeedback?: {
+    workoutDifficulty?: 'too_easy' | 'just_right' | 'too_hard';
+  };
 }
 
 export interface AiInsight {

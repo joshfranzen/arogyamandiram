@@ -7,49 +7,117 @@ import {
   Moon,
   Droplets,
   Utensils,
-  Sparkles,
+  Dumbbell,
+  Scale,
+  Star,
+  CalendarDays,
+  Settings,
+  MoreHorizontal,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useState } from 'react';
 
 const mobileNav = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/ai', icon: Sparkles, label: 'AI' },
   { href: '/sleep', icon: Moon, label: 'Sleep' },
   { href: '/water', icon: Droplets, label: 'Water' },
   { href: '/food', icon: Utensils, label: 'Food' },
 ];
 
+const moreNav = [
+  { href: '/workout', icon: Dumbbell, label: 'Workout' },
+  { href: '/weight', icon: Scale, label: 'Weight' },
+  { href: '/achievements', icon: Star, label: 'Achievements' },
+  { href: '/ai-insights', icon: CalendarDays, label: "Today's Plan" },
+  { href: '/settings', icon: Settings, label: 'Settings' },
+];
+
 export default function MobileNav() {
   const pathname = usePathname();
+  const [showMore, setShowMore] = useState(false);
+
+  const isMoreActive = moreNav.some(
+    (item) => pathname === item.href || pathname.startsWith(item.href + '/')
+  );
 
   return (
-    <nav
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/[0.06] lg:hidden"
-      style={{
-        background: 'linear-gradient(160deg, #111712 0%, #0c1410 100%)',
-        paddingBottom: 'var(--sab, env(safe-area-inset-bottom, 0px))',
-      }}
-    >
-      <div className="flex items-center justify-around py-1.5">
-        {mobileNav.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'flex flex-1 items-center justify-center py-2 transition-colors',
-                isActive ? 'text-emerald-400' : 'text-zinc-400'
-              )}
-            >
-              <item.icon
-                aria-label={item.label}
-                className={cn('h-5 w-5', isActive && 'text-emerald-400')}
-              />
-            </Link>
-          );
-        })}
-      </div>
-    </nav>
+    <>
+      {/* More sheet */}
+      {showMore && (
+        <>
+          <div
+            className="fixed inset-0 z-[48] bg-black/40"
+            onClick={() => setShowMore(false)}
+          />
+          <div
+            className="fixed bottom-[calc(var(--sab,env(safe-area-inset-bottom,0px))+3.25rem)] left-0 right-0 z-[49] rounded-t-2xl border-t border-white/[0.06] px-4 py-4 grid grid-cols-4 gap-3"
+            style={{ background: 'linear-gradient(160deg, #111712 0%, #0c1410 100%)' }}
+          >
+            {moreNav.map((item) => {
+              const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setShowMore(false)}
+                  className="flex flex-col items-center gap-1.5 py-2"
+                >
+                  <item.icon
+                    className={cn('h-5 w-5', isActive ? 'text-emerald-400' : 'text-zinc-400')}
+                  />
+                  <span className={cn('text-[11px]', isActive ? 'text-emerald-400' : 'text-zinc-500')}>
+                    {item.label}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/[0.06] lg:hidden"
+        style={{
+          background: 'linear-gradient(160deg, #111712 0%, #0c1410 100%)',
+          paddingBottom: 'var(--sab, env(safe-area-inset-bottom, 0px))',
+        }}
+      >
+        <div className="flex items-center justify-around py-1.5">
+          {mobileNav.map((item) => {
+            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  'flex flex-1 items-center justify-center py-2 transition-colors',
+                  isActive ? 'text-emerald-400' : 'text-zinc-400'
+                )}
+              >
+                <item.icon
+                  aria-label={item.label}
+                  className={cn('h-5 w-5', isActive && 'text-emerald-400')}
+                />
+              </Link>
+            );
+          })}
+
+          <button
+            onClick={() => setShowMore((v) => !v)}
+            className={cn(
+              'flex flex-1 items-center justify-center py-2 transition-colors',
+              showMore || isMoreActive ? 'text-emerald-400' : 'text-zinc-400'
+            )}
+          >
+            {showMore ? (
+              <X className="h-5 w-5" />
+            ) : (
+              <MoreHorizontal className="h-5 w-5" />
+            )}
+          </button>
+        </div>
+      </nav>
+    </>
   );
 }

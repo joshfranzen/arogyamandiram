@@ -410,8 +410,8 @@ export default function FoodLogPage() {
               </div>
             ) : results.length > 0 ? (
               <div className="space-y-2">
-                <p className="mb-3 text-xs text-neutral-400">{results.length} results</p>
-                {results.map((food) => (
+                <p className="mb-3 text-xs text-neutral-400">{Math.min(results.length, 5)} of {results.length} results</p>
+                {results.slice(0, 5).map((food) => (
                   <FoodResultCard
                     key={food.id}
                     food={food}

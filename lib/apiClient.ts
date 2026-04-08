@@ -248,6 +248,30 @@ export const api = {
       body: JSON.stringify({ type: 'insights', ...params }),
     }),
 
+  // Daily Plan
+  getTodaysPlan: (date?: string) =>
+    apiFetch<{ plan: Record<string, unknown> | null; todayLog: Record<string, unknown> | null; yesterdayFeedback: Record<string, unknown> | null }>(
+      `/ai/daily-plan${date ? `?date=${date}` : ''}`
+    ),
+
+  generatePlanNow: (type?: 'food' | 'workout' | 'overview' | 'full') =>
+    apiFetch<{ plan: Record<string, unknown> }>('/ai/daily-plan', {
+      method: 'POST',
+      body: JSON.stringify({ type: type ?? 'full' }),
+    }),
+
+  submitPlanFeedback: (data: {
+    date: string;
+    workoutDifficulty?: string;
+    skippedWorkoutReason?: string;
+    dislikedFoods?: string[];
+    replacedMeals?: { original: string; replacement: string }[];
+  }) =>
+    apiFetch<{ success: boolean }>('/ai/daily-plan/feedback', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
   generateHealthPlan: () =>
     apiFetch<{
       user?: Record<string, unknown>;
