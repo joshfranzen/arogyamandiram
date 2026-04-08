@@ -9,7 +9,7 @@
 /* ---------- CSS Custom Properties ---------- */
 :root {
   /* Neutral, premium dark-mode foundations */
-  --bg-primary: #000000;
+  --bg-primary: #08080d;
   --bg-surface: #0a0a0a;
   --bg-elevated: #171717;
   --text-primary: #f5f5f5;
@@ -49,7 +49,7 @@ html {
     env(safe-area-inset-left);
   width: 100%;
   overflow-x: hidden;
-  background-color: var(--bg-primary);
+  background-color: #08080d;
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

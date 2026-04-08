@@ -12,16 +12,14 @@ import {
   Scale,
   Dumbbell,
   Star,
-  Sparkles,
-  Key,
-  Target,
-  Bell,
+  CalendarDays,
   Settings,
   Code2,
   LogOut,
   ChevronLeft,
   Bug,
 } from 'lucide-react';
+import type React from 'react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 
@@ -33,20 +31,13 @@ const mainNavItems = [
   { href: '/workout', icon: Dumbbell, label: 'Workout' },
   { href: '/weight', icon: Scale, label: 'Weight' },
   { href: '/achievements', icon: Star, label: 'Achievements' },
-  { href: '/ai-insights', icon: Sparkles, label: 'Insights' },
+  { href: '/ai-insights', icon: CalendarDays, label: "Today's Plan" },
 ];
 
-const extraNavItems = [
-  { href: '/api-keys', icon: Key, label: 'API Keys' },
-  { href: '/targets', icon: Target, label: 'Targets' },
-  { href: '/preferences', icon: Bell, label: 'Preferences' },
-];
+const extraNavItems: { href: string; icon: React.ElementType; label: string }[] = [];
 
 const debugNavItem = { href: '/debug', icon: Bug, label: 'Debugger' };
-const allExtraItems =
-  process.env.NEXT_PUBLIC_DEBUG_MODE === 'true'
-    ? [...extraNavItems, debugNavItem]
-    : extraNavItems;
+const allExtraItems = [...extraNavItems, debugNavItem];
 
 type SidebarProps = {
   collapsed?: boolean;

@@ -7,7 +7,7 @@
 
 import { NextRequest } from 'next/server';
 import { maskedResponse, errorResponse } from '@/lib/apiMask';
-import { getAuthUserId, isUserId } from '@/lib/session';
+import { getAuthUserIdWithBypass, isUserId } from '@/lib/session';
 import { resolveOpenAIKey } from '@/lib/openaiKey';
 
 export const dynamic = 'force-dynamic';
@@ -265,7 +265,7 @@ function normalizeWorkout(raw: RawWorkout) {
 export async function POST(req: NextRequest) {
   try {
     const isDebugMode = process.env.NEXT_PUBLIC_DEBUG_MODE === 'true';
-    const userId = await getAuthUserId();
+    const userId = await getAuthUserIdWithBypass(req);
     if (!isUserId(userId)) return userId;
 
     const { text } = await req.json();

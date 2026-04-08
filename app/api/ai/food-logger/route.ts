@@ -14,7 +14,7 @@ import connectDB from '@/lib/db';
 import User from '@/models/User';
 import { decrypt } from '@/lib/encryption';
 import { maskedResponse, errorResponse } from '@/lib/apiMask';
-import { getAuthUserId, isUserId } from '@/lib/session';
+import { getAuthUserIdWithBypass, isUserId } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
@@ -431,7 +431,7 @@ function clampSodiumSpikes(items: NormalizedItem[]) {
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = await getAuthUserId();
+    const userId = await getAuthUserIdWithBypass(req);
     if (!isUserId(userId)) return userId;
 
     const { text } = await req.json();

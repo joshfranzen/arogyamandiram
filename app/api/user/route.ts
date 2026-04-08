@@ -19,9 +19,9 @@ export async function GET() {
     if (!isUserId(userId)) return userId; // Returns error response
 
     await connectDB();
-    // Include apiKeys so maskUser can compute hasOpenAiKey/hasEdamamKey (values are never sent to client)
+    // Include apiKeys and email passwords so maskUser can compute boolean flags (values are never sent to client)
     const user = await User.findById(userId)
-      .select('+apiKeys.openai +apiKeys.edamam.appId +apiKeys.edamam.appKey')
+      .select('+apiKeys.openai +apiKeys.fdcApiKey')
       .lean();
 
     if (!user) return errorResponse('User not found', 404);
@@ -103,6 +103,19 @@ export async function PUT(req: NextRequest) {
 
     if (settings) {
       for (const [key, value] of Object.entries(settings)) {
+        if (key === 'emailSettings') continue; // use /api/user/email-settings endpoint
+        if (key === 'ccEmails' || key === 'recipientEmails') {
+          const rawEmails = Array.isArray(value) ? value : [];
+          const normalized = rawEmails
+            .map((email) => String(email).trim().toLowerCase())
+            .filter((email) => email.includes('@'));
+          updateData['settings.recipientEmails'] = normalized;
+          // Keep legacy key in sync while clients migrate.
+          updateData['settings.ccEmails'] = normalized;
+          updateData['settings.emailSetupChecklist.recipientListSaved'] = true;
+          updateData['settings.emailSetupChecklist.lastUpdatedAt'] = new Date();
+          continue;
+        }
         if (key === 'notifications' && typeof value === 'object') {
           for (const [nKey, nVal] of Object.entries(value as Record<string, boolean>)) {
             updateData[`settings.notifications.${nKey}`] = nVal;

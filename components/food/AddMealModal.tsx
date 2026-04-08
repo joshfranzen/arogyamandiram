@@ -2,6 +2,11 @@ import { useState } from 'react';
 import { X, Minus, Plus, Coffee, Sun, Moon, Cookie } from 'lucide-react';
 import { cn, getCurrentTime, formatNumber } from '@/lib/utils';
 
+interface FoodMeasure {
+  label: string;  // e.g. "1 large", "1 cup", "100g"
+  grams: number;  // gram equivalent
+}
+
 interface FoodItem {
   id: string;
   name: string;
@@ -14,6 +19,7 @@ interface FoodItem {
   fat: number;
   fiber?: number;
   isVegetarian: boolean;
+  measures?: FoodMeasure[];
 }
 
 interface AddMealModalProps {
@@ -56,50 +62,77 @@ function getDefaultMealType(): string {
 }
 
 export default function AddMealModal({ food, onClose, onAdd, loading }: AddMealModalProps) {
-  const [quantity, setQuantity] = useState(food.servingSize);
+  const isScoop = food.servingUnit === 'scoop';
+
+  // Build the list of measure options
+  // If measures exist from USDA, use them. Otherwise fall back to 100g/100ml base.
+  const measureOptions: FoodMeasure[] = food.measures?.length
+    ? food.measures
+    : [{ label: `100${food.servingUnit}`, grams: food.servingSize }];
+
+  const [measureIdx, setMeasureIdx] = useState(0);
+  // quantity = how many units of the selected measure
+  const [quantity, setQuantity] = useState(1);
   const [milkMl, setMilkMl] = useState(130);
   const [waterMl, setWaterMl] = useState(70);
   const [mealType, setMealType] = useState(getDefaultMealType());
   const [time, setTime] = useState(getCurrentTime());
 
-  const isScoop = food.servingUnit === 'scoop';
-  const scoops = quantity;
+  const selectedMeasure = measureOptions[measureIdx];
+  const isBaseGrams = selectedMeasure.label.startsWith('100');
 
-  const multiplier = quantity / food.servingSize;
+  // For base-unit measure (100g/100ml), step in practical increments
+  // For natural measures (1 egg, 1 cup), step in 0.5 units
+  const stepQty   = isScoop ? 0.25 : isBaseGrams ? 0.5 : 0.5;
+  const minQty    = isScoop ? 0.25 : 0.5;
+
+  // Total effective grams = quantity × grams per unit of measure
+  const effectiveGrams = isScoop ? quantity /* handled separately */ : quantity * selectedMeasure.grams;
+  const multiplier = effectiveGrams / food.servingSize; // servingSize is always 100
+
   let scaledCalories: number;
   let scaledProtein: number;
   let scaledCarbs: number;
   let scaledFat: number;
+
   if (isScoop) {
+    const scoops = quantity;
     scaledCalories = Math.round(scoops * PER_SCOOP.cal + (milkMl / 100) * PER_100ML_MILK.cal);
-    scaledProtein = Math.round((scoops * PER_SCOOP.protein + (milkMl / 100) * PER_100ML_MILK.protein) * 10) / 10;
-    scaledCarbs = Math.round((scoops * PER_SCOOP.carbs + (milkMl / 100) * PER_100ML_MILK.carbs) * 10) / 10;
-    scaledFat = Math.round((scoops * PER_SCOOP.fat + (milkMl / 100) * PER_100ML_MILK.fat) * 10) / 10;
+    scaledProtein  = Math.round((scoops * PER_SCOOP.protein + (milkMl / 100) * PER_100ML_MILK.protein) * 10) / 10;
+    scaledCarbs    = Math.round((scoops * PER_SCOOP.carbs   + (milkMl / 100) * PER_100ML_MILK.carbs)   * 10) / 10;
+    scaledFat      = Math.round((scoops * PER_SCOOP.fat     + (milkMl / 100) * PER_100ML_MILK.fat)     * 10) / 10;
   } else {
     scaledCalories = Math.round(food.calories * multiplier);
-    scaledProtein = Math.round(food.protein * multiplier * 10) / 10;
-    scaledCarbs = Math.round(food.carbs * multiplier * 10) / 10;
-    scaledFat = Math.round(food.fat * multiplier * 10) / 10;
+    scaledProtein  = Math.round(food.protein  * multiplier * 10) / 10;
+    scaledCarbs    = Math.round(food.carbs    * multiplier * 10) / 10;
+    scaledFat      = Math.round(food.fat      * multiplier * 10) / 10;
   }
   const scaledFiber = Math.round((food.fiber || 0) * multiplier * 10) / 10;
 
-  const minQty = isScoop ? 0.25 : 1;
-  const stepQty = isScoop ? 0.25 : (food.servingUnit === 'piece' || food.servingUnit === 'cup' ? 0.5 : 10);
   const adjustQty = (delta: number) => {
     setQuantity((prev) => Math.max(minQty, Math.round((prev + delta) * 100) / 100));
   };
 
+  const selectMeasure = (idx: number) => {
+    setMeasureIdx(idx);
+    setQuantity(1); // reset to 1 unit of the new measure
+  };
+
   const handleSubmit = () => {
+    // Save quantity as effective grams for base unit, else as count with label as unit
+    const submitQty  = isScoop ? quantity : isBaseGrams ? Math.round(effectiveGrams) : quantity;
+    const submitUnit = isScoop ? 'scoop' : isBaseGrams ? food.servingUnit : selectedMeasure.label;
+
     onAdd({
-      foodId: food.id,
-      name: food.name,
+      foodId:   food.id,
+      name:     food.name,
       calories: scaledCalories,
-      protein: scaledProtein,
-      carbs: scaledCarbs,
-      fat: scaledFat,
-      fiber: scaledFiber,
-      quantity,
-      unit: food.servingUnit,
+      protein:  scaledProtein,
+      carbs:    scaledCarbs,
+      fat:      scaledFat,
+      fiber:    scaledFiber,
+      quantity: submitQty,
+      unit:     submitUnit,
       mealType,
       time,
       isCustom: false,
@@ -127,52 +160,89 @@ export default function AddMealModal({ food, onClose, onAdd, loading }: AddMealM
           </button>
         </div>
 
-        {/* Quantity: for other foods single field; for protein shake = scoops + milk + water */}
+        {/* Quantity section */}
         <div className="mt-6">
           {!isScoop && (
             <>
-              <label className="text-xs font-medium text-text-muted">Quantity ({food.servingUnit})</label>
+              {/* Measure selector — only show if there's more than one option */}
+              {measureOptions.length > 1 && (
+                <div className="mb-4">
+                  <label className="text-xs font-medium text-text-muted">Serving size</label>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {measureOptions.map((m, i) => (
+                      <button
+                        key={i}
+                        onClick={() => selectMeasure(i)}
+                        className={cn(
+                          'rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
+                          measureIdx === i
+                            ? 'bg-accent-violet/20 text-accent-violet ring-1 ring-accent-violet/30'
+                            : 'bg-white/[0.04] text-text-muted hover:bg-white/[0.08]'
+                        )}
+                      >
+                        {m.label}
+                        <span className="ml-1 opacity-50">· {m.grams}g</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Quantity stepper */}
+              <label className="text-xs font-medium text-text-muted">
+                {isBaseGrams ? `Amount (${food.servingUnit})` : 'Quantity'}
+              </label>
               <div className="mt-2 flex items-center gap-4">
                 <button
-                  onClick={() => adjustQty(-food.servingSize * 0.5)}
+                  onClick={() => adjustQty(-stepQty)}
                   className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.06] text-text-secondary hover:bg-white/[0.1]"
                 >
                   <Minus className="h-4 w-4" />
                 </button>
-                <input
-                  type="number"
-                  value={quantity}
-                  onChange={(e) => setQuantity(Math.max(minQty, parseFloat(e.target.value) || minQty))}
-                  className="glass-input w-24 rounded-xl px-3 py-2 text-center text-lg font-bold"
-                  min={minQty}
-                  step={stepQty}
-                />
+                <div className="text-center">
+                  <input
+                    type="number"
+                    value={quantity}
+                    onChange={(e) => setQuantity(Math.max(minQty, parseFloat(e.target.value) || minQty))}
+                    className="glass-input w-24 rounded-xl px-3 py-2 text-center text-lg font-bold"
+                    min={minQty}
+                    step={stepQty}
+                  />
+                  {/* Show effective grams for natural measures */}
+                  {!isBaseGrams && (
+                    <p className="mt-1 text-[10px] text-text-muted">
+                      = {Math.round(effectiveGrams)}{food.servingUnit}
+                    </p>
+                  )}
+                </div>
                 <button
-                  onClick={() => adjustQty(food.servingSize * 0.5)}
+                  onClick={() => adjustQty(stepQty)}
                   className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.06] text-text-secondary hover:bg-white/[0.1]"
                 >
                   <Plus className="h-4 w-4" />
                 </button>
               </div>
+
+              {/* Quick count picks */}
               <div className="mt-2 flex flex-wrap gap-2">
-                {[0.5, 1, 1.5, 2].map((val) => {
-                  const qty = food.servingSize * val;
-                  return (
-                    <button
-                      key={val}
-                      onClick={() => setQuantity(Math.round(qty * 100) / 100)}
-                      className={cn(
-                        'rounded-lg px-3 py-1 text-xs font-medium transition-all',
-                        Math.abs(quantity - qty) < 0.01 ? 'bg-accent-violet/20 text-accent-violet' : 'bg-white/[0.04] text-text-muted hover:bg-white/[0.08]'
-                      )}
-                    >
-                      {val}x
-                    </button>
-                  );
-                })}
+                {[0.5, 1, 1.5, 2, 3].map((val) => (
+                  <button
+                    key={val}
+                    onClick={() => setQuantity(val)}
+                    className={cn(
+                      'rounded-lg px-3 py-1 text-xs font-medium transition-all',
+                      Math.abs(quantity - val) < 0.01
+                        ? 'bg-accent-violet/20 text-accent-violet'
+                        : 'bg-white/[0.04] text-text-muted hover:bg-white/[0.08]'
+                    )}
+                  >
+                    {val === 0.5 ? '½' : val === 1.5 ? '1½' : val}×
+                  </button>
+                ))}
               </div>
             </>
           )}
+
           {isScoop && (
             <>
               <label className="text-xs font-medium text-text-muted">Scoops</label>

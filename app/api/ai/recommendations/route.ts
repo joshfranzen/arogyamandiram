@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
     const user = await User.findById(userId).lean();
     if (!user) return errorResponse('User not found', 404);
 
-    const profile = user.profile as { name?: string; age?: number; dateOfBirth?: Date | string; gender?: string; height?: number; weight?: number; activityLevel?: string; goal?: string; targetWeight?: number };
+    const profile = user.profile as { name?: string; age?: number; dateOfBirth?: Date | string; gender?: string; height?: number; weight?: number; activityLevel?: string; goal?: string; targetWeight?: number; bodyType?: string; bodyFat?: number; fatFocusAreas?: string[]; fitnessLevelDerived?: string; fitnessLevelUser?: string };
     const targets = user.targets;
     const age = profile.dateOfBirth
       ? getAgeFromDateOfBirth(profile.dateOfBirth)
@@ -140,6 +140,9 @@ export async function POST(req: NextRequest) {
         );
         base.push(
           `Extended targets: ideal weight ${targets.idealWeight ?? '—'}kg, workout ${targets.dailyWorkoutMinutes ?? '—'} min/day, burn ${targets.dailyCalorieBurn ?? '—'} kcal/day, sleep ${targets.sleepHours ?? '—'}h.`
+        );
+        base.push(
+          `Body composition: type ${profile.bodyType ?? '—'}, body fat ${profile.bodyFat != null ? profile.bodyFat + '%' : '—'}, fitness level ${profile.fitnessLevelDerived ?? profile.fitnessLevelUser ?? '—'}, focus areas: ${profile.fatFocusAreas?.join(', ') ?? '—'}.`
         );
       }
 
@@ -376,7 +379,7 @@ export async function POST(req: NextRequest) {
 
     switch (type) {
       case 'meal': {
-        const systemPrompt = `You are a nutritionist AI for an Indian health app called Arogyamandiram. Suggest Indian meals that fit the user's dietary needs. Always respond with JSON: { "suggestions": [{ "name": string, "description": string, "calories": number, "protein": number, "carbs": number, "fat": number, "mealType": "breakfast"|"lunch"|"dinner"|"snack", "ingredients": string[], "isVegetarian": boolean }] }. Include 4-6 suggestions. Focus on Indian cuisine.`;
+        const systemPrompt = `You are a nutritionist AI for an Indian health app called Arogyamandiram. Suggest Indian meals that fit the user's dietary needs. Prioritize filling yesterday's protein and calorie gaps when recent data is available. Always respond with JSON: { "suggestions": [{ "name": string, "description": string, "calories": number, "protein": number, "carbs": number, "fat": number, "mealType": "breakfast"|"lunch"|"dinner"|"snack", "ingredients": string[], "isVegetarian": boolean }] }. Include 4-6 suggestions. Focus on Indian cuisine.`;
         const userPrompt = `${buildProfileContext('meal')}\n${recentContext}\nToday's date: ${getToday()}\n${context.mealType ? `Suggest for: ${context.mealType}` : 'Suggest meals for the full day'}\n${context.preferences ? `Preferences: ${context.preferences}` : ''}`;
         const ai = await callOpenAI(apiKey, systemPrompt, userPrompt);
         result = ai.parsed;

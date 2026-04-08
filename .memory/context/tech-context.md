@@ -1,7 +1,7 @@
 ---
 name: tech-context
 type: context
-last_updated: 2026-03-26
+last_updated: 2026-04-07
 updated_by: claude-sonnet-4-6
 staleness_days: 7
 ---
@@ -34,7 +34,12 @@ staleness_days: 7
 app/
   (auth)/           # login, register, onboarding — public routes
   (dashboard)/      # all protected pages + layout with sidebar/mobile nav
-  api/              # all API routes (RESTful Next.js handlers)
+    dashboard, food, water, weight, workout, sleep, ai, ai-insights,
+    achievements, settings, api-keys, preferences, targets, more, project, debug, developers
+  api/
+    ai/             # daily-plan, food-logger, health-plan, insights-eligibility,
+                    # meal-ideas, orchestrator, recommendations, workout-logger
+    cron/           # generate-daily-plans, send-reminders, process-email-replies
   globals.css       # dark theme, glassmorphism, animations, layout utilities
   layout.tsx        # root layout with fonts
   page.tsx          # landing page
@@ -55,16 +60,30 @@ lib/
   encryption.ts     # AES-256-GCM encrypt/decrypt
   apiClient.ts      # Frontend fetch wrapper (sanitized requests)
   apiMask.ts        # Server-side response masking (strips sensitive fields)
+  session.ts        # getAuthUserId, isUserId helpers for API routes
+  openaiKey.ts      # resolveOpenAIKey — user key or server fallback
   health.ts         # BMR, TDEE, macro, water, sleep target calculations
-  gamification.ts   # Streaks, badges, XP (800+ lines)
-  indianFoods.ts    # 150+ Indian foods database (950+ lines)
+  gamification.ts   # Streaks, XP, leveling (orchestrator)
+  badgeDefinitions.ts  # Badge definitions (split from gamification.ts)
+  xp.ts             # XP calculation logic
+  level.ts          # Level/rank calculation
   calorieBurn.ts    # Exercise calorie burn calculations
+  deriveFitnessLevel.ts  # Auto-classify beginner/intermediate/advanced from 14-day history
+  latestWeight.ts   # getLatestLoggedWeight helper
+  aiHealthPlan.ts   # AI health plan generation service
+  mealIdeasService.ts   # Meal ideas generation service
   utils.ts          # Formatters, validators, date helpers
   constants.ts      # App-wide constants
+  email/
+    smtp.ts         # SMTP email sending
+    imap.ts         # IMAP email reading
+    templates.ts    # Email templates
 
 models/
   User.ts           # User schema (profile, settings, targets, achievements)
   DailyLog.ts       # Daily log schema (meals, workouts, water, sleep)
+  DailyPlan.ts      # AI-generated daily plan (food + workout + top insight, status: generating/ready/failed)
+  Food.ts           # Food item schema (replaces removed indianFoods.ts)
 
 hooks/
   useDailyLog.ts    useUser.ts    useAchievements.ts
