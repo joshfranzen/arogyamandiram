@@ -89,6 +89,13 @@ const tabs = [{ key: 'logged', label: 'Logged' }, { key: 'recent', label: 'Recen
 export default function FoodLogPage() {
   const { user, loading: userLoading } = useUser();
   const { log, loading: logLoading, refetch } = useDailyLog();
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 1024);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<FoodItem[]>([]);
@@ -335,6 +342,28 @@ export default function FoodLogPage() {
                 </div>
               ) : (
                 <div className="space-y-2">
+                  {/* Nutrition breakdown — mobile only (hidden on lg where right column shows it) */}
+                  <div className="lg:hidden mb-4 flex flex-col items-center gap-4 rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4">
+                    <ProgressRing
+                      progress={calPercent}
+                      size={120}
+                      strokeWidth={10}
+                      color={calPercent > 100 ? 'stroke-accent-rose' : 'stroke-accent-emerald'}
+                      value={formatNumber(Math.round(totalCal))}
+                      label="kcal consumed"
+                      sublabel={`of ${formatNumber(targets.dailyCalories)}`}
+                      valueClassName="text-lg font-bold text-neutral-400"
+                      labelClassName="text-[10px] font-medium text-neutral-400"
+                    />
+                    <div className="w-full space-y-3">
+                      <MacroBar label="Protein" current={log?.totalProtein || 0} target={targets.protein} color="bg-accent-violet/70" bgColor="bg-accent-violet/20" />
+                      <MacroBar label="Carbs" current={log?.totalCarbs || 0} target={targets.carbs} color="bg-accent-emerald/70" bgColor="bg-accent-emerald/20" />
+                      <MacroBar label="Fat" current={log?.totalFat || 0} target={targets.fat} color="bg-accent-rose/70" bgColor="bg-accent-rose/20" />
+                      <MacroBar label="Fiber" current={log?.totalFiber || 0} target={25} unit="g" color="bg-accent-emerald/70" bgColor="bg-accent-emerald/20" />
+                      <MacroBar label="Sugar" current={log?.totalSugar || 0} target={50} unit="g" color="bg-emerald-400/70" bgColor="bg-emerald-400/20" />
+                      <MacroBar label="Sodium" current={log?.totalSodium || 0} target={2300} unit=" mg" color="bg-sky-500/70" bgColor="bg-sky-500/20" />
+                    </div>
+                  </div>
                   <p className="mb-3 text-xs text-neutral-400">Today&apos;s logged ({meals.length})</p>
                   {meals.map((meal, i) => {
                     const mealId = meal._id ?? (meal as { id?: string }).id;
@@ -347,8 +376,13 @@ export default function FoodLogPage() {
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium text-neutral-400">{meal.name}</p>
                           <p className="text-[11px] text-neutral-400">
-                            {meal.quantity}{meal.unit} · {mealLabels[meal.mealType || 'snack']} · {formatTime(meal.time)}
+                            {meal.quantity}{meal.unit} · {mealLabels[meal.mealType || 'snack']}{meal.time ? ` · ${formatTime(meal.time)}` : ''}
                           </p>
+                          <div className="flex gap-2 mt-0.5">
+                            <span className="text-[10px] text-violet-400">{Math.round(meal.protein)}g P</span>
+                            <span className="text-[10px] text-emerald-400">{Math.round(meal.carbs)}g C</span>
+                            <span className="text-[10px] text-rose-400">{Math.round(meal.fat)}g F</span>
+                          </div>
                         </div>
                         <span className="shrink-0 text-xs font-semibold text-neutral-400">
                           {Math.round(meal.calories)} kcal
@@ -409,9 +443,11 @@ export default function FoodLogPage() {
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
               </div>
             ) : results.length > 0 ? (
-              <div className="space-y-2">
-                <p className="mb-3 text-xs text-neutral-400">{Math.min(results.length, 5)} of {results.length} results</p>
-                {results.slice(0, 5).map((food) => (
+              <div
+                className="space-y-2"
+                style={isMobile ? { maxHeight: '420px', overflowY: 'auto' } : undefined}
+              >
+                {results.map((food) => (
                   <FoodResultCard
                     key={food.id}
                     food={food}
@@ -569,8 +605,13 @@ export default function FoodLogPage() {
                                 <div className="min-w-0 flex-1">
                                   <p className="truncate text-xs text-neutral-400">{meal.name}</p>
                                   <p className="text-[10px] text-neutral-500">
-                                    {meal.quantity}{meal.unit} · {formatTime(meal.time)}
+                                    {meal.quantity}{meal.unit}{meal.time ? ` · ${formatTime(meal.time)}` : ''}
                                   </p>
+                                  <div className="flex gap-2 mt-0.5">
+                                    <span className="text-[10px] text-violet-400">{Math.round(meal.protein)}g P</span>
+                                    <span className="text-[10px] text-emerald-400">{Math.round(meal.carbs)}g C</span>
+                                    <span className="text-[10px] text-rose-400">{Math.round(meal.fat)}g F</span>
+                                  </div>
                                 </div>
                                 <span className="shrink-0 text-xs text-neutral-400">
                                   {Math.round(meal.calories)}
