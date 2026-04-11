@@ -6,7 +6,7 @@ import {
   Bell, Key, Save, Settings, Target, User, Ruler, Activity, Flag, PersonStanding,
   Shield, Eye, EyeOff, CheckCircle2, Sparkles, Utensils, Dumbbell,
   Loader2, RefreshCw, Flame, Droplets, Drumstick, Cookie, ChefHat, Scale, Timer, Moon,
-  Mail, Plus, X, ListChecks, Pill, Zap, Trash2, Pencil,
+  Mail, Plus, X, ListChecks, Pill, Zap, Trash2, Pencil, CheckSquare,
 } from 'lucide-react';
 import { showToast } from '@/components/ui/Toast';
 import { CardSkeleton } from '@/components/ui/Skeleton';
@@ -31,7 +31,7 @@ const NAV_ITEMS: { key: Tab; label: string; icon: React.ElementType; desc: strin
   { key: 'targets',     label: 'Targets',      icon: Target,       desc: 'Daily goals & macros' },
   { key: 'api-keys',    label: 'API Keys',     icon: Key,          desc: 'OpenAI & USDA Food keys' },
   { key: 'preferences', label: 'Preferences',  icon: Bell,         desc: 'Units, reminders & email' },
-  { key: 'todos',       label: 'Daily Todos',  icon: ListChecks,   desc: 'Recurring daily checklist items' },
+  { key: 'todos',       label: 'Daily Todos',  icon: CheckSquare,  desc: 'Recurring daily checklist items' },
 ];
 
 const activityLevels = [
@@ -1213,7 +1213,7 @@ const TODO_CATEGORIES = [
   { value: 'supplement', label: 'Supplement', icon: Zap,          color: 'text-emerald-400', bgColor: 'bg-emerald-400/15', barColor: 'bg-emerald-500' },
   { value: 'medicine',   label: 'Medicine',   icon: Pill,         color: 'text-rose-400',    bgColor: 'bg-rose-400/15',    barColor: 'bg-rose-500' },
   { value: 'habit',      label: 'Habit',      icon: Flame,        color: 'text-amber-400',   bgColor: 'bg-amber-400/15',   barColor: 'bg-amber-500' },
-  { value: 'other',      label: 'Other',      icon: CheckSquare,  color: 'text-zinc-400',    bgColor: 'bg-zinc-400/15',    barColor: 'bg-zinc-500' },
+  { value: 'other',      label: 'Other',      icon: ListChecks,   color: 'text-zinc-400',    bgColor: 'bg-zinc-400/15',    barColor: 'bg-zinc-500' },
 ];
 
 const todoInputCls = [
