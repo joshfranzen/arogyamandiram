@@ -24,7 +24,7 @@ export default function AIPage() {
       className="flex flex-col ai-page-root"
       style={{
         height: '100%',
-        paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1.5rem)',
+        paddingTop: 'max(env(safe-area-inset-top, 0px), 0.5rem)',
       }}
     >
       {/* Header */}
@@ -37,28 +37,27 @@ export default function AIPage() {
 
       {/* Conversation or empty state */}
       {isEmpty ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
-          <div className="flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500/10">
-            <Sparkles className="h-8 w-8 text-emerald-400/60" />
-          </div>
-          <div className="flex flex-col gap-1">
-            <p className="text-sm font-medium text-neutral-300">
-              Ask me anything about your health
-            </p>
-            <p className="text-xs text-neutral-600 max-w-xs">
-              Try: &ldquo;I drank 500ml of water&rdquo;, &ldquo;I slept 7 hours&rdquo;, or &ldquo;I ran 30 minutes&rdquo;
-            </p>
-          </div>
-          <div className="flex flex-wrap justify-center gap-2 mt-1">
-            {['Log water intake', 'Log a meal', 'Log workout', 'Log weight'].map((hint) => (
-              <button
-                key={hint}
-                onClick={() => submitCommand(hint)}
-                className="rounded-full border border-neutral-800 bg-neutral-900/60 px-3 py-1 text-xs text-neutral-400 hover:border-emerald-500/30 hover:text-neutral-200 transition-colors"
-              >
-                {hint}
-              </button>
-            ))}
+        <div className="flex flex-1 flex-col justify-end px-6 pb-2">
+          <div className="flex flex-col items-center gap-3 text-center mb-4">
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-medium text-neutral-300">
+                Ask me anything about your health
+              </p>
+              <p className="text-xs text-neutral-600 max-w-xs">
+                Try: &ldquo;I drank 500ml of water&rdquo;, &ldquo;I slept 7 hours&rdquo;, or &ldquo;I ran 30 minutes&rdquo;
+              </p>
+            </div>
+            <div className="flex flex-wrap justify-center gap-2">
+              {['Log water intake', 'Log a meal', 'Log workout', 'Log weight'].map((hint) => (
+                <button
+                  key={hint}
+                  onClick={() => submitCommand(hint)}
+                  className="rounded-full border border-neutral-800 bg-neutral-900/60 px-3 py-1 text-xs text-neutral-400 hover:border-emerald-500/30 hover:text-neutral-200 transition-colors"
+                >
+                  {hint}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       ) : (

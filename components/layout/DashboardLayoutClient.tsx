@@ -124,14 +124,15 @@ function DashboardLayoutInner({ children }: { children: ReactNode }) {
       className={cn(
         'app-viewport hide-scrollbar fixed inset-0 overscroll-y-contain',
         pathname !== '/ai' && 'overflow-y-auto',
+        pathname === '/ai' && 'flex flex-col',
       )}
     >
       <Sidebar collapsed={sidebarCollapsed} onCollapsedChange={setSidebarCollapsed} />
       <MobileNav />
       <main
         className={cn(
-          'min-h-full transition-[padding-left] duration-300',
-          pathname !== '/ai' && 'pb-[max(3.25rem,calc(var(--sab,env(safe-area-inset-bottom,0px))+2.5rem))] lg:pb-0 lg:pt-0',
+          'transition-[padding-left] duration-300',
+          pathname === '/ai' ? 'h-full flex flex-col' : 'min-h-full pb-[max(3.25rem,calc(var(--sab,env(safe-area-inset-bottom,0px))+2.5rem))] lg:pb-0 lg:pt-0',
           sidebarCollapsed ? 'lg:pl-[64px] sidebar-collapsed' : 'lg:pl-[232px]',
         )}
         style={{ paddingRight: rightOpen && pathname !== '/ai' ? `${sidebarWidth}px` : undefined }}
