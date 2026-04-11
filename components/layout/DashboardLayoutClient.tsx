@@ -2,7 +2,7 @@
 
 import { useSession } from 'next-auth/react';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { CURRENT_DASHBOARD_TOUR_VERSION } from '@/lib/constants';
 import { DebugLogsProvider } from '@/contexts/DebugLogsContext';
 import { OrchestratorSidebarProvider, useOrchestratorSidebar } from '@/contexts/OrchestratorSidebarContext';
@@ -21,7 +21,35 @@ function DashboardLayoutInner({ children }: { children: ReactNode }) {
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
   const [showTour, setShowTour] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const { isOpen: rightOpen, sidebarWidth } = useOrchestratorSidebar();
+  const [isXl, setIsXl] = useState(false);
+  const { isOpen: rightOpen, sidebarWidth, setSidebarWidth } = useOrchestratorSidebar();
+  const wasCollapsedRef = useRef<boolean | null>(null);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1280px)');
+    const update = (matches: boolean) => {
+      setIsXl(matches);
+      setSidebarWidth(matches ? 464 : 360);
+    };
+    update(mq.matches);
+    const handler = (e: MediaQueryListEvent) => update(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [setSidebarWidth]);
+
+  // On tablet (< xl): auto-collapse left sidebar when right sidebar opens, restore on close
+  useEffect(() => {
+    if (!isXl) {
+      if (rightOpen) {
+        wasCollapsedRef.current = sidebarCollapsed;
+        setSidebarCollapsed(true);
+      } else if (wasCollapsedRef.current !== null) {
+        setSidebarCollapsed(wasCollapsedRef.current);
+        wasCollapsedRef.current = null;
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rightOpen, isXl]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -93,7 +121,10 @@ function DashboardLayoutInner({ children }: { children: ReactNode }) {
 
   return (
     <div
-      className="app-viewport hide-scrollbar fixed inset-0 overflow-y-auto overscroll-behavior-y-contain"
+      className={cn(
+        'app-viewport hide-scrollbar fixed inset-0 overscroll-y-contain',
+        pathname !== '/ai' && 'overflow-y-auto',
+      )}
     >
       <Sidebar collapsed={sidebarCollapsed} onCollapsedChange={setSidebarCollapsed} />
       <MobileNav />

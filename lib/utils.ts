@@ -77,7 +77,8 @@ export function formatDate(dateStr: string): string {
 }
 
 /** Format time: "14:30" -> "2:30 PM" */
-export function formatTime(time: string): string {
+export function formatTime(time: string | undefined | null): string {
+  if (!time) return '';
   const [hours, minutes] = time.split(':').map(Number);
   const ampm = hours >= 12 ? 'PM' : 'AM';
   const h = hours % 12 || 12;
