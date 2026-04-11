@@ -80,6 +80,16 @@ body {
 
 /* Notch/status bar: content extends edge-to-edge and scrolls under it (no blocking overlay) */
 
+/* ---------- AI page: bottom padding only on mobile (for mobile nav bar) ---------- */
+.ai-page-root {
+  padding-bottom: max(3.25rem, calc(env(safe-area-inset-bottom, 0px) + 2.5rem));
+}
+@media (min-width: 1024px) {
+  .ai-page-root {
+    padding-bottom: 0;
+  }
+}
+
 /* ---------- Auth / landing viewport (center in visible area; mobile bar aware) ---------- */
 .auth-viewport-min-height {
   min-height: 100vh;
@@ -94,6 +104,7 @@ body {
 /* ---------- App viewport (full-screen, including iOS visual viewport) ---------- */
 .app-viewport {
   min-height: 100vh;
+  -webkit-overflow-scrolling: touch;
 }
 
 @supports (height: 100dvh) {
@@ -179,11 +190,21 @@ body {
   .bento-ring-stats {
     display: grid;
     /* Keep calorie + water cards identical and slightly wider for cleaner spacing balance. */
-    grid-template-columns: minmax(272px, 272px) minmax(0, 1fr) minmax(272px, 272px);
+    grid-template-columns: minmax(0, 272px) minmax(0, 1fr) minmax(0, 272px);
     grid-template-rows: 1fr;
     gap: 12px;
     grid-column: 1 / -1;
     transition: grid-template-columns 300ms ease;
+  }
+  @media (min-width: 1024px) and (max-width: 1279px) {
+    .bento-ring-stats {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+    }
+    .bento-ring,
+    .bento-ring-badges,
+    .bento-water-ring {
+      min-width: 0;
+    }
   }
   .bento-ring {
     grid-column: 1;
@@ -201,6 +222,10 @@ body {
   }
   .recent-badges-card {
     @apply px-3 py-3;
+    /* Override glass-card's overflow:hidden so Safari/iPad touch scroll events
+       reach the inner .recent-badges-grid without being swallowed by the parent. */
+    overflow-x: clip;
+    overflow-y: hidden;
   }
   .recent-badges-grid {
     display: flex;
@@ -963,6 +988,8 @@ body {
     overflow-y: hidden;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
     padding-bottom: 4px;
     padding-left: 4px;
   }
@@ -982,12 +1009,13 @@ body {
       flex-wrap: nowrap;
       overflow-x: auto;
       overflow-y: hidden;
-      scroll-snap-type: x proximity;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-x;
+      scroll-snap-type: none;
     }
     .mobile-dash .recent-badges-grid > * {
-      flex: 0 0 220px;
-      max-width: 220px;
-      scroll-snap-align: start;
+      flex: 0 0 180px;
+      max-width: 180px;
     }
   }
 

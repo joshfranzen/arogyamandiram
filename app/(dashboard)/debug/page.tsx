@@ -227,17 +227,14 @@ export default function DebugPage() {
   }, []);
 
   useEffect(() => {
-    if (selectedAgent && selectedAgent.page !== 'ai-assistant') {
+    if (selectedAgent) {
       fetchLogsForAgent(selectedAgent.page, selectedAgent.agent);
       setSelectedLogKey(null);
       setExpandedDates(new Set());
-    } else if (!selectedAgent) {
+      setSelectedOrchestratorLog(null);
+    } else {
       setAgentLogs([]);
       setSelectedLogKey(null);
-    } else {
-      // orchestrator: in-memory logs, no fetch needed
-      setSelectedLogKey(null);
-      setSelectedOrchestratorLog(null);
     }
   }, [selectedAgent, fetchLogsForAgent]);
 
@@ -449,7 +446,15 @@ export default function DebugPage() {
               </p>
             </div>
           ) : isOrchestratorSelected ? (
-            /* ── Orchestrator logs (in-memory from context) ── */
+            /* ── Orchestrator logs (disk + in-memory session) ── */
+            (() => {
+              const diskIds = new Set(agentLogs.map((l) => (l as unknown as OrchestratorLog).id));
+              const sessionOnly = orchestratorLogs.filter((l) => !diskIds.has(l.id));
+              const mergedLogs: OrchestratorLog[] = [
+                ...sessionOnly,
+                ...(agentLogs as unknown as OrchestratorLog[]),
+              ];
+              return (
             <div className="grid min-h-0 flex-1 grid-cols-[11rem_1fr] gap-px bg-white/[0.06]">
               {/* Bar 2 — Orchestrator log list */}
               <div className="dashboard-unified-card flex flex-col overflow-hidden border border-white/[0.06] border-r-0">
@@ -459,13 +464,15 @@ export default function DebugPage() {
                   </span>
                 </div>
                 <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  {orchestratorLogs.length === 0 ? (
+                  {logsLoading ? (
+                    <div className="px-3 py-6 text-center text-[11px] text-zinc-500">Loading…</div>
+                  ) : mergedLogs.length === 0 ? (
                     <div className="px-3 py-6 text-center text-[11px] text-zinc-500">
                       No calls yet · Use the AI Assistant to generate logs
                     </div>
                   ) : (
                     <ul className="space-y-0.5 px-2 pb-4 pt-1">
-                      {orchestratorLogs.map((log, i) => {
+                      {mergedLogs.map((log, i) => {
                         const isSelected = selectedOrchestratorLog?.id === log.id;
                         const tokens =
                           (log.metadata.usage?.prompt_tokens ?? 0) +
@@ -529,6 +536,8 @@ export default function DebugPage() {
                 </div>
               </main>
             </div>
+              );
+            })()
           ) : (
             <div className="grid min-h-0 flex-1 grid-cols-[11rem_1fr] gap-px bg-white/[0.06]">
               {/* Bar 2 — Logs by date (same color as Bar 1) */}

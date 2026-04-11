@@ -14,9 +14,12 @@ import {
   Settings,
   MoreHorizontal,
   X,
+  CheckSquare,
+  LogOut,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
+import { signOut } from 'next-auth/react';
 
 const mobileNav = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -30,6 +33,7 @@ const moreNav = [
   { href: '/weight', icon: Scale, label: 'Weight' },
   { href: '/achievements', icon: Star, label: 'Achievements' },
   { href: '/ai-insights', icon: CalendarDays, label: "Today's Plan" },
+  { href: '/todos', icon: CheckSquare, label: 'Todos' },
   { href: '/settings', icon: Settings, label: 'Settings' },
 ];
 
@@ -72,6 +76,13 @@ export default function MobileNav() {
                 </Link>
               );
             })}
+            <button
+              onClick={() => signOut({ callbackUrl: '/login' })}
+              className="flex flex-col items-center gap-1.5 py-2"
+            >
+              <LogOut className="h-5 w-5 text-red-400" />
+              <span className="text-[11px] text-red-400">Logout</span>
+            </button>
           </div>
         </>
       )}

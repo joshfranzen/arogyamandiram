@@ -278,6 +278,7 @@ export interface IDailyLog {
   totalSodium?: number;
   caloriesBurned: number;
   notes?: string;
+  todoCompletions?: Array<{ templateId: string; completedAt: string }>;
   /** XP already awarded for this specific date (0–50). */
   xpAwarded?: number;
   createdAt: Date;

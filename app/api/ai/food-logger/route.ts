@@ -157,6 +157,17 @@ Units will already be normalized to one of: piece, bowl, serving, cup, g, ml, tb
 2. Estimate macros and micros using USDA, IFCT (Indian Food Composition Tables),
    or well-known brand data — whichever is most specific.
 
+2a. FAT PERCENTAGE CROSS-CHECK (mandatory):
+   If the food name explicitly states a fat percentage (e.g. "6% fat milk", "2% fat yogurt",
+   "3.5% fat paneer"), the fat in grams MUST match that percentage for the given quantity.
+   Formula: fat_g = (fat_percentage / 100) × volume_or_weight_in_ml_or_g × density_factor
+   For liquids like milk, use density ≈ 1 g/ml (so 200 ml ≈ 200 g).
+   Example: "6% fat milk, 200 ml" → fat = 6/100 × 200 = 12 g (NOT 6.8 g).
+   NEVER use nutrition data from a lower-fat variant of the same product to satisfy a
+   higher-fat label (e.g. do NOT use Amul Cow Milk 3.5% data for Amul Gold 6% fat milk).
+   If your fat estimate contradicts the stated percentage, override it with the correct value
+   and recompute calories using the calorie integrity formula in rule 4.
+
 3. Scale ALL nutrients to the given quantity and unit.
    Never change the quantity or unit from the input.
    ALL returned nutrition values (calories, protein, carbs, fat, fiber, sugar,
