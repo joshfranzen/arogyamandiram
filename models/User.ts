@@ -106,6 +106,21 @@ const UserSchema = new Schema<IUserDocument>(
           sleep: { type: Date },
         },
       },
+      todoTemplates: {
+        type: [
+          {
+            id:        { type: String, required: true },
+            title:     { type: String, required: true },
+            note:      { type: String, default: '' },
+            time:      { type: String, default: '' },
+            category:  { type: String, enum: ['food', 'supplement', 'medicine', 'habit', 'other'], default: 'other' },
+            enabled:   { type: Boolean, default: true },
+            frequency: { type: Number, default: 1, min: 1, max: 5 }, // how many times per day (for supplements/medicines)
+            baseItems: { type: [Schema.Types.Mixed], default: [] }, // pre-parsed food items for food category
+          },
+        ],
+        default: [],
+      },
       emailSetupChecklist: {
         smtpSaved: { type: Boolean, default: false },
         smtpTestSent: { type: Boolean, default: false },

@@ -21,11 +21,10 @@ export default function AIPage() {
 
   return (
     <div
-      className="flex flex-col lg:h-[calc(100dvh-2rem)]"
+      className="flex flex-col ai-page-root"
       style={{
-        height: '100dvh',
-        paddingTop: 'env(safe-area-inset-top, 0px)',
-        paddingBottom: 'max(3.25rem, calc(env(safe-area-inset-bottom, 0px) + 2.5rem))',
+        height: '100%',
+        paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1.5rem)',
       }}
     >
       {/* Header */}

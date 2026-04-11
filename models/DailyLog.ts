@@ -98,6 +98,15 @@ const DailyLogSchema = new Schema<IDailyLogDocument>(
     totalSodium: { type: Number, default: 0 },
     caloriesBurned: { type: Number, default: 0 },
     notes: { type: String, default: '', maxlength: 500 },
+    todoCompletions: {
+      type: [
+        {
+          templateId:  { type: String, required: true },
+          completedAt: { type: String, required: true },
+        },
+      ],
+      default: [],
+    },
     // XP already granted for this calendar day (so we can award only the delta).
     xpAwarded: { type: Number, default: 0, min: 0, max: 50 },
   },

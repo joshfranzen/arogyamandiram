@@ -289,6 +289,41 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
+  // Log food via AI food-logger (used by food-category todos)
+  logFoodText: (text: string) =>
+    apiFetch<{ items: Record<string, unknown>[]; total: Record<string, unknown> }>('/ai/food-logger', {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    }),
+
+  // Todos
+  getTodosForDate: (date: string) =>
+    apiFetch<{ date: string; templates: unknown[]; completions: unknown[] }>(`/todos?date=${date}`),
+
+  toggleTodo: (templateId: string, date: string, completed: boolean) =>
+    apiFetch('/todos', {
+      method: 'POST',
+      body: JSON.stringify({ templateId, date, completed }),
+    }),
+
+  getTodoTemplates: () =>
+    apiFetch<{ templates: unknown[] }>('/todos/templates'),
+
+  createTodoTemplate: (t: { title: string; note?: string; time?: string; category?: string; frequency?: number; baseItems?: Record<string, unknown>[] }) =>
+    apiFetch('/todos/templates', {
+      method: 'POST',
+      body: JSON.stringify(t),
+    }),
+
+  updateTodoTemplate: (t: { id: string; title?: string; note?: string; time?: string; category?: string; enabled?: boolean; frequency?: number }) =>
+    apiFetch('/todos/templates', {
+      method: 'PUT',
+      body: JSON.stringify(t),
+    }),
+
+  deleteTodoTemplate: (id: string) =>
+    apiFetch(`/todos/templates?id=${encodeURIComponent(id)}`, { method: 'DELETE' }),
+
   // AI Orchestrator
   callOrchestrator: (text: string, imageBase64?: string, imageMimeType?: string) =>
     apiFetch<{

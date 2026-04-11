@@ -71,6 +71,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   themeColor: '#08080d',
   viewportFit: 'cover',
+  interactiveWidget: 'resizes-visual',
 };
 
 // ---------- Root Layout ----------

@@ -22,20 +22,11 @@ export default function OrchestratorSidebar() {
 
   return (
     <>
-      {/* Mobile backdrop */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 z-[50] bg-black/50 lg:hidden"
-          onClick={closeSidebar}
-        />
-      )}
-
       <aside
         className={cn(
           'fixed right-0 top-0 z-[51] flex h-[100dvh] flex-col',
           'transition-transform duration-300 ease-in-out',
           isOpen ? 'translate-x-0' : 'translate-x-full',
-          'max-lg:w-full max-lg:max-w-[280px]'
         )}
         style={{
           width: `${sidebarWidth}px`,

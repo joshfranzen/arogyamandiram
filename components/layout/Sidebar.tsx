@@ -18,6 +18,7 @@ import {
   LogOut,
   ChevronLeft,
   Bug,
+  CheckSquare,
 } from 'lucide-react';
 import type React from 'react';
 import { cn } from '@/lib/utils';
@@ -32,6 +33,7 @@ const mainNavItems = [
   { href: '/weight', icon: Scale, label: 'Weight' },
   { href: '/achievements', icon: Star, label: 'Achievements' },
   { href: '/ai-insights', icon: CalendarDays, label: "Today's Plan" },
+  { href: '/todos', icon: CheckSquare, label: 'Todos' },
 ];
 
 const extraNavItems: { href: string; icon: React.ElementType; label: string }[] = [];
