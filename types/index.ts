@@ -73,6 +73,8 @@ export interface ReminderScheduleSettings {
     dinner?: string;
   };
   sleepTime?: string;
+  workoutTime?: string;
+  weighInTime?: string;
   lastSentAt?: {
     water?: string;
     breakfast?: string;

@@ -574,7 +574,7 @@ export default function TodaysPlanPage() {
         )}
 
         {/* ── No plan state ── */}
-        {!planLoading && !plan && !planError && activeTab === 'food' && (
+        {!planLoading && !plan?.foodPlan && !planError && activeTab === 'food' && (
           <div className="dashboard-unified-card rounded-2xl border p-5">
             <div className="flex flex-col items-center gap-3 py-10 text-center">
               <CalendarDays className="h-12 w-12 text-zinc-600" />
@@ -789,7 +789,7 @@ export default function TodaysPlanPage() {
         )}
 
         {/* ── No plan state for workout tab ── */}
-        {!planLoading && !plan && !planError && activeTab === 'workout' && (
+        {!planLoading && !plan?.workoutPlan && !planError && activeTab === 'workout' && (
           <div className="dashboard-unified-card rounded-2xl border p-5">
             <div className="flex flex-col items-center gap-3 py-10 text-center">
               <Dumbbell className="h-12 w-12 text-zinc-600" />
@@ -810,9 +810,9 @@ export default function TodaysPlanPage() {
         )}
 
         {/* Per-tab regenerate buttons when plan exists */}
-        {!planLoading && plan && hasApiKey && (
+        {!planLoading && hasApiKey && (
           <div className="flex justify-center pb-4">
-            {activeTab === 'food' && (
+            {activeTab === 'food' && plan?.foodPlan && (
               <button
                 onClick={() => handleGenerateNow('food')}
                 disabled={!!generating}
@@ -821,7 +821,7 @@ export default function TodaysPlanPage() {
                 {generating === 'food' ? 'Regenerating food plan…' : 'Regenerate food plan'}
               </button>
             )}
-            {activeTab === 'workout' && (
+            {activeTab === 'workout' && plan?.workoutPlan && (
               <button
                 onClick={() => handleGenerateNow('workout')}
                 disabled={!!generating}

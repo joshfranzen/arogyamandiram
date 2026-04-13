@@ -249,41 +249,34 @@ export async function POST(req: NextRequest) {
   let failed = 0;
   const errors: string[] = [];
 
-  // Process in batches of 10 to avoid rate limiting
-  const BATCH_SIZE = 10;
-  for (let i = 0; i < users.length; i += BATCH_SIZE) {
-    const batch = users.slice(i, i + BATCH_SIZE);
-    await Promise.allSettled(
-      batch.map(async (user) => {
-        const userId = user._id.toString();
-        try {
-          const encryptedKey = user.apiKeys?.openai;
-          if (!encryptedKey) return;
+  for (const user of users) {
+    const userId = user._id.toString();
+    try {
+      const encryptedKey = user.apiKeys?.openai;
+      if (!encryptedKey) continue;
 
-          let apiKey: string;
-          try {
-            apiKey = decrypt(encryptedKey);
-          } catch {
-            return; // skip users with corrupt keys silently
-          }
+      let apiKey: string;
+      try {
+        apiKey = decrypt(encryptedKey);
+      } catch {
+        continue; // skip users with corrupt keys silently
+      }
 
-          await generateForUser(userId, apiKey, tomorrowDate);
-          processed++;
-        } catch (err) {
-          failed++;
-          const msg = `User ${userId}: ${err instanceof Error ? err.message : String(err)}`;
-          errors.push(msg);
-          console.error('[Cron Generate Daily Plans]', msg);
+      await generateForUser(userId, apiKey, tomorrowDate);
+      processed++;
+    } catch (err) {
+      failed++;
+      const msg = `User ${userId}: ${err instanceof Error ? err.message : String(err)}`;
+      errors.push(msg);
+      console.error('[Cron Generate Daily Plans]', msg);
 
-          // Mark plan as failed
-          await DailyPlan.findOneAndUpdate(
-            { userId, date: tomorrowDate },
-            { $set: { status: 'failed', errorMessage: errors[errors.length - 1] } },
-            { upsert: true }
-          ).catch(() => {});
-        }
-      })
-    );
+      // Mark plan as failed
+      await DailyPlan.findOneAndUpdate(
+        { userId, date: tomorrowDate },
+        { $set: { status: 'failed', errorMessage: msg } },
+        { upsert: true }
+      ).catch(() => {});
+    }
   }
 
   console.log(`[Cron Generate Daily Plans] Completed: ${processed} processed, ${failed} failed`);

@@ -88,14 +88,16 @@ const UserSchema = new Schema<IUserDocument>(
       // Legacy key retained for backward compatibility
       ccEmails: { type: [String], default: [] },
       reminderSchedule: {
-        timezone: { type: String, default: 'Asia/Kolkata' },
-        waterHourlyEnabled: { type: Boolean, default: true },
+        timezone: { type: String },
+        waterHourlyEnabled: { type: Boolean },
         mealTimes: {
-          breakfast: { type: String, default: '08:00' },
-          lunch: { type: String, default: '13:00' },
-          dinner: { type: String, default: '20:00' },
+          breakfast: { type: String },
+          lunch: { type: String },
+          dinner: { type: String },
         },
-        sleepTime: { type: String, default: '22:30' },
+        sleepTime: { type: String },
+        workoutTime: { type: String },
+        weighInTime: { type: String },
         lastSentAt: {
           water: { type: Date },
           breakfast: { type: Date },

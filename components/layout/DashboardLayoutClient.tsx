@@ -119,12 +119,14 @@ function DashboardLayoutInner({ children }: { children: ReactNode }) {
 
   if (!session) return null;
 
+  const isFullViewport = pathname === '/ai' || pathname === '/settings';
+
   return (
     <div
       className={cn(
         'app-viewport hide-scrollbar fixed inset-0 overscroll-y-contain',
-        pathname !== '/ai' && 'overflow-y-auto',
-        pathname === '/ai' && 'flex flex-col',
+        !isFullViewport && 'overflow-y-auto',
+        isFullViewport && 'flex flex-col',
       )}
     >
       <Sidebar collapsed={sidebarCollapsed} onCollapsedChange={setSidebarCollapsed} />
@@ -132,12 +134,12 @@ function DashboardLayoutInner({ children }: { children: ReactNode }) {
       <main
         className={cn(
           'transition-[padding-left] duration-300',
-          pathname === '/ai' ? 'h-full flex flex-col' : 'min-h-full pb-[max(3.25rem,calc(var(--sab,env(safe-area-inset-bottom,0px))+2.5rem))] lg:pb-0 lg:pt-0',
+          isFullViewport ? 'h-full flex flex-col' : 'min-h-full pb-[max(3.25rem,calc(var(--sab,env(safe-area-inset-bottom,0px))+2.5rem))] lg:pb-0 lg:pt-0',
           sidebarCollapsed ? 'lg:pl-[64px] sidebar-collapsed' : 'lg:pl-[232px]',
         )}
-        style={{ paddingRight: rightOpen && pathname !== '/ai' ? `${sidebarWidth}px` : undefined }}
+        style={{ paddingRight: !isFullViewport && rightOpen ? `${sidebarWidth}px` : undefined }}
       >
-        {pathname === '/ai' ? (
+        {isFullViewport ? (
           children
         ) : (
           <div
@@ -149,8 +151,8 @@ function DashboardLayoutInner({ children }: { children: ReactNode }) {
           </div>
         )}
       </main>
-      {pathname !== '/ai' && <OrchestratorToggleButton />}
-      {pathname !== '/ai' && <OrchestratorSidebar />}
+      {!isFullViewport && <OrchestratorToggleButton />}
+      {!isFullViewport && <OrchestratorSidebar />}
     </div>
   );
 }
