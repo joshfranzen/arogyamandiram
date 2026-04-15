@@ -41,17 +41,18 @@ export async function GET() {
 
     if (!user) return errorResponse('User not found', 404);
 
-    const profile = (user.profile ?? {}) as Record<string, unknown>;
     const latestWeight = await getLatestLoggedWeight(String(userId));
     const derivedActivityLevel = await deriveActivityLevel(userId);
+    const userWithDerivedProfile = {
+      ...user,
+      profile: {
+        ...user.profile,
+        ...(latestWeight != null ? { weight: latestWeight } : {}),
+        activityLevel: derivedActivityLevel,
+      },
+    };
 
-    if (latestWeight != null) {
-      profile.weight = latestWeight;
-    }
-    profile.activityLevel = derivedActivityLevel;
-    user.profile = profile;
-
-    return maskedResponse(maskUser(user));
+    return maskedResponse(maskUser(userWithDerivedProfile));
   } catch (err) {
     console.error('[User GET Error]:', err);
     return errorResponse('Failed to fetch user', 500);
