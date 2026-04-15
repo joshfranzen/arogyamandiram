@@ -55,6 +55,7 @@ async function apiFetch<T>(
 
     const res = await fetch(url, {
       ...options,
+      cache: 'no-store',
       headers,
       body,
     });

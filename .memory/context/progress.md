@@ -1,8 +1,8 @@
 ---
 name: progress
 type: context
-last_updated: 2026-04-14
-updated_by: codex-5.3
+last_updated: 2026-04-15
+updated_by: codex-gpt-5
 staleness_days: 3
 ---
 
@@ -44,6 +44,7 @@ staleness_days: 3
 - [x] Today's Plan UX improvements — per-tab generation, quick add planned workout exercises with custom reps/time, and Request Inspector logs for today's plan generation
 - [x] Settings profile sync + body UX refresh — auto-sync latest logged weight to profile, auto-derive activity level from 7-day workout behavior, and plain-language body shape/body-fat guidance
 - [x] Health data sync provenance + automation — last sync now records source (`manual` vs `auto`), Settings displays sync type, and cron-based interval sync runs via `/api/cron/sync-health-data`
+- [x] Water customizations flow — Settings now lets users edit the 4 water quick-add button amounts, and the Water tracker uses those values directly instead of a separate custom button, preset pills, plus/minus controls, or a hide/show custom section
 
 ## In Progress
 

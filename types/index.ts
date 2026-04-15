@@ -107,6 +107,14 @@ export interface HealthDataSettings {
   lastSyncError?: string;
 }
 
+export interface WaterCustomizationSettings {
+  quickAmountsMl?: number[];
+}
+
+export interface UserCustomizations {
+  water?: WaterCustomizationSettings;
+}
+
 export interface UserSettings {
   theme: 'dark' | 'light';
   units: UnitSystem;
@@ -133,6 +141,8 @@ export interface UserSettings {
   ccEmails?: string[];
   /** Reminder schedule controls (timezone-aware). */
   reminderSchedule?: ReminderScheduleSettings;
+  /** User-controlled tracker customization values. */
+  customizations?: UserCustomizations;
   /** Status of SMTP/IMAP configuration checks shown in Preferences checklist. */
   emailSetupChecklist?: {
     smtpSaved?: boolean;

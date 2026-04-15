@@ -1,8 +1,8 @@
 ---
 name: active-context
 type: context
-last_updated: 2026-04-14
-updated_by: codex-5.3
+last_updated: 2026-04-15
+updated_by: codex-gpt-5
 staleness_days: 3
 ---
 
@@ -31,6 +31,7 @@ Recent changes since last memory update (post Mar 26):
 - **Notification scheduling upgraded**: Added timezone-to-profile persistence, configurable water reminder window (default 06:00-21:00), and per-user water reminder frequency in `settings.reminderSchedule.water`
 - **Profile sync improvements**: `/api/user` now aligns settings with latest logged weight and auto-derived weekly activity level; Settings body UI now uses plain-language body-shape/body-fat guidance
 - **Health data sync source clarity + automation**: Added `lastSyncSource` (auto/manual) tracking, surfaced sync type in Settings "Last Sync", and introduced `/api/cron/sync-health-data` with a 15-minute schedule that syncs enabled users when their interval is due
+- **Settings customizations + water quick-add cleanup**: Added a new Settings → `Customizations` tab for editing the four water quick-add amounts, removed the old water custom preset pills/stepper/hide toggle, and made `/water` use those four customizable quick-add buttons directly
 
 ## Active Focus Areas
 

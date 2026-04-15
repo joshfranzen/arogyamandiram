@@ -145,6 +145,26 @@ export async function PUT(req: NextRequest) {
           for (const [nKey, nVal] of Object.entries(value as Record<string, boolean>)) {
             updateData[`settings.notifications.${nKey}`] = nVal;
           }
+        } else if (key === 'customizations' && typeof value === 'object' && value !== null) {
+          const customizations = value as Record<string, unknown>;
+          const water = customizations.water as Record<string, unknown> | undefined;
+
+          if (water && water.quickAmountsMl !== undefined) {
+            if (!Array.isArray(water.quickAmountsMl) || water.quickAmountsMl.length !== 4) {
+              return errorResponse('Water quick amounts must contain exactly 4 values', 400);
+            }
+
+            const parsedQuickAmounts = water.quickAmountsMl.map((entry) => Number(entry));
+            const hasInvalidQuickAmount = parsedQuickAmounts.some((entry) =>
+              !Number.isInteger(entry) || entry < 1 || entry > 5000
+            );
+
+            if (hasInvalidQuickAmount) {
+              return errorResponse('Each water quick amount must be an integer between 1 and 5000 ml', 400);
+            }
+
+            updateData['settings.customizations.water.quickAmountsMl'] = parsedQuickAmounts;
+          }
         } else if (key === 'reminderSchedule' && typeof value === 'object' && value !== null) {
           const schedule = value as Record<string, unknown>;
 

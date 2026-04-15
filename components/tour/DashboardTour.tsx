@@ -22,7 +22,7 @@ const steps = [
   {
     id: 'water',
     title: 'Stay hydrated, effortlessly',
-    body: 'Tap quick-add presets (100ml, 250ml, 500ml, 750ml) or enter a custom amount. Watch the animated water glass fill in real time. The progress ring and glass indicators update with every log.',
+    body: 'Tap any of the four quick-add water buttons. In Settings → Customizations, you can replace those default amounts with your own bottle or glass sizes.',
   },
   {
     id: 'food',
@@ -229,4 +229,3 @@ export default function DashboardTour({ onClose }: DashboardTourProps) {
     </div>
   );
 }
-

@@ -116,6 +116,20 @@ const UserSchema = new Schema<IUserDocument>(
           sleep: { type: Date },
         },
       },
+      customizations: {
+        water: {
+          quickAmountsMl: {
+            type: [Number],
+            default: [100, 250, 500, 750],
+            validate: {
+              validator(values: number[]) {
+                return Array.isArray(values) && values.length === 4 && values.every((value) => Number.isInteger(value) && value >= 1 && value <= 5000);
+              },
+              message: 'Water quick amounts must contain exactly 4 integers between 1 and 5000',
+            },
+          },
+        },
+      },
       todoTemplates: {
         type: [
           {
@@ -265,8 +279,12 @@ UserSchema.methods.comparePassword = async function (candidatePassword: string):
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-// Prevent model recompilation in dev (hot reload)
+// Recompile the model in development so schema changes survive hot reloads.
+if (process.env.NODE_ENV === 'development' && mongoose.models.User) {
+  delete mongoose.models.User;
+}
+
 const User: Model<IUserDocument> =
-  mongoose.models.User || mongoose.model<IUserDocument>('User', UserSchema);
+  (mongoose.models.User as Model<IUserDocument> | undefined) || mongoose.model<IUserDocument>('User', UserSchema);
 
 export default User;

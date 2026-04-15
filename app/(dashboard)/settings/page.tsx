@@ -7,13 +7,13 @@ import {
   Shield, Eye, EyeOff, CheckCircle2, Sparkles, Utensils, Dumbbell,
   Loader2, RefreshCw, Flame, Droplets, Scale, Moon,
   Mail, Plus, X, ListChecks, Pill, Zap, Trash2, Pencil, CheckSquare,
-  Smartphone, RotateCcw, AlertCircle,
+  Smartphone, RotateCcw, AlertCircle, SlidersHorizontal,
 } from 'lucide-react';
 import { showToast } from '@/components/ui/Toast';
 import { CardSkeleton } from '@/components/ui/Skeleton';
 import { useUser } from '@/hooks/useUser';
 import api from '@/lib/apiClient';
-import { cn } from '@/lib/utils';
+import { cn, formatWater } from '@/lib/utils';
 import { getTargetsForUser } from '@/lib/health';
 import DashboardPageShell from '@/components/layout/DashboardPageShell';
 import Link from 'next/link';
@@ -25,18 +25,22 @@ interface TodoTemplate { id: string; title: string; note: string; time: string; 
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-type Tab = 'profile' | 'body' | 'targets' | 'api-keys' | 'notifications' | 'email' | 'todos' | 'health-data';
+type Tab = 'profile' | 'body' | 'targets' | 'customizations' | 'api-keys' | 'notifications' | 'email' | 'todos' | 'health-data';
 
 const NAV_ITEMS: { key: Tab; label: string; icon: React.ElementType; desc: string }[] = [
   { key: 'profile',       label: 'Profile',        icon: User,          desc: 'Personal info & metrics' },
   { key: 'body',          label: 'Body',           icon: PersonStanding, desc: 'Composition & fitness' },
   { key: 'targets',       label: 'Targets',        icon: Target,        desc: 'Daily goals & macros' },
+  { key: 'customizations', label: 'Customizations', icon: SlidersHorizontal, desc: 'Tracker-specific defaults' },
   { key: 'api-keys',      label: 'API Keys',       icon: Key,           desc: 'OpenAI & USDA keys' },
   { key: 'notifications', label: 'Notifications',  icon: Bell,          desc: 'Reminders & schedule' },
   { key: 'email',         label: 'Email',          icon: Mail,          desc: 'SMTP, IMAP & recipients' },
   { key: 'todos',         label: 'Daily Todos',    icon: CheckSquare,   desc: 'Recurring checklist' },
   { key: 'health-data',   label: 'Health Data',    icon: Smartphone,    desc: 'External health sync' },
 ];
+
+const MAX_CUSTOM_WATER_GLASS_ML = 5000;
+const DEFAULT_WATER_QUICK_AMOUNTS = [100, 250, 500, 750] as const;
 
 const activityLevels = [
   { value: 'sedentary',   label: 'Sedentary',   desc: 'Little or no exercise' },
@@ -85,7 +89,7 @@ function SettingsInner() {
   const { user, loading, refetch } = useUser();
 
   const rawTab = searchParams.get('tab') as Tab | null;
-  const validTabs: Tab[] = ['profile', 'body', 'targets', 'api-keys', 'notifications', 'email', 'todos', 'health-data'];
+  const validTabs: Tab[] = ['profile', 'body', 'targets', 'customizations', 'api-keys', 'notifications', 'email', 'todos', 'health-data'];
   const [activeTab, setActiveTabState] = useState<Tab>(
     rawTab && validTabs.includes(rawTab) ? rawTab : 'profile'
   );
@@ -120,6 +124,10 @@ function SettingsInner() {
   const [protein, setProtein] = useState('');
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
+
+  // ── Customizations state ───────────────────────────────────────────────────
+  const [customizationsSaving, setCustomizationsSaving] = useState(false);
+  const [customWaterAmounts, setCustomWaterAmounts] = useState<string[]>(DEFAULT_WATER_QUICK_AMOUNTS.map(String));
 
   // ── API Keys state ─────────────────────────────────────────────────────────
   const [apiKeysSaving, setApiKeysSaving] = useState(false);
@@ -254,6 +262,11 @@ function SettingsInner() {
       setSleepTime(s.reminderSchedule?.sleepTime || '');
       setWorkoutTime(s.reminderSchedule?.workoutTime || '');
       setWeighInTime(s.reminderSchedule?.weighInTime || '');
+      const savedQuickAmounts = s.customizations?.water?.quickAmountsMl;
+      const normalizedQuickAmounts = Array.isArray(savedQuickAmounts) && savedQuickAmounts.length === 4
+        ? savedQuickAmounts
+        : DEFAULT_WATER_QUICK_AMOUNTS;
+      setCustomWaterAmounts(normalizedQuickAmounts.map((value) => String(value)));
       const lsa = s.reminderSchedule?.lastSentAt ?? {};
       setLastSentAt({
         water: String(lsa.water ?? ''), breakfast: String(lsa.breakfast ?? ''),
@@ -429,6 +442,39 @@ function SettingsInner() {
       } else showToast(res.error || 'Failed to generate health plan', 'error');
     } catch { showToast('Failed to generate health plan', 'error'); }
     finally { setRegeneratingPlan(false); }
+  };
+
+  // ── Customizations save ────────────────────────────────────────────────────
+  const saveCustomizations = async () => {
+    const parsedAmounts = customWaterAmounts.map((value) => Number(value));
+    const invalidAmount = parsedAmounts.some((value) =>
+      !Number.isInteger(value) || value < 1 || value > MAX_CUSTOM_WATER_GLASS_ML
+    );
+    if (invalidAmount) {
+      showToast(`Each water amount must be a whole number between 1 and ${MAX_CUSTOM_WATER_GLASS_ML} ml`, 'error');
+      return;
+    }
+
+    setCustomizationsSaving(true);
+    try {
+      const res = await api.updateSettings({
+        customizations: {
+          water: {
+            quickAmountsMl: parsedAmounts,
+          },
+        },
+      });
+      if (res.success) {
+        showToast('Customizations saved', 'success');
+        await refetch();
+      } else {
+        showToast(res.error || 'Failed to save customizations', 'error');
+      }
+    } catch {
+      showToast('Failed to save customizations', 'error');
+    } finally {
+      setCustomizationsSaving(false);
+    }
   };
 
   // ── API Keys save ──────────────────────────────────────────────────────────
@@ -1177,6 +1223,70 @@ function SettingsInner() {
                   </button>
                 </div>
               </div>
+            </div>
+          </>
+        )}
+
+        {/* ══════ CUSTOMIZATIONS ══════ */}
+        {activeTab === 'customizations' && (
+          <>
+            <div className="glass-card rounded-2xl p-6">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal className="h-4 w-4 text-accent-cyan" />
+                <h2 className="text-base font-semibold text-text-primary">Water tracker</h2>
+              </div>
+              <p className="mt-1 text-xs text-text-muted">
+                Edit the four quick-add water buttons. The Water page will use these values directly instead of showing a separate custom button.
+              </p>
+
+              <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,26rem)_1fr]">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {customWaterAmounts.map((amount, index) => (
+                    <div key={index}>
+                      <label className="text-xs font-medium text-text-muted">Quick add {index + 1} (ml)</label>
+                      <input
+                        type="number"
+                        value={amount}
+                        onChange={(e) => setCustomWaterAmounts((prev) => prev.map((item, itemIndex) => itemIndex === index ? e.target.value : item))}
+                        min={1}
+                        max={MAX_CUSTOM_WATER_GLASS_ML}
+                        placeholder={`e.g. ${DEFAULT_WATER_QUICK_AMOUNTS[index]}`}
+                        className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm"
+                      />
+                    </div>
+                  ))}
+                  <p className="sm:col-span-2 text-[11px] text-text-muted">
+                    Defaults are 100 ml, 250 ml, 500 ml, and 750 ml. Replace any slot with your actual bottle or glass amount.
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-white/[0.02] p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Preview</p>
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    {customWaterAmounts.map((amount, index) => {
+                      const parsedAmount = Number(amount);
+                      const displayAmount = Number.isInteger(parsedAmount) && parsedAmount > 0
+                        ? formatWater(parsedAmount)
+                        : 'Set amount';
+
+                      return (
+                        <div key={index} className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-4 py-3">
+                          <p className="text-[11px] uppercase tracking-wide text-text-muted">Button {index + 1}</p>
+                          <p className="mt-1 text-sm font-semibold text-text-primary">{displayAmount}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <button onClick={saveCustomizations} disabled={customizationsSaving}
+                className="glass-button-primary flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold disabled:opacity-50">
+                {customizationsSaving ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <Save className="h-4 w-4" />}
+                Save
+              </button>
             </div>
           </>
         )}
@@ -1997,7 +2107,7 @@ export default function SettingsPage() {
       <div className="shrink-0 px-4 pb-3 sm:px-6 lg:px-6">
         <DashboardPageShell
           title="Settings"
-          subtitle="Profile, targets, API keys & preferences"
+          subtitle="Profile, targets, customizations, API keys, and preferences"
           icon={Settings}
           mobileVariant="minimal"
         />
