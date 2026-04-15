@@ -88,7 +88,7 @@ export default function DashboardPage() {
   return (
     <div className="animate-fade-in">
       {/* ─── Desktop / iPad (lg+) ─── */}
-      <div className="hidden flex-col gap-6 lg:flex">
+      <div className="hidden flex-col gap-3 lg:flex">
         {/* Top row */}
           <div className="flex flex-wrap items-start justify-between gap-4 pt-3">
           <div>
@@ -99,7 +99,7 @@ export default function DashboardPage() {
               {getGreeting()}
               {userName ? `, ${userName}` : ''} 👋
             </h1>
-            <p className="font-body mt-1.5 text-[13px] text-text-muted">
+            <p className="font-body mt-0.5 text-[13px] text-text-muted">
               Build momentum one healthy choice at a time.
             </p>
           </div>
