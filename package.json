@@ -2,6 +2,9 @@
   "name": "arogyamandiram",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "scripts": {
     "dev": "concurrently --kill-others --names \"next,cron\" --prefix-colors \"cyan,yellow\" \"DOTENV_CONFIG_PATH=.env.local NODE_OPTIONS='--require dotenv/config' next dev\" \"node scripts/local-cron.mjs\"",
     "build": "next build",
@@ -41,5 +44,10 @@
     "tailwindcss": "^3.4.17",
     "tsx": "^4.21.0",
     "typescript": "^5.7.3"
+  },
+  "overrides": {
+    "minimatch@3.1.5": {
+      "brace-expansion": "^1.1.13"
+    }
   }
 }
