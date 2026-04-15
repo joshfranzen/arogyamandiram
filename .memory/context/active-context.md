@@ -17,6 +17,7 @@ staleness_days: 3
 **Minor Updates Sprint** — Email reminders, AI daily plans, cleanup, recommendations, and repo-shape alignment.
 
 Recent changes since the last broad memory refresh:
+- **Global positioning cleanup**: Removed country-specific marketing and AI prompt wording from README, landing page, dashboard tour, food empty state, metadata keywords, and meal-plan/recommendation prompts so Arogyamandiram reads as a worldwide health app
 - **Today's Plan UX + logging improvements**: Added independent regenerate behavior for overview/food/workout, workout quick-add controls (reps + minutes + add-to-log), per-section daily regen limits, and Request Inspector logging for today's plan generation (`insights/today-plan`)
 - **Email reminders system**: Added `lib/email/` (`imap.ts`, `smtp.ts`, `templates.ts`), local cron runner, IMAP/SMTP utilities, and email templates
 - **Cron API routes**: Added `app/api/cron/generate-daily-plans/`, `send-reminders/`, `process-email-replies/`, and `sync-health-data/`

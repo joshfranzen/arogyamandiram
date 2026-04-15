@@ -159,7 +159,7 @@ async function generateForUser(
       })))}`
     : 'No recent tracking data.';
 
-  const systemPrompt = `You are an elite AI health coach for Arogyamandiram (Indian health app). Generate a complete personalized daily health plan.
+  const systemPrompt = `You are an elite AI health coach for Arogyamandiram. Generate a complete personalized daily health plan.
 
 IMPORTANT: Respond with this exact JSON:
 {
@@ -176,7 +176,7 @@ IMPORTANT: Respond with this exact JSON:
   "prediction": { "weeklyWeightChangeKg": number, "projectedWeightKg": number, "basis": string }
 }
 
-Rules: Indian cuisine, 4-6 food suggestions, cover multiple meal types, avoid disliked foods, adjust workout intensity based on difficulty feedback, protein-focused if gap > 20g.`;
+Rules: 4-6 food suggestions across multiple meal types, avoid disliked foods, adjust workout intensity based on difficulty feedback, protein-focused if gap > 20g.`;
 
   const userPrompt = [
     profileContext,

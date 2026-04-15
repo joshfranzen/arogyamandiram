@@ -26,6 +26,7 @@ import { showToast } from '@/components/ui/Toast';
 import { useDailyLog } from '@/hooks/useDailyLog';
 import { useUser } from '@/hooks/useUser';
 import api from '@/lib/apiClient';
+import { FOOD_FILTER_OPTIONS, type FoodCategoryFilter } from '@/lib/foodCategories';
 import { getTargetsForUser } from '@/lib/health';
 import {
   cn,
@@ -63,28 +64,11 @@ const mealLabels: Record<string, string> = {
   snack: 'Snacks',
 };
 
-const categories = [
-  { key: 'all', label: 'All' },
-  { key: 'curry', label: 'Curries' },
-  { key: 'dal', label: 'Dals' },
-  { key: 'bread', label: 'Breads' },
-  { key: 'rice', label: 'Rice' },
-  { key: 'snack', label: 'Snacks' },
-  { key: 'street_food', label: 'Street Food' },
-  { key: 'sweet', label: 'Sweets' },
-  { key: 'beverage', label: 'Drinks' },
-  { key: 'breakfast', label: 'Breakfast' },
-  { key: 'chutney', label: 'Chutneys' },
-  { key: 'raita', label: 'Raita' },
-  { key: 'salad', label: 'Salads' },
-  { key: 'non_veg', label: 'Non-Veg' },
-  { key: 'seafood', label: 'Seafood' },
-  { key: 'fruit', label: 'Fruits' },
-  { key: 'dry_fruit', label: 'Dry Fruits' },
-  { key: 'other', label: 'Other' },
+const tabs: Array<{ key: FoodCategoryFilter | 'logged' | 'recent'; label: string }> = [
+  { key: 'logged', label: 'Logged' },
+  { key: 'recent', label: 'Recent' },
+  ...FOOD_FILTER_OPTIONS,
 ];
-
-const tabs = [{ key: 'logged', label: 'Logged' }, { key: 'recent', label: 'Recent' }, ...categories];
 
 export default function FoodLogPage() {
   const { user, loading: userLoading } = useUser();
@@ -102,7 +86,7 @@ export default function FoodLogPage() {
   const [searching, setSearching] = useState(false);
   const [recentFoods, setRecentFoods] = useState<{ name: string; lastDate: string; count: number }[]>([]);
   const [recentLoading, setRecentLoading] = useState(true);
-  const [selectedTab, setSelectedTab] = useState<string>('all');
+  const [selectedTab, setSelectedTab] = useState<FoodCategoryFilter | 'logged' | 'recent'>('all');
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
   const [addingMeal, setAddingMeal] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -142,7 +126,7 @@ export default function FoodLogPage() {
     searchTimerRef.current = setTimeout(() => doSearch(value, cat), 600);
   };
 
-  const handleTabChange = (key: string) => {
+  const handleTabChange = (key: FoodCategoryFilter | 'logged' | 'recent') => {
     setSelectedTab(key);
     if (key === 'recent' || key === 'logged') return;
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
@@ -295,7 +279,7 @@ export default function FoodLogPage() {
                 value={query}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 className="w-full rounded-xl border border-neutral-800 bg-neutral-900/70 py-3 pl-10 pr-10 text-base text-neutral-100 shadow-none outline-none ring-0 placeholder:text-neutral-500 sm:text-sm"
-                placeholder="Search foods... try 'paneer', 'dosa', 'biryani'"
+                placeholder="Search foods... try 'chicken', 'salad', 'rice bowl'"
               />
               {query && (
                 <button
@@ -466,8 +450,8 @@ export default function FoodLogPage() {
             ) : (
               <div className="flex flex-col items-center gap-3 py-12 text-center">
                 <Search className="h-8 w-8 text-neutral-600" />
-                <p className="text-sm text-neutral-400">Search for Indian foods to add</p>
-                <p className="text-xs text-neutral-500">150+ items: curries, dals, breads, sweets & more</p>
+                <p className="text-sm text-neutral-400">Search foods to add</p>
+                <p className="text-xs text-neutral-500">150+ built-in items plus broader search fallback</p>
               </div>
             )}
             </div>

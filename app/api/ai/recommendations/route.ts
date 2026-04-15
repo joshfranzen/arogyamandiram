@@ -379,7 +379,7 @@ export async function POST(req: NextRequest) {
 
     switch (type) {
       case 'meal': {
-        const systemPrompt = `You are a nutritionist AI for an Indian health app called Arogyamandiram. Suggest Indian meals that fit the user's dietary needs. Prioritize filling yesterday's protein and calorie gaps when recent data is available. Always respond with JSON: { "suggestions": [{ "name": string, "description": string, "calories": number, "protein": number, "carbs": number, "fat": number, "mealType": "breakfast"|"lunch"|"dinner"|"snack", "ingredients": string[], "isVegetarian": boolean }] }. Include 4-6 suggestions. Focus on Indian cuisine.`;
+        const systemPrompt = `You are a nutritionist AI for Arogyamandiram. Suggest meals that fit the user's dietary needs. Prioritize filling yesterday's protein and calorie gaps when recent data is available. Always respond with JSON: { "suggestions": [{ "name": string, "description": string, "calories": number, "protein": number, "carbs": number, "fat": number, "mealType": "breakfast"|"lunch"|"dinner"|"snack", "ingredients": string[], "isVegetarian": boolean }] }. Include 4-6 suggestions and tailor them to the user's preferences and goals.`;
         const userPrompt = `${buildProfileContext('meal')}\n${recentContext}\nToday's date: ${getToday()}\n${context.mealType ? `Suggest for: ${context.mealType}` : 'Suggest meals for the full day'}\n${context.preferences ? `Preferences: ${context.preferences}` : ''}`;
         const ai = await callOpenAI(apiKey, systemPrompt, userPrompt);
         result = ai.parsed;

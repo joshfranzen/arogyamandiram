@@ -4,12 +4,17 @@
 // Cache-first: search MongoDB foods collection by name regex.
 // If >= 5 results found → return from MongoDB (no USDA call).
 // If < 5 results → fetch from USDA → upsert individual food docs → return.
-// This means "paneer" searched once populates ~20 docs; future searches
-// for "pan", "paner", "paneer tikka" are all served from MongoDB.
+// This means a food searched once can populate related cached results;
+// future partial searches are then served from MongoDB.
 
 import { NextRequest } from 'next/server';
 import type { FoodCategory, FoodItem } from '@/types';
 import { maskedResponse, errorResponse } from '@/lib/apiMask';
+import {
+  FOOD_FILTER_SEED_QUERY,
+  FOOD_FILTER_TO_CATEGORIES,
+  type FoodCategoryFilter,
+} from '@/lib/foodCategories';
 import { getAuthUserId, isUserId } from '@/lib/session';
 import connectDB from '@/lib/db';
 import Food, { type IFoodDocument } from '@/models/Food';
@@ -23,6 +28,30 @@ const VALID_CATEGORIES: FoodCategory[] = [
   'raita', 'salad', 'breakfast', 'street_food', 'non_veg', 'seafood', 'dry_fruit', 'fruit', 'other',
 ];
 
+function resolveCategoryFilter(category: string): {
+  categories: FoodCategory[];
+  seedQuery: string | null;
+} {
+  if (!category) return { categories: [], seedQuery: null };
+
+  if ((category as FoodCategoryFilter) in FOOD_FILTER_TO_CATEGORIES) {
+    const filter = category as FoodCategoryFilter;
+    return {
+      categories: FOOD_FILTER_TO_CATEGORIES[filter],
+      seedQuery: filter === 'all' ? null : FOOD_FILTER_SEED_QUERY[filter as Exclude<FoodCategoryFilter, 'all'>],
+    };
+  }
+
+  if (VALID_CATEGORIES.includes(category as FoodCategory)) {
+    return {
+      categories: [category as FoodCategory],
+      seedQuery: category,
+    };
+  }
+
+  return { categories: [], seedQuery: null };
+}
+
 const NID_CALORIES = 1008;
 const NID_PROTEIN  = 1003;
 const NID_CARBS    = 1005;
@@ -31,7 +60,7 @@ const NID_FIBER    = 1079;
 
 const LIQUID_KEYWORDS = [
   'milk', 'juice', 'water', 'oil', 'drink', 'tea', 'coffee', 'shake',
-  'smoothie', 'beer', 'wine', 'broth', 'soup', 'lassi', 'buttermilk',
+  'smoothie', 'beer', 'wine', 'broth', 'soup', 'buttermilk',
 ];
 
 function inferServingUnit(name: string): 'g' | 'ml' {
@@ -40,20 +69,20 @@ function inferServingUnit(name: string): 'g' | 'ml' {
 }
 
 const CATEGORY_KEYWORDS: [FoodCategory, string[]][] = [
-  ['curry',      ['paneer', 'curry', 'masala', 'korma', 'tikka', 'butter chicken', 'makhani', 'kofta', 'vindaloo', 'saag', 'palak']],
-  ['dal',        ['dal', 'daal', 'lentil', 'chana', 'rajma', 'kadhi', 'sambar']],
-  ['bread',      ['roti', 'naan', 'paratha', 'chapati', 'puri', 'bhatura', 'kulcha', 'flatbread']],
-  ['rice',       ['rice', 'biryani', 'pulao', 'khichdi', 'pilaf', 'fried rice']],
-  ['snack',      ['samosa', 'pakora', 'bhajia', 'vada', 'bhel', 'puri', 'namkeen', 'chips', 'chivda']],
-  ['street_food',['pani puri', 'chaat', 'golgappa', 'dabeli', 'vada pav', 'pav bhaji', 'kachori']],
-  ['sweet',      ['halwa', 'ladoo', 'barfi', 'kheer', 'gulab jamun', 'jalebi', 'rasgulla', 'mithai', 'dessert', 'sweet']],
-  ['beverage',   ['chai', 'tea', 'coffee', 'lassi', 'juice', 'milk', 'shake', 'smoothie', 'water', 'drink', 'nimbu pani']],
-  ['breakfast',  ['idli', 'dosa', 'poha', 'upma', 'uttapam', 'paratha', 'oats', 'porridge']],
-  ['non_veg',    ['chicken', 'mutton', 'lamb', 'beef', 'pork', 'egg', 'meat', 'keema', 'biryani']],
+  ['curry',      ['curry', 'stew', 'bowl', 'masala', 'stir fry', 'roast', 'grill', 'sauce']],
+  ['dal',        ['lentil', 'bean', 'beans', 'chickpea', 'peas', 'dal', 'daal']],
+  ['bread',      ['bread', 'toast', 'bagel', 'bun', 'roll', 'wrap', 'tortilla', 'flatbread', 'naan', 'roti']],
+  ['rice',       ['rice', 'pilaf', 'grain bowl', 'fried rice', 'quinoa', 'couscous', 'biryani', 'pulao']],
+  ['snack',      ['chips', 'cracker', 'cookie', 'bar', 'trail mix', 'popcorn', 'pretzel', 'snack']],
+  ['street_food',['taco', 'shawarma', 'gyro', 'hot dog', 'chaat', 'food truck', 'street food']],
+  ['sweet',      ['dessert', 'sweet', 'cake', 'pastry', 'ice cream', 'brownie', 'pudding']],
+  ['beverage',   ['tea', 'coffee', 'juice', 'milk', 'shake', 'smoothie', 'water', 'drink', 'latte']],
+  ['breakfast',  ['oats', 'porridge', 'cereal', 'omelet', 'omelette', 'pancake', 'waffle', 'breakfast', 'toast']],
+  ['non_veg',    ['chicken', 'turkey', 'lamb', 'beef', 'pork', 'egg', 'meat', 'steak', 'burger']],
   ['seafood',    ['fish', 'prawn', 'shrimp', 'crab', 'lobster', 'salmon', 'tuna', 'seafood']],
   ['fruit',      ['apple', 'banana', 'mango', 'orange', 'grape', 'papaya', 'guava', 'watermelon', 'fruit']],
-  ['dry_fruit',  ['almond', 'cashew', 'walnut', 'pistachio', 'raisin', 'date', 'fig', 'dry fruit', 'nut']],
-  ['salad',      ['salad', 'kachumber', 'raita']],
+  ['dry_fruit',  ['almond', 'cashew', 'walnut', 'pistachio', 'raisin', 'date', 'fig', 'dried fruit', 'nut']],
+  ['salad',      ['salad', 'slaw', 'greens', 'side salad', 'yogurt side']],
 ];
 
 function inferCategory(name: string): FoodCategory {
@@ -104,13 +133,14 @@ async function resolveApiKey(userId: string): Promise<string> {
 // Fallback measures for common countable whole foods when USDA portions are missing
 const COUNTABLE_FOOD_DEFAULTS: { keywords: string[]; measures: { label: string; grams: number }[] }[] = [
   { keywords: ['egg'],                  measures: [{ label: '1 egg', grams: 50 }] },
-  { keywords: ['roti', 'chapati'],      measures: [{ label: '1 roti', grams: 40 }] },
-  { keywords: ['paratha'],              measures: [{ label: '1 paratha', grams: 80 }] },
-  { keywords: ['idli'],                 measures: [{ label: '1 idli', grams: 40 }] },
-  { keywords: ['dosa'],                 measures: [{ label: '1 dosa', grams: 80 }] },
+  { keywords: ['bread', 'slice'],       measures: [{ label: '1 slice', grams: 28 }] },
+  { keywords: ['tortilla'],             measures: [{ label: '1 tortilla', grams: 45 }] },
+  { keywords: ['muffin'],               measures: [{ label: '1 muffin', grams: 55 }] },
+  { keywords: ['cookie'],               measures: [{ label: '1 cookie', grams: 15 }] },
+  { keywords: ['taco'],                 measures: [{ label: '1 taco', grams: 90 }] },
   { keywords: ['banana'],               measures: [{ label: '1 banana', grams: 120 }] },
   { keywords: ['apple'],                measures: [{ label: '1 apple', grams: 182 }] },
-  { keywords: ['bread', 'slice'],       measures: [{ label: '1 slice', grams: 28 }] },
+  { keywords: ['burger'],               measures: [{ label: '1 burger', grams: 180 }] },
 ];
 
 /** Build natural serving measures from USDA portion data + branded serving info. */
@@ -308,11 +338,9 @@ export async function GET(req: NextRequest) {
     if (!isUserId(userId)) return userId;
 
     const { searchParams } = new URL(req.url);
-    const query    = (searchParams.get('q') || '').trim();
-    const category = (searchParams.get('category') || '').trim();
-    const cacheCategory = VALID_CATEGORIES.includes(category as FoodCategory)
-      ? (category as FoodCategory)
-      : ('' as const);
+    const query = (searchParams.get('q') || '').trim();
+    const category = (searchParams.get('category') || '').trim().toLowerCase();
+    const { categories: resolvedCategories, seedQuery } = resolveCategoryFilter(category);
 
     await connectDB();
 
@@ -321,7 +349,11 @@ export async function GET(req: NextRequest) {
       const regex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
 
       // Search MongoDB first
-      const cached = await Food.find({ nameLower: regex }).limit(20).lean<IFoodDocument[]>();
+      const queryFilter: Record<string, unknown> = { nameLower: regex };
+      if (resolvedCategories.length === 1) queryFilter.category = resolvedCategories[0];
+      else if (resolvedCategories.length > 1) queryFilter.category = { $in: resolvedCategories };
+
+      const cached = await Food.find(queryFilter).limit(20).lean<IFoodDocument[]>();
       if (cached.length >= 5) {
         const foods = cached.map(toFoodItem);
         return maskedResponse({ foods, edamamFoods: [], total: foods.length });
@@ -334,22 +366,28 @@ export async function GET(req: NextRequest) {
         return maskedResponse({ foods, edamamFoods: [], total: foods.length });
       }
 
-      const fresh = await fetchAndCacheFromUsda(query, cacheCategory, apiKey);
+      const overrideCategory = resolvedCategories.length === 1 ? resolvedCategories[0] : '';
+      const fresh = await fetchAndCacheFromUsda(query, overrideCategory, apiKey);
       const cachedIds = new Set(cached.map((c) => c.foodId));
       const merged = [...cached.map(toFoodItem), ...fresh.filter((f) => !cachedIds.has(f.id))];
       return maskedResponse({ foods: merged, edamamFoods: [], total: merged.length });
     }
 
     // Case 2: query < 3 chars — category browse or default
-    if (cacheCategory) {
-      const cached = await Food.find({ category: cacheCategory }).limit(40).lean<IFoodDocument[]>();
+    if (resolvedCategories.length > 0) {
+      const categoryFilter =
+        resolvedCategories.length === 1
+          ? { category: resolvedCategories[0] }
+          : { category: { $in: resolvedCategories } };
+      const cached = await Food.find(categoryFilter).limit(40).lean<IFoodDocument[]>();
       if (cached.length >= 5) {
         const foods = cached.map(toFoodItem);
         return maskedResponse({ foods, edamamFoods: [], total: foods.length });
       }
       const apiKey = await resolveApiKey(String(userId));
       if (!apiKey) return maskedResponse({ foods: [], edamamFoods: [], total: 0 });
-      const foods = await fetchAndCacheFromUsda(cacheCategory, cacheCategory, apiKey);
+      const overrideCategory = resolvedCategories.length === 1 ? resolvedCategories[0] : '';
+      const foods = await fetchAndCacheFromUsda(seedQuery || 'common foods', overrideCategory, apiKey);
       return maskedResponse({ foods, edamamFoods: [], total: foods.length });
     }
 
@@ -361,7 +399,7 @@ export async function GET(req: NextRequest) {
     }
     const apiKey = await resolveApiKey(String(userId));
     if (!apiKey) return maskedResponse({ foods: [], edamamFoods: [], total: 0 });
-    const foods = await fetchAndCacheFromUsda('indian food', '', apiKey);
+    const foods = await fetchAndCacheFromUsda('common foods', '', apiKey);
     return maskedResponse({ foods, edamamFoods: [], total: foods.length });
 
   } catch (err) {

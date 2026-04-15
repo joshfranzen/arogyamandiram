@@ -13,7 +13,7 @@ updated_by: codex-gpt-5
 
 ## Who It's For
 
-Users who want one place to track daily health behavior instead of splitting food, water, workout, sleep, and reminders across separate apps. The app still has a strong Indian-food bias in its cached catalog and category system, but the current food pipeline also pulls in USDA FoodData Central results when local cache coverage is thin.
+Users who want one place to track daily health behavior instead of splitting food, water, workout, sleep, and reminders across separate apps. Product positioning is now global rather than country-specific; the built-in food catalog still reflects existing seeded categories, while the food pipeline also pulls in USDA FoodData Central results when local cache coverage is thin.
 
 ## What Problems It Solves
 
@@ -44,4 +44,4 @@ Users who want one place to track daily health behavior instead of splitting foo
 
 ## Project Status (as of 2026-04-15)
 
-Active development. Core features are broad and mostly implemented; the current branch is centered on minor updates around email reminders, AI daily plans, sync automation, and settings cleanup. The memory docs needed refresh because several older assumptions remained after the repo grew beyond the original tracker scope.
+Active development. Core features are broad and mostly implemented; the current branch is centered on minor updates around email reminders, AI daily plans, sync automation, settings cleanup, and global product positioning. The memory docs needed refresh because several older assumptions remained after the repo grew beyond the original tracker scope.

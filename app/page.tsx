@@ -34,7 +34,7 @@ const Ic = {
   flame: <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 002.5 2.5z"/></svg>,
 };
 
-const MARQUEE = "Dal Makhani · Butter Chicken · Biryani · Chole Bhature · Poha · Paneer Tikka · Dosa · Idli Sambar · Aloo Paratha · Rajma Chawal · Masala Chai · AI Food Logger · Sleep Journal · Workout Streaks · Water Tracking · AI Insights · Weight Trends · Calorie Ring".split(" · ");
+const MARQUEE = "Food Logger · Hydration Tracking · Sleep Journal · Workout Streaks · Weight Trends · AI Insights · Daily Planning · Smart Search · Macro Tracking · Health Dashboard · Progress Rings · Habit Streaks · Privacy First · Calorie Ring".split(" · ");
 
 const MOCK_RECENT_BADGES: UserBadge[] = [
   { id: "meal_50", name: "50 Meals", description: "Logged 50 meals.", icon: "🍽", category: "milestone", earnedAt: "2026-03-12" },
@@ -410,7 +410,7 @@ a{color:inherit;text-decoration:none}
             </p>
 
             <p className={rv(hv, "lp-d2")} style={{ fontFamily: "var(--font-display)", fontWeight: 400, fontSize: "clamp(20px, 3vw, 34px)", lineHeight: 1.35, color: "var(--t2)", marginTop: 36, maxWidth: 560, position: "relative", zIndex: 1, textAlign: "center" }}>
-              Track calories, water, sleep, workouts and weight — <em style={{ fontStyle: "normal", color: "var(--t1)", fontWeight: 600 }}>built for Indian lifestyles</em>, powered by AI.
+              Track calories, water, sleep, workouts and weight with <em style={{ fontStyle: "normal", color: "var(--t1)", fontWeight: 600 }}>one private health hub</em>, powered by AI.
             </p>
 
             <div className={`${rv(hv, "lp-d3")} lp-ctas`} style={{ display: "flex", gap: 12, marginTop: 44, position: "relative", zIndex: 1 }}>
@@ -790,7 +790,7 @@ a{color:inherit;text-decoration:none}
           <section className="lp-stats" ref={st}>
             <div className="lp-wrap">
               <div className="lp-stats-row">
-                {[{ n: "150+", l: "Indian foods" }, { n: "6", l: "Health metrics" }, { n: "AI", l: "Powered insights" }, { n: "100%", l: "Private" }].map((x, i) => (
+                {[{ n: "150+", l: "Built-in foods" }, { n: "6", l: "Health metrics" }, { n: "AI", l: "Powered insights" }, { n: "100%", l: "Private" }].map((x, i) => (
                     <div key={x.l} className={`lp-stat ${rv(stv, `lp-d${i + 1}`)}`}>
                       <div className="lp-stat-n">{x.n}</div>
                       <div className="lp-stat-l">{x.l}</div>
@@ -809,7 +809,7 @@ a{color:inherit;text-decoration:none}
               </div>
               <div className="lp-ft-grid">
                 {[
-                  { icon: Ic.fork, t: "Food & Calories", d: "150+ Indian dishes with precise macros. Search, log by meal, watch your ring fill.", c: "var(--g)" },
+                  { icon: Ic.fork, t: "Food & Calories", d: "150+ built-in foods with precise macros. Search, log by meal, watch your ring fill.", c: "var(--g)" },
                   { icon: Ic.drop, t: "Water Intake", d: "One-tap presets. Animated glass fill. Daily progress toward your target.", c: "var(--g)" },
                   { icon: Ic.moon, t: "Sleep Journal", d: "Log bedtime, wake time, quality. 7-day chart reveals your patterns.", c: "#8B7EC8" },
                   { icon: Ic.zap, t: "Workouts", d: "Log any activity. Or describe it in plain text — AI parses the rest.", c: "#C4724E" },
@@ -835,7 +835,7 @@ a{color:inherit;text-decoration:none}
               </div>
               <div className="lp-ai-grid">
                 {[
-                  { label: "Food Logger", icon: Ic.fork, color: "var(--g)", input: "dal makhani for lunch with 2 rotis", lines: [{ t: "✓ Logged under Lunch", c: "var(--g)" }, { t: "Dal Makhani · 1 bowl", r: "320 kcal" }, { t: "Roti × 2", r: "240 kcal" }, { t: "Total", r: "560 kcal", b: true }] as Line[] },
+                  { label: "Food Logger", icon: Ic.fork, color: "var(--g)", input: "chicken sandwich and fruit for lunch", lines: [{ t: "✓ Logged under Lunch", c: "var(--g)" }, { t: "Chicken Sandwich · 1 serving", r: "420 kcal" }, { t: "Mixed Fruit · 1 bowl", r: "110 kcal" }, { t: "Total", r: "530 kcal", b: true }] as Line[] },
                   { label: "Workout Logger", icon: Ic.zap, color: "#C4724E", input: "45 min run and 3 sets bench", lines: [{ t: "✓ Cardio + Strength", c: "#C4724E" }, { t: "Running · 45 min", r: "380 kcal" }, { t: "Bench Press · 3×10", r: "90 kcal" }, { t: "Total burned", r: "470 kcal", b: true }] as Line[] },
                   { label: "Insights", icon: Ic.spark, color: "#8B7EC8", input: "This week's summary", lines: [{ t: "✓ 3 insights generated", c: "#8B7EC8" }, { t: "Protein goal 5/7 days ✓" }, { t: "Sleep avg 7.1h ↑ 0.8h" }, { t: "Hydration 6-day streak" }] as Line[] },
                 ].map((card, ci) => (
@@ -872,7 +872,7 @@ a{color:inherit;text-decoration:none}
               </div>
               <div className="lp-sp-grid">
                 {[
-                  { n: "01", t: "Log daily", d: "Meals, water, sleep, workouts — each takes seconds. Smart search finds 150+ Indian foods." },
+                  { n: "01", t: "Log daily", d: "Meals, water, sleep, workouts — each takes seconds. Smart search finds 150+ built-in foods." },
                   { n: "02", t: "See patterns", d: "Progress rings, macro bars, trend charts. Visualise a week to a full year at a glance." },
                   { n: "03", t: "Get smarter", d: "AI reads your data, surfaces what's working. No generic tips — just your patterns." },
                 ].map((x, i) => (

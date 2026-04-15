@@ -83,6 +83,7 @@ const EXCLUDE_ITEMS = new Set([
   'pepper', 'black pepper', 'ginger', 'garlic', 'onion',
   'lemon', 'lime', 'tamarind', 'curry leaves', 'mustard',
   'hing', 'asafoetida', 'paprika', 'cayenne',
+  'oregano', 'basil', 'thyme', 'rosemary', 'soy sauce', 'vinegar',
 ]);
 
 function isMainIngredient(name: string): boolean {
@@ -192,10 +193,18 @@ interface MealPayload {
   task: string;
 }
 
-const CARB_KEYWORDS = ['rice', 'roti', 'chapati', 'naan', 'bread', 'dosa', 'idli', 'poha', 'upma'];
-const PROTEIN_KEYWORDS = ['dal', 'paneer', 'chicken', 'fish', 'egg', 'rajma', 'chole', 'rajma', 'sambar', 'pappu', 'curry'];
-const SIDE_KEYWORDS = ['curd', 'raita', 'salad', 'chutney', 'pickle', 'papad'];
-const JUNK_KEYWORDS = ['chips', 'fries', 'fried', 'samosa', 'pakora', 'bhatura', 'puri', 'jalebi', 'biscuit', 'cookie', 'cola', 'soda'];
+const CARB_KEYWORDS = [
+  'rice', 'bread', 'toast', 'oats', 'pasta', 'noodle', 'potato', 'wrap', 'tortilla', 'quinoa',
+];
+const PROTEIN_KEYWORDS = [
+  'chicken', 'fish', 'egg', 'tofu', 'beans', 'lentil', 'yogurt', 'beef', 'turkey', 'salmon',
+];
+const SIDE_KEYWORDS = [
+  'salad', 'vegetable', 'fruit', 'yogurt', 'soup', 'dip', 'salsa', 'pickle',
+];
+const JUNK_KEYWORDS = [
+  'chips', 'fries', 'fried', 'cookie', 'cake', 'candy', 'cola', 'soda', 'pizza', 'burger', 'donut',
+];
 
 /** Build meal history: one entry per meal, items filtered (no spices/condiments), calories = total. */
 function buildMealHistoryLast4Days(

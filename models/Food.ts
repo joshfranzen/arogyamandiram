@@ -3,8 +3,8 @@
 // ============================================
 // One document per food item (not per query).
 // Indexed by nameLower so regex search works across all cached foods.
-// When "paneer" is searched → 20 USDA results stored → future searches
-// for "pan", "paner", "paneer tikka" all served from MongoDB, no USDA call.
+// When a food is searched, related USDA results are cached so future partial
+// searches can be served from MongoDB without another API call.
 
 import mongoose, { Schema, type Document } from 'mongoose';
 import type { FoodCategory } from '@/types';

@@ -26,8 +26,8 @@ const steps = [
   },
   {
     id: 'food',
-    title: 'Log meals from 150+ Indian foods',
-    body: 'Search curries, dals, breads, rice, street food, snacks, and more. Log entries under Breakfast, Lunch, Dinner, or Snacks. Your calorie ring and macro bars — protein, carbs, fat, fiber — update instantly with each meal.',
+    title: 'Log meals from 150+ built-in foods',
+    body: 'Search across the built-in catalog, then log entries under Breakfast, Lunch, Dinner, or Snacks. Your calorie ring and macro bars — protein, carbs, fat, fiber — update instantly with each meal.',
   },
   {
     id: 'workout',

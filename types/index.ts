@@ -338,6 +338,7 @@ export interface FoodMeasure {
 export interface FoodItem {
   id: string;
   name: string;
+  /** Legacy optional localized display name kept for backward compatibility. */
   nameHindi?: string;
   category: FoodCategory;
   servingSize: number;    // always 100 — nutritional values are per 100g/ml
@@ -354,6 +355,7 @@ export interface FoodItem {
 }
 
 export type FoodCategory =
+  // Legacy stored categories kept for backward compatibility with cached food docs.
   | 'curry'
   | 'dal'
   | 'bread'

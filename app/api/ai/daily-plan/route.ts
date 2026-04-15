@@ -197,7 +197,7 @@ async function buildUserContext(userId: string, targetDate: string) {
 // ─── Focused generators ───────────────────────────────────────────────────────
 
 async function generateFoodPlan(ctx: Awaited<ReturnType<typeof buildUserContext>>, apiKey: string) {
-  const system = `You are an elite AI nutrition coach for Arogyamandiram, an Indian health app. Generate ONLY a food plan.
+  const system = `You are an elite AI nutrition coach for Arogyamandiram. Generate ONLY a food plan.
 
 Respond with this exact JSON:
 {
@@ -219,7 +219,7 @@ Respond with this exact JSON:
   }
 }
 
-Rules: Focus on Indian cuisine, 4-6 suggestions across meal types. If protein gap > 20g, prioritize high-protein foods (paneer, dal, eggs, chicken). Avoid user's disliked foods.`;
+Rules: Suggest 4-6 foods across meal types. Match the user's goals, preferences, and disliked foods. If protein gap > 20g, prioritize high-protein options. Keep suggestions specific and realistic.`;
 
   const userPrompt = [ctx.profileContext, ctx.recentContext, ctx.yesterdayContext, ctx.feedbackContext, `Plan date: ${ctx.targetDate}`].filter(Boolean).join('\n');
   const ai = await callOpenAI(apiKey, system, userPrompt);
@@ -325,7 +325,7 @@ async function buildPlanForUser(
 }> {
   const ctx = await buildUserContext(userId, targetDate);
 
-  const systemPrompt = `You are an elite AI health coach for Arogyamandiram, an Indian health app. You generate a complete personalized daily health plan.
+  const systemPrompt = `You are an elite AI health coach for Arogyamandiram. You generate a complete personalized daily health plan.
 
 IMPORTANT: Always respond with this exact JSON structure:
 {
@@ -373,9 +373,9 @@ IMPORTANT: Always respond with this exact JSON structure:
 }
 
 Rules:
-- Focus on Indian cuisine for food (4-6 suggestions, cover multiple meal types)
+- Food plan: 4-6 suggestions across multiple meal types
 - Workout: balanced session (warm-up → main → cool-down), duration close to target
-- If protein gap > 20g: prioritize high-protein Indian foods (paneer, dal, eggs, chicken)
+- If protein gap > 20g: prioritize high-protein foods
 - Avoid user's disliked foods
 - Adjust workout intensity based on yesterday's difficulty feedback
 - Be specific and actionable`;
