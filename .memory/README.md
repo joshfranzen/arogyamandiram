@@ -33,6 +33,7 @@ Every AI tool — Claude Code, Cursor, Copilot, Gemini, Cline, Windsurf, Continu
 ### For a coding task
 - `rules/index.md` → relevant rule files
 - `skills/index.md` → relevant skill files
+- `context/tech-context.md` when the task touches auth, AI, cron, debug tooling, or data flow
 - The agent's `persona.md` + `skills.md`
 
 ### For a workflow (deploy, debug, etc.)
@@ -53,6 +54,14 @@ See `skills/agent-naming.md` for the full rule and name seed pool.
 1. Update the relevant file(s) under `.memory/`
 2. Bump `last_updated` in their frontmatter
 3. Update the Memory Status table in `project-memory.md`
+
+## What Drifts Fast In This Repo
+
+- Route inventory under `app/api/` and `app/(dashboard)/`
+- AI patterns (`app/api/ai/*`, debug logging, OpenAI model usage)
+- Settings surface area (`/settings`, email, todos, health-data, customizations)
+- Food search provider details (`models/Food.ts`, USDA fallback)
+- Auth enforcement path (currently layout + API helpers rather than middleware)
 
 ---
 

@@ -1,22 +1,30 @@
+---
+name: context-index
+type: context
+last_updated: 2026-04-15
+updated_by: codex-gpt-5
+staleness_days: 3
+---
+
 # Context
 
 ## Project Summary
 
-Arogyamandiram is a full-stack health & wellness tracking app for Indian users. Uses Next.js 14 (App Router), MongoDB, NextAuth.js, Tailwind CSS, and OpenAI GPT-4o-mini. Main entry: `app/(dashboard)/dashboard/page.tsx`.
+Arogyamandiram is a full-stack health and wellness platform with tracking, AI orchestration, reminders, cron automation, health-data sync, and gamification. The app is built with Next.js App Router, MongoDB/Mongoose, NextAuth credentials auth, Tailwind plus custom CSS, and OpenAI-powered flows. Core product entry points are the dashboard, settings, AI page, and the API surface under `app/api/`.
 
 ## Context Files
 
 | File | What It Covers | Last Updated |
 |------|---------------|-------------|
-| `context/project-brief.md` | What the project is, who it's for, feature list | 2026-03-26 |
-| `context/tech-context.md` | Tech stack, directory map, env vars, how to run | 2026-03-26 |
-| `context/active-context.md` | Current sprint, recent changes, what's next | 2026-03-26 |
-| `context/progress.md` | Done / In Progress / Known Gaps | 2026-03-26 |
-| `context/decisions.md` | Key architectural decisions and their rationale | 2026-03-26 |
+| `context/project-brief.md` | Product scope, users, feature families, current posture | 2026-04-15 |
+| `context/tech-context.md` | Stack, directory map, env vars, auth/data flow, run modes | 2026-04-15 |
+| `context/active-context.md` | Current branch, recent repo changes, near-term focus | 2026-04-15 |
+| `context/progress.md` | Done / In Progress / Known Gaps | 2026-04-15 |
+| `context/decisions.md` | Key architectural decisions and their rationale | 2026-04-15 |
 
 ## Actions
 
 - **Starting a new task?** Read `active-context.md` first.
-- **Project structure changed?** Update `tech-context.md` and this summary.
+- **Project structure changed?** Update `tech-context.md`, `active-context.md`, and this summary.
 - **Finished significant work?** Update `progress.md` and `active-context.md`.
 - **Made a major architectural decision?** Add it to `decisions.md`.

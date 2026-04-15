@@ -1,59 +1,74 @@
 ---
 name: UI Frontend Agent — Skills
-last_updated: 2026-03-26
+last_updated: 2026-04-15
+updated_by: codex-gpt-5
 ---
 
 # Skills
 
 ## Technologies Owned
 
-- **Next.js 14 Client Components** — `'use client'` components, hooks, modals
-- **Tailwind CSS 3.4** — Dark mode, custom colors, responsive breakpoints
-- **Framer Motion 11.15** — Page transitions, modal animations
-- **Recharts 2.15** — Weight trend charts, macro breakdowns (`MetricChart.tsx`)
-- **Lucide React 0.468** — Icon library
-- **CSS keyframe animations** — `globals.css`: waterFill, waterWaveSlide, fade-in, slide-up, pulse-slow
+- **Next.js 15 Client Components** — `'use client'` components, hooks, modals
+- **Tailwind CSS 3.4** — dark styling, responsive breakpoints, token use
+- **Framer Motion 11.15** — modal/page transitions
+- **Recharts 2.15** — chart rendering
+- **Lucide React 0.468** — icons
+- **CSS keyframe animations** — in `app/globals.css`
+- **UI state-heavy settings flows** — `app/(dashboard)/settings/page.tsx`
+- **Orchestrator + debug UI** — `components/orchestrator/*`, `components/debug/*`
 
 ## Design System
 
 ### Color Palette
-```
-Background:   #000000 (primary), #0a0a0a (surface), #171717 (elevated)
-Text:         #f0f0f5 (primary), #a1a1b5 (secondary), #6b7280 (muted)
-Emerald:      #10b981 (primary accent)
+
+```text
+Background:   #08080d / #0a0a0a / #171717
+Text:         #f5f5f5 / #a3a3a3
+Emerald:      #34d399
 Violet:       #8b5cf6
 Cyan:         #06b6d4
 Amber:        #f59e0b
 Rose:         #ef4444
-Gold:         #ffdf00 (achievements)
+Gold:         #ffdf00 / #d4af37
 ```
 
 ### Typography
-```
-Heading:  font-bebas-neue (Bebas Neue)
-Body:     font-outfit (Outfit, default sans)
-Mono:     font-jetbrains (JetBrains Mono)
+
+```text
+Heading:  Bebas Neue
+Body:     Outfit
+Mono:     JetBrains Mono
 ```
 
-### Card Classes
-```css
-.dashboard-unified-card   /* standard card — use this for all dashboard cards */
-.glass-card               /* glassmorphism: backdrop-blur-12px */
-.card-glow                /* subtle glow on hover */
+### Core Classes
+
+```text
+.glass-card
+.card-glow
 ```
 
 ### Layout
-```
-Bento grid: 4-column (desktop) → 1-column (mobile)
+
+```text
+Dashboard desktop uses bento utility classes in globals.css
 Sidebar breakpoint: lg (1024px)
-Mobile nav: fixed bottom, visible below lg
-Safe area: CSS variables for iOS notch
+Mobile nav: fixed bottom
+Safe area: CSS variables for iOS notch handling
 ```
 
 ### Reusable UI Components
-- `ProgressRing.tsx` — SVG circular progress indicator
-- `MacroBar.tsx` — Stacked bar for protein/carbs/fat
-- `MetricChart.tsx` — Recharts wrapper (line/bar charts)
-- `StatCard.tsx` — Metric display with icon
-- `Toast.tsx` — Notification toasts
-- `Skeleton.tsx` — Loading state placeholder
+
+- `ProgressRing.tsx`
+- `MacroBar.tsx`
+- `MetricChart.tsx`
+- `StatCard.tsx`
+- `StatMini.tsx`
+- `Toast.tsx`
+- `Skeleton.tsx`
+
+## Repo-Specific UI Patterns
+
+- Dashboard has different desktop and mobile compositions in the same page file
+- Settings is a large tabbed client page with query-param-driven tab state
+- AI and debug surfaces are part of the product, not throwaway internal pages
+- Hidden scrollbars are intentional and rely on custom overflow handling

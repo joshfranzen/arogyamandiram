@@ -12,33 +12,30 @@ staleness_days: 3
 
 `feature/dev-01-minor-updates-sprint-mar-26`
 
-## What's Being Worked On (as of 2026-04-07)
+## What's Being Worked On (as of 2026-04-15)
 
-**Minor Updates Sprint** — Email reminders, AI daily plans, cleanup, and recommendations.
+**Minor Updates Sprint** — Email reminders, AI daily plans, cleanup, recommendations, and repo-shape alignment.
 
-Recent changes since last memory update (post Mar 26):
+Recent changes since the last broad memory refresh:
 - **Today's Plan UX + logging improvements**: Added independent regenerate behavior for overview/food/workout, workout quick-add controls (reps + minutes + add-to-log), per-section daily regen limits, and Request Inspector logging for today's plan generation (`insights/today-plan`)
-- **Email reminders system**: Added `lib/email/` (imap.ts, smtp.ts, templates.ts), local cron script, IMAP/SMTP utilities, email templates framework
-- **Cron API routes**: Added `app/api/cron/generate-daily-plans/`, `app/api/cron/send-reminders/`, `app/api/cron/process-email-replies/`
-- **AI Daily Plan**: Added `app/api/ai/daily-plan/` route + `models/DailyPlan.ts` — nightly AI-generated plans (food, workout, top insight)
-- **AI Recommendations**: Added `app/api/ai/recommendations/` route
-- **Fitness Level Auto-detection**: Added `lib/deriveFitnessLevel.ts` — classifies users as beginner/intermediate/advanced based on 14-day workout history
-- **Preferences UI expanded**: Email notification settings, scheduling preferences
-- **Cleanup**: Removed `indianFoods.ts` (unused), removed `AddWorkoutModal` and `AIFoodLoggerModal` components
-- **New model**: `models/DailyPlan.ts` stores AI-generated daily plans (status: generating/ready/failed)
-- **New lib files**: `lib/email/`, `lib/deriveFitnessLevel.ts`, `lib/mealIdeasService.ts`, `lib/aiHealthPlan.ts`, `lib/badgeDefinitions.ts`, `lib/latestWeight.ts`, `lib/level.ts`, `lib/xp.ts`, `lib/session.ts`, `lib/openaiKey.ts`
-- **Auth handling improved** in API routes
-- **Notification scheduling upgraded**: Added timezone-to-profile persistence, configurable water reminder window (default 06:00-21:00), and per-user water reminder frequency in `settings.reminderSchedule.water`
-- **Profile sync improvements**: `/api/user` now aligns settings with latest logged weight and auto-derived weekly activity level; Settings body UI now uses plain-language body-shape/body-fat guidance
-- **Health data sync source clarity + automation**: Added `lastSyncSource` (auto/manual) tracking, surfaced sync type in Settings "Last Sync", and introduced `/api/cron/sync-health-data` with a 15-minute schedule that syncs enabled users when their interval is due
-- **Settings customizations + water quick-add cleanup**: Added a new Settings → `Customizations` tab for editing the four water quick-add amounts, removed the old water custom preset pills/stepper/hide toggle, and made `/water` use those four customizable quick-add buttons directly
+- **Email reminders system**: Added `lib/email/` (`imap.ts`, `smtp.ts`, `templates.ts`), local cron runner, IMAP/SMTP utilities, and email templates
+- **Cron API routes**: Added `app/api/cron/generate-daily-plans/`, `send-reminders/`, `process-email-replies/`, and `sync-health-data/`
+- **AI Daily Plan**: Added `app/api/ai/daily-plan/` plus `models/DailyPlan.ts` for per-user per-day plans
+- **AI Recommendations + orchestration**: Expanded recommendations and kept the natural-language orchestrator flow under `app/api/ai/orchestrator/`
+- **Fitness level auto-detection**: Added `lib/deriveFitnessLevel.ts` to classify users as beginner/intermediate/advanced from recent workout history
+- **Settings surface expansion**: Email notification settings, scheduling preferences, todos, health-data sync, and tracker customizations
+- **Cleanup**: Removed `indianFoods.ts`, replaced food storage with `models/Food.ts`, and removed several older modal components
+- **Health data sync source clarity + automation**: Added `lastSyncSource` (`auto`/`manual`) tracking, surfaced sync type in Settings, and introduced cron-based interval sync
+- **Settings customizations + water quick-add cleanup**: Added Settings → `Customizations` for the four water quick-add amounts and simplified `/water`
+- **Repo-shape reality check (2026-04-15)**: Memory refreshed against the live codebase. Important corrections: Next.js is now 15.x, food fallback is USDA FoodData Central rather than Edamam, dashboard protection currently happens in `DashboardLayoutClient` plus API session helpers, and the repo no longer has a root `middleware.ts`
 
 ## Active Focus Areas
 
 1. **Email reminders** — SMTP/IMAP, cron-driven, user preference-controlled
-2. **AI Daily Plans** — nightly generated, stored in `DailyPlan` model
-3. **AI Recommendations** — personalized suggestions via GPT
+2. **AI Daily Plans** — nightly generated, stored in `DailyPlan`
+3. **AI Recommendations + Orchestrator** — personalized suggestions and command routing
 4. **Fitness level auto-detection** — drives AI plan personalization
+5. **Memory/docs refresh** — align agent docs and skill docs with the real repo
 
 ## Recent Sprint History
 
@@ -55,4 +52,6 @@ Recent changes since last memory update (post Mar 26):
 
 - Wire up AI daily plan to dashboard UI
 - Test email reminder delivery end-to-end
+- Decide whether dashboard protection should remain client-layout based or move back to middleware/server redirects
+- Reconcile outdated README claims (port, Next.js version, food provider wording) with the implementation
 - Merge this sprint to main

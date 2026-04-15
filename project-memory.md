@@ -20,8 +20,8 @@ staleness_days: 3
 | Section | Last Updated | Updated By | Stale After | Status |
 |---------|-------------|------------|-------------|--------|
 | context/ | 2026-04-15 | codex-gpt-5 | 3 days | Current |
-| agents/ | 2026-04-15 | claude-sonnet-4-6 | 7 days | Current |
-| skills/ | 2026-04-15 | claude-sonnet-4-6 | 10 days | Current |
+| agents/ | 2026-04-15 | codex-gpt-5 | 7 days | Current |
+| skills/ | 2026-04-15 | codex-gpt-5 | 10 days | Current |
 | rules/ | 2026-03-26 | claude-sonnet-4-6 | 14 days | Current |
 | commands/ | 2026-03-26 | claude-sonnet-4-6 | 14 days | Current |
 
@@ -37,9 +37,12 @@ staleness_days: 3
 ## Key Things Every Agent Must Know
 
 - All API responses go through **`lib/apiMask.ts`** — never return raw DB documents
-- All API routes check **`getServerSession(authOptions)`** first — 401 if missing
-- Dashboard cards use **`dashboard-unified-card`** class — do not invent new card classes
-- App runs locally on **port 30000** (not 3000)
+- API routes typically gate access through **`lib/session.ts`** helpers (`getAuthUserId`, `getAuthUserIdWithBypass`)
+- Protected app navigation is enforced in **`components/layout/DashboardLayoutClient.tsx`**; there is currently no root `middleware.ts`
+- Food search is **Mongo cache first + USDA FoodData Central fallback**, not Edamam
+- AI flows use **OpenAI Responses API** and power the orchestrator, daily plans, meal ideas, recommendations, and loggers
+- Dashboard styling is driven by **`app/globals.css`**, `glass-card`, and the bento/mobile dashboard patterns
+- Local dev port is **env-driven** via `PORT`; `.env.example` currently defaults to **3000**
 - Current branch: `feature/dev-01-minor-updates-sprint-mar-26`
 
 ## After Significant Work
