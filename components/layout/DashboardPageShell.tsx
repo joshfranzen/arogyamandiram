@@ -53,7 +53,7 @@ export default function DashboardPageShell({
   return (
     <>
       {/* Desktop header (lg+) */}
-      <div className={cn('hidden lg:flex flex-wrap items-start justify-between gap-4', className)}>
+      <div className={cn('hidden lg:flex flex-wrap items-start justify-between gap-4 pt-3', className)}>
         <div className="flex items-center gap-0.5">
           {Icon && (
             <div className="flex w-16 flex-shrink-0 items-center justify-center">

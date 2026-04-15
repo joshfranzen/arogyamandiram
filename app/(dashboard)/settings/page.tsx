@@ -1994,7 +1994,7 @@ export default function SettingsPage() {
       }}
     >
       {/* Fixed header — never scrolls */}
-      <div className="shrink-0 px-4 sm:px-6 lg:px-6 pb-3 lg:pt-6">
+      <div className="shrink-0 px-4 pb-3 sm:px-6 lg:px-6">
         <DashboardPageShell
           title="Settings"
           subtitle="Profile, targets, API keys & preferences"
