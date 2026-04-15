@@ -101,7 +101,7 @@ A full-stack health tracking web app built with Next.js 15, featuring food loggi
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 20.19+ (or Node.js 22.13+)
 - MongoDB Atlas account (free tier works)
 - (Optional) OpenAI API key for AI features
 - (Optional) USDA FoodData Central API key for broader food search coverage
