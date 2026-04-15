@@ -22,7 +22,7 @@ function DashboardLayoutInner({ children }: { children: ReactNode }) {
   const [showTour, setShowTour] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isXl, setIsXl] = useState(false);
-  const { isOpen: rightOpen, sidebarWidth, setSidebarWidth } = useOrchestratorSidebar();
+  const { isOpen: rightOpen, sidebarWidth, setSidebarWidth, closeSidebar } = useOrchestratorSidebar();
   const wasCollapsedRef = useRef<boolean | null>(null);
 
   useEffect(() => {
@@ -105,6 +105,10 @@ function DashboardLayoutInner({ children }: { children: ReactNode }) {
       window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     }
   }, [pathname]);
+
+  useEffect(() => {
+    closeSidebar();
+  }, [pathname, closeSidebar]);
 
   if (status === 'loading' || checkingOnboarding) {
     return (
