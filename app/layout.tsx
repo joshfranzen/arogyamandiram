@@ -41,7 +41,7 @@ export const metadata: Metadata = {
     'nutrition',
     'fitness',
     'tracker',
-    'Indian food',
+    'food logging',
     'calories',
     'workouts',
     'sleep',

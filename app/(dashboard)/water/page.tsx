@@ -1,13 +1,10 @@
 'use client';
-
 import { useState, useEffect, useCallback } from 'react';
 import {
   Droplets,
-  Plus,
   GlassWater,
   Target,
   TrendingUp,
-  Minus,
   BarChart3,
 } from 'lucide-react';
 import DashboardPageShell from '@/components/layout/DashboardPageShell';
@@ -29,14 +26,12 @@ import {
 } from '@/lib/utils';
 import WaterCard from '@/components/ui/water-card';
 
-const quickAmounts = [
+const DEFAULT_QUICK_AMOUNTS = [
   { label: '100 ml', value: 100, icon: '💧' },
   { label: '250 ml', value: 250, icon: '🥤' },
   { label: '500 ml', value: 500, icon: '🍶' },
   { label: '750 ml', value: 750, icon: '🧴' },
-];
-
-const customAmounts = [100, 150, 200, 250, 300, 350, 400, 500, 750, 1000];
+] as const;
 
 interface WaterEntry {
   date: string;
@@ -55,8 +50,6 @@ export default function WaterPage() {
   const { log, loading: logLoading, refetch } = useDailyLog();
 
   const [adding, setAdding] = useState(false);
-  const [customAmount, setCustomAmount] = useState(250);
-  const [showCustom, setShowCustom] = useState(false);
   const [animateWave, setAnimateWave] = useState(false);
 
   const [waterHistory, setWaterHistory] = useState<WaterEntry[]>([]);
@@ -68,6 +61,14 @@ export default function WaterPage() {
   const current = log?.waterIntake || 0;
   const percent = calcPercent(current, target);
   const remaining = Math.max(target - current, 0);
+  const configuredQuickAmounts = user?.settings?.customizations?.water?.quickAmountsMl;
+  const quickAmounts = Array.isArray(configuredQuickAmounts) && configuredQuickAmounts.length === 4
+    ? DEFAULT_QUICK_AMOUNTS.map((item, index) => ({
+        ...item,
+        value: configuredQuickAmounts[index],
+        label: `${configuredQuickAmounts[index]} ml`,
+      }))
+    : DEFAULT_QUICK_AMOUNTS;
 
   const fetchWaterHistory = useCallback(async (days: number) => {
     setHistoryLoading(true);
@@ -186,78 +187,6 @@ export default function WaterPage() {
               ))}
             </div>
 
-            {/* Custom Amount */}
-            <div className="mt-5 w-full">
-              <button
-                onClick={() => setShowCustom(!showCustom)}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/[0.03] py-2 text-xs font-medium text-[#94A3B8] hover:bg-white/[0.06]"
-              >
-                {showCustom ? 'Hide Custom' : 'Custom Amount'}
-              </button>
-
-              {showCustom && (
-                <div className="mt-3 space-y-3 animate-fade-in">
-                  <div className="flex items-center justify-center gap-3">
-                    <button
-                      onClick={() => setCustomAmount((prev) => Math.max(50, prev - 50))}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.06] text-[#94A3B8] hover:bg-white/[0.1]"
-                    >
-                      <Minus className="h-4 w-4" />
-                    </button>
-                    <div className="glass-input flex items-center gap-1 rounded-xl px-3 py-2">
-                      <input
-                        type="number"
-                        value={customAmount}
-                        onChange={(e) => setCustomAmount(Math.max(1, parseInt(e.target.value) || 0))}
-                        className="w-16 bg-transparent text-center text-lg font-bold text-[#A3A3A3] outline-none"
-                        min={1}
-                        step={50}
-                      />
-                      <span className="text-xs text-[#94A3B8]">ml</span>
-                    </div>
-                    <button
-                      onClick={() => setCustomAmount((prev) => prev + 50)}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.06] text-[#94A3B8] hover:bg-white/[0.1]"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </button>
-                  </div>
-
-                  {/* Preset pills */}
-                  <div className="flex flex-wrap justify-center gap-1.5">
-                    {customAmounts.map((amt) => (
-                      <button
-                        key={amt}
-                        onClick={() => setCustomAmount(amt)}
-                        className={cn(
-                          'rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all',
-                          customAmount === amt
-                            ? 'bg-[#4FC3F7]/10 text-[#A3A3A3]'
-                            : 'bg-white/[0.03] text-[#94A3B8] hover:bg-white/[0.08]'
-                        )}
-                      >
-                        {amt}ml
-                      </button>
-                    ))}
-                  </div>
-
-                  <button
-                    onClick={() => addWater(customAmount)}
-                    disabled={adding}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[linear-gradient(135deg,#1E293B,#020617)] py-2.5 text-sm font-medium text-white shadow-lg transition-all disabled:opacity-50"
-                  >
-                    {adding ? (
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    ) : (
-                      <>
-                        <Droplets className="h-4 w-4" />
-                        Add {formatWater(customAmount)}
-                      </>
-                    )}
-                  </button>
-                </div>
-              )}
-            </div>
           </WaterCard>
 
         {/* Right half: Stats (15 glasses, 100% goal, 2.5L, 0ml), Glass Tracker, Recent Water */}

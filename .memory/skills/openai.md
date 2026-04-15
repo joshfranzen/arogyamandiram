@@ -1,50 +1,61 @@
 ---
 name: OpenAI API
 type: skill
-last_updated: 2026-03-26
+last_updated: 2026-04-15
+updated_by: codex-gpt-5
 ---
 
-# OpenAI API (GPT-4o-mini)
+# OpenAI Responses API (`gpt-4o-mini`)
 
 ## How It's Used Here
 
-All AI features use `gpt-4o-mini` for cost efficiency. The app supports two key sources:
-1. **User-provided key**: Encrypted in MongoDB under `user.apiKeys.openai`
-2. **Server fallback**: `OPENAI_API_KEY` env var
+Most AI features use `gpt-4o-mini` through the OpenAI Responses API for cost efficiency and structured outputs.
 
-`lib/openaiKey.ts` handles the key resolution: tries user key first, falls back to server key.
+Key sources:
+1. **User-provided key** in `user.apiKeys.openai`
+2. **Server fallback** in `OPENAI_API_KEY`
+
+`lib/openaiKey.ts` resolves the usable key.
 
 ## AI Features
 
 | Feature | Route | What It Does |
 |---------|-------|-------------|
-| Food logger | `POST /api/ai/food-logger` | Parse natural language → food entries with macros |
-| Workout logger | `POST /api/ai/workout-logger` | Parse natural language → workout entries |
-| Meal ideas | `POST /api/ai/meal-ideas` | Generate personalized meal suggestions (Indian focus) |
-| Recommendations | `POST /api/ai/recommendations` | Health insights (per period: day/week/month/year) |
-| Health plan | `POST /api/ai/health-plan` | Comprehensive plan based on user profile |
-| Insights eligibility | `GET /api/ai/insights-eligibility` | Check if user has enough data before calling AI |
+| Food logger | `POST /api/ai/food-logger` | Parse natural language into meal entries |
+| Workout logger | `POST /api/ai/workout-logger` | Parse natural language into workouts |
+| Meal ideas | `POST /api/ai/meal-ideas` | Generate personalized meal suggestions |
+| Recommendations | `POST /api/ai/recommendations` | Health insights and recommendations |
+| Health plan | `POST /api/ai/health-plan` | Generate a broader plan |
+| Daily plan | `GET/POST /api/ai/daily-plan` | Read/generate per-day plan and regeneration variants |
+| Orchestrator | `POST /api/ai/orchestrator` | Intent classification + routing; supports image input |
+| Insights eligibility | `GET /api/ai/insights-eligibility` | Gate AI insights on data availability |
 
-## Key Libraries
+## Call Pattern
 
 ```typescript
-import OpenAI from 'openai'
-
-const openai = new OpenAI({ apiKey: resolvedKey })
-const response = await openai.chat.completions.create({
-  model: 'gpt-4o-mini',
-  messages: [...],
-  response_format: { type: 'json_object' }  // used for structured outputs
+const response = await fetch('https://api.openai.com/v1/responses', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${resolvedKey}`,
+  },
+  body: JSON.stringify({
+    model: 'gpt-4o-mini',
+    instructions,
+    input,
+    tools,
+  }),
 })
 ```
 
 ## Debug Logging
 
-When `NEXT_PUBLIC_DEBUG_MODE=true`, all AI calls are logged. View at `/debug` page with the `DebuggerPanel` component. `lib/debugLogsConfig.ts` manages categories and log storage.
+When debug mode is enabled, AI flows surface in `/debug` with typed viewers under `components/debug/*`.
 
 ## Gotchas
 
-- Always check insights eligibility before calling AI insights — prevents empty/confusing responses
-- `gpt-4o-mini` has a context window limit; keep prompts concise, especially for year-long data summaries
-- Key resolution is async: always `await` the key from `lib/openaiKey.ts`
-- The `mealIdeasService.ts` and `aiHealthPlan.ts` are service wrappers around the OpenAI calls — use these rather than calling OpenAI directly in route handlers
+- Keep prompts concise for larger history windows
+- Key resolution is async
+- Prefer service wrappers like `mealIdeasService.ts` and `aiHealthPlan.ts` when they already exist
+- If you add a new AI workflow, think about how it will appear in `/debug`
+- The orchestrator route forwards auth/cron headers to internal sub-routes; do not break that header propagation

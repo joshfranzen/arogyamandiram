@@ -56,6 +56,12 @@ export async function GET(req: NextRequest) {
   const page = searchParams.get('page');
   const agent = searchParams.get('agent');
 
+  // Legacy page/agent path mappings (old path → current path)
+  const LEGACY_PATHS: Record<string, { page: string; agent: string }> = {
+    'orchestrator/orchestrator': { page: 'ai-assistant', agent: 'orchestrator' },
+    'today-plan/today-plan': { page: 'insights', agent: 'today-plan' },
+  };
+
   try {
     const userLogId = await getUserLogId(userId);
     const root = getDir();
@@ -65,10 +71,18 @@ export async function GET(req: NextRequest) {
     if (page != null && page !== '' && agent != null && agent !== '') {
       const logs: unknown[] = [];
 
+      // Resolve additional paths to check (including legacy paths for renamed pages)
+      const legacyKey = `${page}/${agent}`;
+      const legacy = LEGACY_PATHS[legacyKey];
+
       // Read from both username folder and raw userId folder (logs may be written under either)
       const dirsToCheck = Array.from(new Set([
         getAgentDir(userLogId, page, agent),
         getAgentDir(userId, page, agent),
+        ...(legacy ? [
+          getAgentDir(userLogId, legacy.page, legacy.agent),
+          getAgentDir(userId, legacy.page, legacy.agent),
+        ] : []),
       ]));
 
       for (const agentDir of dirsToCheck) {

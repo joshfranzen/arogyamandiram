@@ -5,6 +5,7 @@
 import { NextRequest } from 'next/server';
 import connectDB from '@/lib/db';
 import DailyLog from '@/models/DailyLog';
+import User from '@/models/User';
 import { maskedResponse, errorResponse } from '@/lib/apiMask';
 import { getAuthUserId, getAuthUserIdWithBypass, isUserId } from '@/lib/session';
 import { getToday, toLocalDateString } from '@/lib/utils';
@@ -72,6 +73,11 @@ export async function POST(req: NextRequest) {
       },
       { new: true, upsert: true }
     ).lean();
+
+    await User.updateOne(
+      { _id: userId },
+      { $set: { 'profile.weight': weight } }
+    );
 
     await awardDailyXp(String(userId), logDate);
 

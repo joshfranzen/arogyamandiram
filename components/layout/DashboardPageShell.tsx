@@ -53,7 +53,7 @@ export default function DashboardPageShell({
   return (
     <>
       {/* Desktop header (lg+) */}
-      <div className={cn('hidden lg:flex flex-wrap items-start justify-between gap-4', className)}>
+      <div className={cn('hidden lg:flex flex-wrap items-start justify-between gap-4 pt-3', className)}>
         <div className="flex items-center gap-0.5">
           {Icon && (
             <div className="flex w-16 flex-shrink-0 items-center justify-center">
@@ -63,19 +63,19 @@ export default function DashboardPageShell({
           <div className="flex flex-col">
             <h1
               className={cn(
-                'dashboard-page-header-title font-heading text-[28px] font-normal tracking-[0.03em] leading-tight',
+                'dashboard-page-header-title font-heading text-[28px] font-normal tracking-[0.03em] leading-none',
                 titleClassName
               )}
             >
               {title}
             </h1>
             {subtitle != null && (
-              <p
-                className={cn(
-                  'dashboard-page-header-subtitle font-body mt-0.5 text-[13px]',
-                  subtitleClassName
-                )}
-              >
+                <p
+                  className={cn(
+                    'dashboard-page-header-subtitle font-body -mt-0.5 text-[13px]',
+                    subtitleClassName
+                  )}
+                >
                 {subtitle}
               </p>
             )}

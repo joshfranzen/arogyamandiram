@@ -6,6 +6,7 @@ import {
   Settings, Shield, Leaf, Flame, Droplets, Moon, Scale,
   Activity, ChevronDown, ChevronUp, Lightbulb, Zap,
   TrendingDown, TrendingUp, Clock, X, CheckCircle2,
+  Plus,
 } from 'lucide-react';
 import DashboardPageShell from '@/components/layout/DashboardPageShell';
 import { CardSkeleton } from '@/components/ui/Skeleton';
@@ -39,6 +40,17 @@ type UserTargets = {
   dailyWorkoutMinutes?: number;
   sleepHours?: number;
 };
+
+type GenerationKind = 'food' | 'workout' | 'overview' | 'full';
+
+type WorkoutDraft = {
+  reps: number;
+  saving: boolean;
+  saved: boolean;
+  error: string | null;
+};
+
+type WorkoutExercise = NonNullable<DailyPlanData['workoutPlan']>['exercises'][number];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -113,6 +125,44 @@ function recoveryColor(score: number): string {
   if (score >= 75) return 'text-emerald-400';
   if (score >= 50) return 'text-amber-400';
   return 'text-rose-400';
+}
+
+function extractRepTarget(reps: string): number {
+  const match = reps.match(/\d+/);
+  if (!match) return 0;
+  const value = Number(match[0]);
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+function predictFiveMinuteTarget(exercise: WorkoutExercise): {
+  sets: number;
+  repsPerSet: number;
+  totalReps: number;
+} {
+  const plannedDuration = Math.max(1, Number(exercise.durationMinutes) || 5);
+  const plannedSets = Math.max(1, Number(exercise.sets) || 1);
+  const plannedRepsPerSet = Math.max(0, extractRepTarget(exercise.reps));
+  const plannedTotalReps = plannedRepsPerSet > 0 ? plannedRepsPerSet * plannedSets : 0;
+
+  const sets = Math.max(1, Math.round((plannedSets / plannedDuration) * 5));
+  if (plannedTotalReps <= 0) {
+    return { sets, repsPerSet: plannedRepsPerSet || 10, totalReps: sets * (plannedRepsPerSet || 10) };
+  }
+  const totalReps = Math.max(1, Math.round((plannedTotalReps / plannedDuration) * 5));
+  const repsPerSet = Math.max(1, Math.round(totalReps / sets));
+  return { sets, repsPerSet, totalReps };
+}
+
+function getAiFiveMinuteTargetText(exercise: WorkoutExercise): string {
+  const sets = Math.max(1, Number(exercise.sets) || 1);
+  const repsRaw = String(exercise.reps || '').trim();
+  const parsedReps = extractRepTarget(repsRaw);
+  const repsLabel = repsRaw || `${parsedReps || 10} reps`;
+  const totalFromAi = parsedReps > 0 ? sets * parsedReps : 0;
+  const fallback = predictFiveMinuteTarget(exercise);
+  const totalReps = totalFromAi > 0 ? totalFromAi : fallback.totalReps;
+  const restPart = exercise.restSeconds ? ` · ${exercise.restSeconds}s rest after each set` : '';
+  return `5 min target: ${sets} sets × ${repsLabel} (${totalReps} reps total)${restPart}`;
 }
 
 const MEAL_ORDER = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
@@ -210,8 +260,14 @@ export default function TodaysPlanPage() {
   const [planLoading, setPlanLoading] = useState(true);
   const [planError, setPlanError] = useState<string | null>(null);
 
-  const [generating, setGenerating] = useState<'food' | 'workout' | 'overview' | 'full' | null>(null);
+  const [generatingMap, setGeneratingMap] = useState<Record<GenerationKind, boolean>>({
+    food: false,
+    workout: false,
+    overview: false,
+    full: false,
+  });
   const [activeTab, setActiveTab] = useState<'overview' | 'food' | 'workout'>('overview');
+  const [workoutDrafts, setWorkoutDrafts] = useState<Record<string, WorkoutDraft>>({});
 
   // Feedback state
   const [dislikedFoods, setDislikedFoods] = useState<string[]>([]);
@@ -236,6 +292,8 @@ export default function TodaysPlanPage() {
         const existingFeedback = (res.data.plan as DailyPlanData | null)?.feedback;
         if (existingFeedback?.workoutDifficulty) setWorkoutDifficulty(existingFeedback.workoutDifficulty);
         if (existingFeedback?.dislikedFoods) setDislikedFoods(existingFeedback.dislikedFoods);
+      } else {
+        setPlanError(res.error || 'Failed to load your plan. Please try again.');
       }
     } catch {
       setPlanError('Failed to load your plan. Please try again.');
@@ -248,13 +306,66 @@ export default function TodaysPlanPage() {
     loadPlan();
   }, [loadPlan]);
 
-  const handleGenerateNow = async (type: 'food' | 'workout' | 'overview' | 'full' = 'full') => {
-    setGenerating(type);
+  useEffect(() => {
+    const onFocus = () => { void loadPlan(); };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        void loadPlan();
+      }
+    };
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('orchestrator:log-updated', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('orchestrator:log-updated', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [loadPlan]);
+
+  useEffect(() => {
+    const exercises = plan?.workoutPlan?.exercises ?? [];
+    if (!exercises.length) {
+      setWorkoutDrafts({});
+      return;
+    }
+    setWorkoutDrafts((prev) => {
+      const next: Record<string, WorkoutDraft> = {};
+      exercises.forEach((ex, index) => {
+        const key = String(index);
+        const prediction = predictFiveMinuteTarget(ex);
+        const aiRepTarget = Math.max(0, Number(ex.sets) || 0) * Math.max(0, extractRepTarget(ex.reps));
+        next[key] = prev[key] ?? {
+          reps: aiRepTarget > 0 ? aiRepTarget : prediction.totalReps,
+          saving: false,
+          saved: false,
+          error: null,
+        };
+      });
+      return next;
+    });
+  }, [plan?.workoutPlan?.exercises]);
+
+  const handleGenerateNow = async (type: GenerationKind = 'full') => {
+    setGeneratingMap((prev) => ({ ...prev, [type]: true }));
     setPlanError(null);
     try {
       const res = await api.generatePlanNow(type);
       if (res.success && res.data?.plan) {
         setPlan(res.data.plan as unknown as DailyPlanData);
+        await loadPlan();
+        if (res.data.debugLog) {
+          try {
+            await fetch('/api/debug-logs', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({ page: 'today-plan', agent: type === 'full' ? 'overview' : type, log: res.data.debugLog }),
+            });
+          } catch {
+            // Ignore debug-log persistence failures; plan generation already succeeded.
+          }
+        }
         const label = type === 'food' ? 'Food plan' : type === 'workout' ? 'Workout plan' : type === 'overview' ? 'Overview' : 'Plan';
         showToast(`${label} regenerated!`, 'success');
       } else {
@@ -263,7 +374,77 @@ export default function TodaysPlanPage() {
     } catch {
       setPlanError('Failed to generate plan. Please try again.');
     } finally {
-      setGenerating(null);
+      setGeneratingMap((prev) => ({ ...prev, [type]: false }));
+    }
+  };
+
+  const handleAddWorkoutExercise = async (
+    exercise: WorkoutExercise,
+    index: number
+  ) => {
+    const key = String(index);
+    const draft = workoutDrafts[key];
+    if (draft?.saving) return;
+
+    const safeDuration = 5;
+    const predicted = predictFiveMinuteTarget(exercise);
+    const safeReps = Math.max(0, Math.round((draft?.reps ?? predicted.totalReps) || 0));
+    const categoryCandidate = exercise.category;
+    const category =
+      categoryCandidate && ['cardio', 'strength', 'flexibility', 'sports'].includes(categoryCandidate)
+        ? categoryCandidate
+        : 'other';
+    const totalDuration = Math.max(1, Number(plan?.workoutPlan?.durationMinutes) || 1);
+    const totalCalories = Math.max(1, Number(plan?.workoutPlan?.estimatedCalories) || 1);
+    const estimatedCalories = Math.max(1, Math.round((totalCalories / totalDuration) * safeDuration));
+
+    setWorkoutDrafts((prev) => ({
+      ...prev,
+      [key]: { ...prev[key], saving: true, saved: false, error: null },
+    }));
+
+    try {
+      const response = await api.addWorkout(today, {
+        exercise: exercise.name,
+        category,
+        duration: safeDuration,
+        caloriesBurned: estimatedCalories,
+        sets: Math.max(1, Number(exercise.sets) || 1),
+        ...(safeReps > 0 ? { reps: safeReps } : {}),
+        notes: `Planned: ${exercise.sets} x ${exercise.reps}; 5-min target: ${predicted.sets} x ${predicted.repsPerSet}${exercise.restSeconds ? `, rest ${exercise.restSeconds}s` : ''}`,
+      });
+      if (!response.success) {
+        setWorkoutDrafts((prev) => ({
+          ...prev,
+          [key]: { ...prev[key], saving: false, saved: false, error: response.error || 'Failed to add workout' },
+        }));
+        return;
+      }
+      setWorkoutDrafts((prev) => ({
+        ...prev,
+        [key]: { ...prev[key], saving: false, saved: true, error: null },
+      }));
+      showToast(`${exercise.name} added to workout log`, 'success');
+      await loadPlan();
+      setTimeout(() => {
+        setWorkoutDrafts((prev) => {
+          if (!prev[key]) return prev;
+          return {
+            ...prev,
+            [key]: { ...prev[key], saved: false },
+          };
+        });
+      }, 1500);
+    } catch (err) {
+      setWorkoutDrafts((prev) => ({
+        ...prev,
+        [key]: {
+          ...prev[key],
+          saving: false,
+          saved: false,
+          error: err instanceof Error ? err.message : 'Failed to add workout',
+        },
+      }));
     }
   };
 
@@ -415,9 +596,25 @@ export default function TodaysPlanPage() {
 
             {/* Health Blueprint */}
             <div className="dashboard-unified-card rounded-2xl border p-5 sm:p-6">
-              <div className="mb-4">
-                <h2 className="text-base font-semibold text-text-primary">Health Blueprint</h2>
-                <p className="mt-0.5 text-xs text-text-muted">Today&apos;s progress vs your targets</p>
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-semibold text-text-primary">Health Blueprint</h2>
+                  <p className="mt-0.5 text-xs text-text-muted">Today&apos;s progress vs your targets</p>
+                </div>
+                {hasApiKey && (plan?.topInsight || plan?.prediction) && (
+                  <button
+                    onClick={() => handleGenerateNow('overview')}
+                    disabled={generatingMap.overview}
+                    className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors disabled:opacity-50"
+                  >
+                    {generatingMap.overview ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3 w-3" />
+                    )}
+                    {generatingMap.overview ? 'Generating…' : 'Regenerate'}
+                  </button>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
                 {/* Sleep */}
@@ -545,12 +742,28 @@ export default function TodaysPlanPage() {
             </div>
 
             {/* No plan — overview */}
-            {!planLoading && !plan && (
+            {!planLoading && !plan?.topInsight && !plan?.prediction && (
               <div className="dashboard-unified-card rounded-2xl border p-5">
                 <div className="flex flex-col items-center gap-3 py-8 text-center">
                   <CalendarDays className="h-10 w-10 text-zinc-600" />
-                  <p className="text-sm font-medium text-zinc-300">No plan generated yet</p>
-                  <p className="text-xs text-zinc-500">Switch to Food or Workout tab and hit Generate Now.</p>
+                  <p className="text-sm font-medium text-zinc-300">No overview generated yet</p>
+                  <p className="text-xs text-zinc-500">
+                    Generate your daily overview — AI will pick your #1 focus and predict your weight trend.
+                  </p>
+                  {hasApiKey && (
+                    <button
+                      onClick={() => handleGenerateNow('overview')}
+                      disabled={generatingMap.overview}
+                      className="mt-2 inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50"
+                    >
+                      {generatingMap.overview ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-black" />
+                      ) : (
+                        <Sparkles className="h-4 w-4 text-black" />
+                      )}
+                      {generatingMap.overview ? 'Generating…' : 'Generate Overview'}
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -574,7 +787,7 @@ export default function TodaysPlanPage() {
         )}
 
         {/* ── No plan state ── */}
-        {!planLoading && !plan && !planError && activeTab === 'food' && (
+        {!planLoading && !plan?.foodPlan && !planError && activeTab === 'food' && (
           <div className="dashboard-unified-card rounded-2xl border p-5">
             <div className="flex flex-col items-center gap-3 py-10 text-center">
               <CalendarDays className="h-12 w-12 text-zinc-600" />
@@ -585,15 +798,15 @@ export default function TodaysPlanPage() {
               {hasApiKey && (
                 <button
                   onClick={() => handleGenerateNow('food')}
-                  disabled={!!generating}
+                  disabled={generatingMap.food}
                   className="mt-2 inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50"
                 >
-                  {generating === 'food' ? (
+                  {generatingMap.food ? (
                     <Loader2 className="h-4 w-4 animate-spin text-black" />
                   ) : (
                     <Sparkles className="h-4 w-4 text-black" />
                   )}
-                  {generating === 'food' ? 'Generating…' : 'Generate Food Plan'}
+                  {generatingMap.food ? 'Generating…' : 'Generate Food Plan'}
                 </button>
               )}
             </div>
@@ -611,9 +824,25 @@ export default function TodaysPlanPage() {
               Only anonymized metrics are sent to OpenAI — never your name or email.
             </p>
 
-            <div className="mb-4 flex items-center gap-2">
-              <Flame className="h-4 w-4 text-orange-400" />
-              <h2 className="text-base font-semibold text-text-primary">Today&apos;s Food Plan</h2>
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Flame className="h-4 w-4 text-orange-400" />
+                <h2 className="text-base font-semibold text-text-primary">Today&apos;s Food Plan</h2>
+              </div>
+              {hasApiKey && (
+                <button
+                  onClick={() => handleGenerateNow('food')}
+                  disabled={generatingMap.food}
+                  className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors disabled:opacity-50"
+                >
+                  {generatingMap.food ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3 w-3" />
+                  )}
+                  {generatingMap.food ? 'Generating…' : 'Regenerate'}
+                </button>
+              )}
             </div>
 
             {/* AI reasoning */}
@@ -675,9 +904,25 @@ export default function TodaysPlanPage() {
         {/* ══════════════════════════════════════════════════ */}
         {!planLoading && plan?.workoutPlan && activeTab === 'workout' && (
           <div className="dashboard-unified-card rounded-2xl border p-5 sm:p-6">
-            <div className="mb-4 flex items-center gap-2">
-              <Dumbbell className="h-4 w-4 text-emerald-400" />
-              <h2 className="text-base font-semibold text-text-primary">Today&apos;s Workout Plan</h2>
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Dumbbell className="h-4 w-4 text-emerald-400" />
+                <h2 className="text-base font-semibold text-text-primary">Today&apos;s Workout Plan</h2>
+              </div>
+              {hasApiKey && (
+                <button
+                  onClick={() => handleGenerateNow('workout')}
+                  disabled={generatingMap.workout}
+                  className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors disabled:opacity-50"
+                >
+                  {generatingMap.workout ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3 w-3" />
+                  )}
+                  {generatingMap.workout ? 'Generating…' : 'Regenerate'}
+                </button>
+              )}
             </div>
 
             {/* AI reasoning */}
@@ -706,24 +951,48 @@ export default function TodaysPlanPage() {
 
             {/* Exercises */}
             <div className="space-y-2">
-              {plan.workoutPlan.exercises.map((ex, i) => (
-                <div key={i} className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/30 px-4 py-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-text-primary">{ex.name}</p>
-                    <p className="text-xs text-text-muted">
-                      {ex.durationMinutes && ex.durationMinutes > 0
-                        ? `${ex.durationMinutes} min`
-                        : `${ex.sets} × ${ex.reps}`}
-                      {ex.restSeconds ? ` · ${ex.restSeconds}s rest` : ''}
-                    </p>
+              {plan.workoutPlan.exercises.map((ex, i) => {
+                const aiTargetText = getAiFiveMinuteTargetText(ex);
+                const exerciseDraft = workoutDrafts[String(i)];
+                return (
+                <div key={i} className="rounded-xl border border-zinc-800 bg-zinc-900/30 px-4 py-3">
+                  <div className="flex items-start gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-text-primary">{ex.name}</p>
+                      <p className="mt-1 text-[11px] text-emerald-300">
+                        {aiTargetText}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 min-w-[92px] flex-col items-end gap-2">
+                      {ex.intensity && (
+                        <span className={cn('rounded-full px-2 py-0.5 text-[10px] capitalize font-medium', INTENSITY_BADGE[ex.intensity] ?? INTENSITY_BADGE.medium)}>
+                          {ex.intensity}
+                        </span>
+                      )}
+                    <button
+                      type="button"
+                      onClick={() => handleAddWorkoutExercise(ex, i)}
+                      disabled={exerciseDraft?.saving}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-50"
+                    >
+                      {exerciseDraft?.saving ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Plus className="h-3.5 w-3.5" />
+                      )}
+                      {exerciseDraft?.saving ? 'Adding...' : '+ Add'}
+                    </button>
+                      {exerciseDraft?.saved && (
+                        <span className="text-[11px] font-medium text-emerald-400">added ✓</span>
+                      )}
+                    </div>
                   </div>
-                  {ex.intensity && (
-                    <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[10px] capitalize font-medium', INTENSITY_BADGE[ex.intensity] ?? INTENSITY_BADGE.medium)}>
-                      {ex.intensity}
-                    </span>
+                  {exerciseDraft?.error && (
+                    <p className="mt-2 text-xs text-rose-400">{exerciseDraft.error}</p>
                   )}
                 </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Progression tip */}
@@ -789,7 +1058,7 @@ export default function TodaysPlanPage() {
         )}
 
         {/* ── No plan state for workout tab ── */}
-        {!planLoading && !plan && !planError && activeTab === 'workout' && (
+        {!planLoading && !plan?.workoutPlan && !planError && activeTab === 'workout' && (
           <div className="dashboard-unified-card rounded-2xl border p-5">
             <div className="flex flex-col items-center gap-3 py-10 text-center">
               <Dumbbell className="h-12 w-12 text-zinc-600" />
@@ -798,49 +1067,17 @@ export default function TodaysPlanPage() {
               {hasApiKey && (
                 <button
                   onClick={() => handleGenerateNow('workout')}
-                  disabled={!!generating}
+                  disabled={generatingMap.workout}
                   className="mt-2 inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50"
                 >
-                  {generating === 'workout' ? <Loader2 className="h-4 w-4 animate-spin text-black" /> : <Sparkles className="h-4 w-4 text-black" />}
-                  {generating === 'workout' ? 'Generating…' : 'Generate Workout'}
+                  {generatingMap.workout ? <Loader2 className="h-4 w-4 animate-spin text-black" /> : <Sparkles className="h-4 w-4 text-black" />}
+                  {generatingMap.workout ? 'Generating…' : 'Generate Workout'}
                 </button>
               )}
             </div>
           </div>
         )}
 
-        {/* Per-tab regenerate buttons when plan exists */}
-        {!planLoading && plan && hasApiKey && (
-          <div className="flex justify-center pb-4">
-            {activeTab === 'food' && (
-              <button
-                onClick={() => handleGenerateNow('food')}
-                disabled={!!generating}
-                className="text-xs text-zinc-500 hover:text-zinc-300 underline underline-offset-2 transition-colors disabled:opacity-50"
-              >
-                {generating === 'food' ? 'Regenerating food plan…' : 'Regenerate food plan'}
-              </button>
-            )}
-            {activeTab === 'workout' && (
-              <button
-                onClick={() => handleGenerateNow('workout')}
-                disabled={!!generating}
-                className="text-xs text-zinc-500 hover:text-zinc-300 underline underline-offset-2 transition-colors disabled:opacity-50"
-              >
-                {generating === 'workout' ? 'Regenerating workout…' : 'Regenerate workout'}
-              </button>
-            )}
-            {activeTab === 'overview' && (
-              <button
-                onClick={() => handleGenerateNow('overview')}
-                disabled={!!generating}
-                className="text-xs text-zinc-500 hover:text-zinc-300 underline underline-offset-2 transition-colors disabled:opacity-50"
-              >
-                {generating === 'overview' ? 'Regenerating overview…' : 'Regenerate overview'}
-              </button>
-            )}
-          </div>
-        )}
 
       </div>
       </div>

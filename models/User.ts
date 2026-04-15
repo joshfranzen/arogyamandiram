@@ -61,9 +61,10 @@ const UserSchema = new Schema<IUserDocument>(
       // Body composition — used to personalize AI workout + nutrition plans
       bodyType: { type: String, enum: ['ectomorph', 'mesomorph', 'endomorph'] },
       bodyFat: { type: Number, min: 1, max: 60 },           // body fat percentage
-      fatFocusAreas: { type: [String], default: [] },        // max 3: belly/thighs/arms/chest/overall
+      fatFocusAreas: { type: [String], default: [] },        // max 3: belly/hips/thighs/arms/chest/overall
       fitnessLevelDerived: { type: String, enum: ['beginner', 'intermediate', 'advanced'] }, // auto from logs
       fitnessLevelUser: { type: String, enum: ['beginner', 'intermediate', 'advanced'] },    // optional override
+      timezone: { type: String, default: '' },
     },
     apiKeys: {
       openai:     { type: String, default: '', select: false },  // AES-256 encrypted
@@ -88,14 +89,23 @@ const UserSchema = new Schema<IUserDocument>(
       // Legacy key retained for backward compatibility
       ccEmails: { type: [String], default: [] },
       reminderSchedule: {
-        timezone: { type: String, default: 'Asia/Kolkata' },
-        waterHourlyEnabled: { type: Boolean, default: true },
-        mealTimes: {
-          breakfast: { type: String, default: '08:00' },
-          lunch: { type: String, default: '13:00' },
-          dinner: { type: String, default: '20:00' },
+        timezone: { type: String },
+        waterHourlyEnabled: { type: Boolean },
+        waterFrequencyMinutes: { type: Number, default: 60, min: 15, max: 240 }, // legacy compatibility
+        water: {
+          enabled: { type: Boolean, default: true },
+          startTime: { type: String, default: '06:00' },
+          endTime: { type: String, default: '21:00' },
+          frequencyMinutes: { type: Number, default: 60, min: 15, max: 240 },
         },
-        sleepTime: { type: String, default: '22:30' },
+        mealTimes: {
+          breakfast: { type: String },
+          lunch: { type: String },
+          dinner: { type: String },
+        },
+        sleepTime: { type: String },
+        workoutTime: { type: String },
+        weighInTime: { type: String },
         lastSentAt: {
           water: { type: Date },
           breakfast: { type: Date },
@@ -104,6 +114,20 @@ const UserSchema = new Schema<IUserDocument>(
           workout: { type: Date },
           weighIn: { type: Date },
           sleep: { type: Date },
+        },
+      },
+      customizations: {
+        water: {
+          quickAmountsMl: {
+            type: [Number],
+            default: [100, 250, 500, 750],
+            validate: {
+              validator(values: number[]) {
+                return Array.isArray(values) && values.length === 4 && values.every((value) => Number.isInteger(value) && value >= 1 && value <= 5000);
+              },
+              message: 'Water quick amounts must contain exactly 4 integers between 1 and 5000',
+            },
+          },
         },
       },
       todoTemplates: {
@@ -129,6 +153,18 @@ const UserSchema = new Schema<IUserDocument>(
         recipientListSaved: { type: Boolean, default: false },
         imapReplyVerifiedAt: { type: Date },
         lastUpdatedAt: { type: Date },
+      },
+      // Health data sync from external source (mobile app, wearable, etc.)
+      healthData: {
+        endpoint:            { type: String, default: '' },
+        apiKeyEncrypted:     { type: String, default: '', select: false }, // AES-256 encrypted
+        enabled:             { type: Boolean, default: false },
+        syncIntervalMinutes: { type: Number, default: 60, min: 5, max: 1440 },
+        lastSyncAt:          { type: Date },
+        lastSyncSource:      { type: String, enum: ['auto', 'manual', ''], default: '' },
+        lastSchemaJson:      { type: String, default: '' }, // JSON string of last detected schema keys
+        lastSyncStatus:      { type: String, enum: ['ok', 'error', ''], default: '' },
+        lastSyncError:       { type: String, default: '' },
       },
       // SMTP/IMAP settings for email reminders — passwords are AES-256 encrypted
       emailSettings: {
@@ -243,8 +279,12 @@ UserSchema.methods.comparePassword = async function (candidatePassword: string):
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-// Prevent model recompilation in dev (hot reload)
+// Recompile the model in development so schema changes survive hot reloads.
+if (process.env.NODE_ENV === 'development' && mongoose.models.User) {
+  delete mongoose.models.User;
+}
+
 const User: Model<IUserDocument> =
-  mongoose.models.User || mongoose.model<IUserDocument>('User', UserSchema);
+  (mongoose.models.User as Model<IUserDocument> | undefined) || mongoose.model<IUserDocument>('User', UserSchema);
 
 export default User;

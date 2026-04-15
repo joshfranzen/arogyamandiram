@@ -30,13 +30,13 @@ const CONTENT: Record<ReminderType, TemplateContent> = {
     emoji: '🍛',
     heading: 'What did you have for lunch?',
     body: 'Keeping your midday meal on track helps you stay energised through the afternoon.',
-    hint: 'e.g. &ldquo;dal rice with sabji&rdquo; or &ldquo;chicken sandwich&rdquo;',
+    hint: 'e.g. &ldquo;oatmeal with berries&rdquo; or &ldquo;chicken sandwich&rdquo;',
   },
   dinner: {
     emoji: '🌙',
     heading: 'What did you have for dinner?',
     body: 'Log your dinner to complete today&rsquo;s nutrition picture. Even a light meal counts!',
-    hint: 'e.g. &ldquo;chicken curry and rice&rdquo; or &ldquo;roti with paneer&rdquo;',
+    hint: 'e.g. &ldquo;salmon with rice&rdquo; or &ldquo;veggie wrap with yogurt&rdquo;',
   },
   workout: {
     emoji: '💪',
@@ -270,7 +270,7 @@ export function getImapTestTemplate(userName: string): { subject: string; html: 
       <td style="padding:0 32px 20px 32px;">
         <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:13px;
                   color:#6b7280;line-height:1.5;font-style:italic;">
-          You can also reply with entries like &ldquo;Had lunch at 1:30 pm: dal rice&rdquo; once setup is complete.
+          You can also reply with entries like &ldquo;Had lunch at 1:30 pm: grilled chicken and rice&rdquo; once setup is complete.
         </p>
       </td>
     </tr>

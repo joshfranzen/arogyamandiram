@@ -1,34 +1,39 @@
 # Agents
 
+> Agent folders are named after human first names. Each agent's role lives inside their `persona.md`.
+> See `skills/agent-naming.md` for the naming rule.
+
 ## Team Roster
 
-| Agent | Domain | Technologies | Folder |
-|-------|--------|-------------|--------|
-| Next.js Fullstack Agent | API routes, DB models, auth, business logic | Next.js API routes, Mongoose, NextAuth, encryption | `agents/nextjs-fullstack/` |
-| UI Frontend Agent | Pages, components, styling, animations | Tailwind CSS, Framer Motion, Recharts, Lucide | `agents/ui-frontend/` |
-| DevOps Agent | Deployment, env config, build | Vercel, MongoDB Atlas, next.config.js | `agents/devops/` |
+| Agent | Role | Domain | Technologies | Folder |
+|-------|------|--------|-------------|--------|
+| Priya | Next.js Fullstack Engineer | API routes, DB models, auth, AI/data flows | Next.js API routes, Mongoose, NextAuth, encryption, OpenAI | `agents/priya/` |
+| Mateo | UI Frontend Engineer | Pages, components, styling, interactions | Tailwind CSS, Framer Motion, Recharts, Lucide | `agents/mateo/` |
+| Kevin | DevOps Engineer | Deployment, env config, build, cron/runtime wiring | Vercel, MongoDB Atlas, next.config.js, local cron | `agents/kevin/` |
 
 ## What Each Agent Owns
 
-### Next.js Fullstack Agent
+### Priya (Next.js Fullstack)
 - `app/api/` — all API route handlers
-- `models/` — User.ts, DailyLog.ts
-- `lib/auth.ts`, `lib/db.ts`, `lib/encryption.ts`, `lib/apiMask.ts`
-- `lib/health.ts`, `lib/gamification.ts`, `lib/indianFoods.ts`, `lib/calorieBurn.ts`
-- `middleware.ts`
+- `models/` — `User.ts`, `DailyLog.ts`, `DailyPlan.ts`, `Food.ts`
+- `lib/auth.ts`, `lib/session.ts`, `lib/db.ts`, `lib/encryption.ts`, `lib/apiMask.ts`
+- `lib/openaiKey.ts`, `lib/aiHealthPlan.ts`, `lib/mealIdeasService.ts`, `lib/healthDataSync.ts`
+- `lib/health.ts`, `lib/gamification.ts`, `lib/calorieBurn.ts`, `lib/debugLogsConfig.ts`
 
-### UI Frontend Agent
-- `app/(dashboard)/` and `app/(auth)/` — all page components
-- `components/` — all React components
+### Mateo (UI Frontend)
+- `app/(dashboard)/` and `app/(auth)/`
+- `components/` — including orchestrator and debug viewers
 - `app/globals.css`, `tailwind.config.ts`
-- `hooks/` — useDailyLog.ts, useUser.ts, useAchievements.ts
-- `lib/apiClient.ts` — frontend API wrapper
+- `hooks/`, `contexts/`
+- `lib/apiClient.ts`
 
-### DevOps Agent
+### Kevin (DevOps)
 - `vercel.json`, `next.config.js`, `.env.local`
-- `package.json` (scripts and dependencies)
+- `package.json`
+- `scripts/local-cron.mjs`
 
 ## Actions
 
-- **Add an agent?** Only if a new distinct technology domain appears (e.g. Redis, native mobile).
-- **Task spans two agents?** Fullstack handles data; Frontend handles display. Coordinate at the API contract boundary.
+- **Add an agent?** Only if a new distinct technology domain appears. Use a human first name for the folder.
+- **Task spans two agents?** Priya handles data/contracts; Mateo handles display and interaction. Coordinate at the API contract boundary.
+- **Task spans product runtime concerns?** Kevin owns env consistency, Vercel cron wiring, and local-dev runtime assumptions.

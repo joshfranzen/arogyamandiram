@@ -1,8 +1,8 @@
 ---
 name: tech-context
 type: context
-last_updated: 2026-04-07
-updated_by: claude-sonnet-4-6
+last_updated: 2026-04-15
+updated_by: codex-gpt-5
 staleness_days: 7
 ---
 
@@ -12,7 +12,7 @@ staleness_days: 7
 
 | Layer | Technology | Version |
 |-------|-----------|---------|
-| Framework | Next.js (App Router) | 14 |
+| Framework | Next.js (App Router) | 15.5.x |
 | Language | TypeScript | 5.7 (strict mode) |
 | Database | MongoDB Atlas + Mongoose | 8 |
 | Auth | NextAuth.js | 4 (JWT, Credentials provider) |
@@ -20,113 +20,144 @@ staleness_days: 7
 | Charts | Recharts | 2.15 |
 | Animation | Framer Motion + CSS keyframes | 11.15 |
 | Icons | Lucide React | 0.468 |
-| AI | OpenAI GPT-4o-mini | via API |
-| Food Search | Edamam Food API | optional fallback |
+| AI | OpenAI Responses API + `gpt-4o-mini` | via route handlers / fetch |
+| Food Search | Mongo `Food` cache + USDA FoodData Central fallback | current implementation |
 | Encryption | Node.js crypto (AES-256-GCM) | built-in |
 | Password | bcryptjs | 2.4.3 (12 rounds) |
 | Validation | Zod | 3.24 |
 | Dates | date-fns | 4.1 |
-| Deployment | Vercel | (nextjs framework) |
+| Deployment | Vercel | nextjs framework |
 
 ## Directory Map
 
-```
+```text
 app/
   (auth)/           # login, register, onboarding — public routes
-  (dashboard)/      # all protected pages + layout with sidebar/mobile nav
+  (dashboard)/      # protected pages + layout with sidebar/mobile nav
     dashboard, food, water, weight, workout, sleep, ai, ai-insights,
-    achievements, settings, api-keys, preferences, targets, more, project, debug, developers
+    achievements, settings, api-keys, preferences, targets, more, project,
+    debug, health-data, todos
   api/
     ai/             # daily-plan, food-logger, health-plan, insights-eligibility,
                     # meal-ideas, orchestrator, recommendations, workout-logger
-    cron/           # generate-daily-plans, send-reminders, process-email-replies
+    auth/           # next-auth + registration
+    cron/           # generate-daily-plans, send-reminders, process-email-replies, sync-health-data
+    email/          # send-reminder, process-replies, verify-imap
+    user/           # profile, onboarding, API keys, email settings, targets
+    daily-log/      # core meals/log APIs + recent foods
+    foods/          # local cache + USDA fallback food search
+    workouts/       # workout CRUD + exercise helpers
+    water, weight, sleep, todos, achievements, debug-logs, health-data, health-metrics
   globals.css       # dark theme, glassmorphism, animations, layout utilities
   layout.tsx        # root layout with fonts
   page.tsx          # landing page
 
 components/
-  layout/           # Sidebar, MobileNav, DashboardLayoutClient, DashboardPageShell
+  layout/           # Sidebar, MobileNav, DashboardLayoutClient, shells, AI sidebars
   ui/               # ProgressRing, MacroBar, MetricChart, StatCard, Toast, Skeleton, etc.
-  food/             # AddMealModal, FoodResultCard, AIFoodLoggerModal, MealIdeasModal, etc.
-  water/            # WaterGlass (animated visualization)
-  workout/          # AddWorkoutModal, AIWorkoutLoggerModal, AIWorkoutPlanModal, etc.
+  food/             # AddMealModal, FoodResultCard, RecentFoodCard
+  water/            # WaterGlass
+  workout/          # EditWorkoutModal
   achievements/     # BadgeCard, BadgeGrid, StreakCard, StreakBar, BadgeIcon, etc.
-  tour/             # DashboardTour (interactive onboarding)
-  debug/            # DebugLogsPage, DebuggerPanel (dev-only)
+  orchestrator/     # chat/history/confirmation UI for AI command routing
+  tour/             # DashboardTour
+  debug/            # DebugLogsPage, DebuggerPanel, typed AI log viewers
 
 lib/
   auth.ts           # NextAuth config
-  db.ts             # MongoDB connection (maxPoolSize: 10)
+  session.ts        # API auth + cron bypass helpers
+  db.ts             # MongoDB connection
   encryption.ts     # AES-256-GCM encrypt/decrypt
-  apiClient.ts      # Frontend fetch wrapper (sanitized requests)
-  apiMask.ts        # Server-side response masking (strips sensitive fields)
-  session.ts        # getAuthUserId, isUserId helpers for API routes
-  openaiKey.ts      # resolveOpenAIKey — user key or server fallback
+  apiClient.ts      # frontend fetch wrapper
+  apiMask.ts        # server-side response masking
+  openaiKey.ts      # user key -> fallback key resolution
   health.ts         # BMR, TDEE, macro, water, sleep target calculations
-  gamification.ts   # Streaks, XP, leveling (orchestrator)
-  badgeDefinitions.ts  # Badge definitions (split from gamification.ts)
-  xp.ts             # XP calculation logic
-  level.ts          # Level/rank calculation
-  calorieBurn.ts    # Exercise calorie burn calculations
-  deriveFitnessLevel.ts  # Auto-classify beginner/intermediate/advanced from 14-day history
-  latestWeight.ts   # getLatestLoggedWeight helper
-  aiHealthPlan.ts   # AI health plan generation service
-  mealIdeasService.ts   # Meal ideas generation service
-  utils.ts          # Formatters, validators, date helpers
-  constants.ts      # App-wide constants
+  gamification.ts   # streaks, achievements, XP orchestration
+  badgeDefinitions.ts
+  xp.ts
+  level.ts
+  calorieBurn.ts
+  deriveFitnessLevel.ts
+  deriveActivityLevel.ts
+  latestWeight.ts
+  aiHealthPlan.ts
+  mealIdeasService.ts
+  debugLogsConfig.ts
+  healthDataSync.ts
+  utils.ts
+  constants.ts
   email/
-    smtp.ts         # SMTP email sending
-    imap.ts         # IMAP email reading
-    templates.ts    # Email templates
+    smtp.ts
+    imap.ts
+    templates.ts
 
 models/
-  User.ts           # User schema (profile, settings, targets, achievements)
-  DailyLog.ts       # Daily log schema (meals, workouts, water, sleep)
-  DailyPlan.ts      # AI-generated daily plan (food + workout + top insight, status: generating/ready/failed)
-  Food.ts           # Food item schema (replaces removed indianFoods.ts)
+  User.ts
+  DailyLog.ts
+  DailyPlan.ts
+  Food.ts
+
+contexts/
+  DebugLogsContext.tsx
+  OrchestratorSidebarContext.tsx
 
 hooks/
-  useDailyLog.ts    useUser.ts    useAchievements.ts
+  useDailyLog.ts
+  useUser.ts
+  useAchievements.ts
 
 types/
-  index.ts          # All TypeScript types
-
-middleware.ts       # Route protection
+  index.ts
 ```
 
 ## Environment Variables
 
 ### Required
-```
+
+```text
 MONGODB_URI             # MongoDB Atlas connection string
+MONGO_DB                # explicit database name
 NEXTAUTH_SECRET         # 32+ char random string
 ENCRYPTION_KEY          # 32-byte hex (for AES-256)
-NEXTAUTH_URL            # App URL (e.g. http://localhost:30000)
+NEXTAUTH_URL            # app URL; should match local PORT or deployed URL
+CRON_SECRET             # required for /api/cron/* auth and internal cron fan-out
 ```
 
 ### Optional
-```
-OPENAI_API_KEY          # Server-wide AI fallback
-EDAMAM_APP_ID           # Food search fallback
-EDAMAM_APP_KEY
+
+```text
+OPENAI_API_KEY          # server-wide AI fallback
+FDC_API_KEY             # USDA FoodData Central fallback key
+FOOD_CACHE_TTL_DAYS     # cache freshness window for imported foods
+PORT                    # local dev server port; .env.example defaults to 3000
 NEXT_PUBLIC_DEBUG_MODE  # true = enable debug logging
-NEXT_PUBLIC_DASHBOARD_TOUR_VERSION  # integer, bumping retriggers tour
+NEXT_PUBLIC_DASHBOARD_TOUR_VERSION
+SMTP_HOST / SMTP_PORT
+IMAP_HOST / IMAP_PORT
 ```
 
-### Dev Port
-App runs on **port 30000** locally (not the default 3000).
+## Dev Port
+
+Port is **environment-driven**. `.env.example` currently defaults to **3000** and `next.config.js` falls back `NEXTAUTH_URL` to `http://localhost:30000` only when the env var is missing, so local env values should be kept consistent.
 
 ## How to Run
 
 ```bash
 npm install
-npm run dev     # starts on http://localhost:30000
+npm run dev
 ```
+
+`npm run dev` starts both Next dev and the local cron simulator.
 
 ## Key Architectural Patterns
 
-- **Server Components** for page shells; **Client Components** for interactive UI (modals, forms, charts)
-- **API routes** as the only backend — no separate server
-- **Response masking** (`lib/apiMask.ts`): Every API handler calls `maskUser()` before returning user data — never exposes `password`, `apiKeys`, `_id`, `__v`
-- **Request sanitization** (`lib/apiClient.ts`): Frontend strips blocked fields before sending to API
-- **User-provided API keys**: Users can supply their own OpenAI/Edamam keys; stored AES-256 encrypted in MongoDB
+- **Server Components** for page shells; **Client Components** for interactive UI
+- **API routes** are the only backend — no separate app server
+- **Response masking** (`lib/apiMask.ts`): mask before returning user-shaped data
+- **Request sanitization** (`lib/apiClient.ts`): frontend strips blocked fields before sending
+- **Session helpers instead of middleware-first auth**: API routes use `lib/session.ts`; dashboard redirects happen in `DashboardLayoutClient`
+- **User-provided API keys**: OpenAI and USDA FDC keys can be user-owned and are stored encrypted
+- **Cron fan-out pattern**: cron routes authenticate with `x-cron-secret`, then may call internal routes with `x-internal-user-id`
+- **Food cache-first search**: search Mongo first, then hydrate from USDA and persist
+- **OpenAI Responses API**: AI routes frequently use direct `fetch('https://api.openai.com/v1/responses')`
+- **Debug surfaces are productized**: AI/debug logs have dedicated UI viewers under `/debug` and `components/debug/*`
