@@ -16,6 +16,7 @@ import {
   X,
   CheckSquare,
   LogOut,
+  Activity,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -30,6 +31,7 @@ const mobileNav = [
 
 const moreNav = [
   { href: '/workout', icon: Dumbbell, label: 'Workout' },
+  { href: '/health-data', icon: Activity, label: 'Health Data' },
   { href: '/weight', icon: Scale, label: 'Weight' },
   { href: '/achievements', icon: Star, label: 'Achievements' },
   { href: '/ai-insights', icon: CalendarDays, label: "Today's Plan" },

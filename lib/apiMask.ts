@@ -64,6 +64,18 @@ export function maskUser(user: IUser | Record<string, unknown>): SafeUser {
     if (!recipientEmails?.length && legacyCcEmails?.length) {
       settings.recipientEmails = legacyCcEmails;
     }
+
+    const reminderSchedule = settings.reminderSchedule as Record<string, unknown> | undefined;
+    if (reminderSchedule) {
+      const water = reminderSchedule.water as Record<string, unknown> | undefined;
+      const nestedFrequency = Number(water?.frequencyMinutes);
+      const flatFrequency = Number(reminderSchedule.waterFrequencyMinutes);
+      if (Number.isFinite(nestedFrequency)) {
+        reminderSchedule.waterFrequencyMinutes = nestedFrequency;
+      } else if (Number.isFinite(flatFrequency)) {
+        reminderSchedule.waterFrequencyMinutes = flatFrequency;
+      }
+    }
   }
 
   // Compute age and normalize dateOfBirth to YYYY-MM-DD for client (e.g. input type="date")

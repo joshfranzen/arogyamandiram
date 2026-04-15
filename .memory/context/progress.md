@@ -1,8 +1,8 @@
 ---
 name: progress
 type: context
-last_updated: 2026-04-07
-updated_by: claude-sonnet-4-6
+last_updated: 2026-04-14
+updated_by: codex-5.3
 staleness_days: 3
 ---
 
@@ -32,6 +32,7 @@ staleness_days: 3
 - [x] Achievements page (badge grid, streak overview, progress)
 - [x] Settings: profile edit, API key management (OpenAI + Edamam)
 - [x] User preferences (units, theme, notifications, email scheduling)
+- [x] Timezone-aware reminder scheduling with profile timezone persistence and configurable water reminder window/frequency
 - [x] Daily targets customization
 - [x] Dashboard tour (interactive, version-controlled)
 - [x] Debug logging panel (dev only)
@@ -40,6 +41,9 @@ staleness_days: 3
 - [x] Mobile-responsive layout (bottom nav + sidebar)
 - [x] Vercel deployment configuration
 - [x] UI/UX standardization (dashboard-unified-card, emerald palette, accessibility, mobile badge grid)
+- [x] Today's Plan UX improvements — per-tab generation, quick add planned workout exercises with custom reps/time, and Request Inspector logs for today's plan generation
+- [x] Settings profile sync + body UX refresh — auto-sync latest logged weight to profile, auto-derive activity level from 7-day workout behavior, and plain-language body shape/body-fat guidance
+- [x] Health data sync provenance + automation — last sync now records source (`manual` vs `auto`), Settings displays sync type, and cron-based interval sync runs via `/api/cron/sync-health-data`
 
 ## In Progress
 

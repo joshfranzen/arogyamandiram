@@ -14,7 +14,7 @@ export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 export type WorkoutCategory = 'cardio' | 'strength' | 'flexibility' | 'sports' | 'other';
 export type BodyType = 'ectomorph' | 'mesomorph' | 'endomorph';
 export type FitnessLevel = 'beginner' | 'intermediate' | 'advanced';
-export type FatFocusArea = 'belly' | 'thighs' | 'arms' | 'chest' | 'overall';
+export type FatFocusArea = 'belly' | 'hips' | 'thighs' | 'arms' | 'chest' | 'overall';
 
 export interface UserProfile {
   name: string;
@@ -35,6 +35,7 @@ export interface UserProfile {
   fatFocusAreas?: FatFocusArea[];
   fitnessLevelDerived?: FitnessLevel; // auto-calculated from workout logs
   fitnessLevelUser?: FitnessLevel;    // optional manual override
+  timezone?: string;
 }
 
 export interface UserApiKeys {
@@ -67,6 +68,13 @@ export interface EmailSettings {
 export interface ReminderScheduleSettings {
   timezone?: string;
   waterHourlyEnabled?: boolean;
+  waterFrequencyMinutes?: number;
+  water?: {
+    enabled?: boolean;
+    startTime?: string;
+    endTime?: string;
+    frequencyMinutes?: number;
+  };
   mealTimes?: {
     breakfast?: string;
     lunch?: string;
@@ -84,6 +92,19 @@ export interface ReminderScheduleSettings {
     weighIn?: string;
     sleep?: string;
   };
+}
+
+export type HealthDataSyncSource = 'manual' | 'auto';
+
+export interface HealthDataSettings {
+  endpoint?: string;
+  enabled?: boolean;
+  syncIntervalMinutes?: number;
+  lastSyncAt?: string;
+  lastSyncSource?: HealthDataSyncSource;
+  lastSchemaJson?: string;
+  lastSyncStatus?: 'ok' | 'error' | '';
+  lastSyncError?: string;
 }
 
 export interface UserSettings {
@@ -122,6 +143,8 @@ export interface UserSettings {
     imapReplyVerifiedAt?: string;
     lastUpdatedAt?: string;
   };
+  /** External health data sync settings + latest sync metadata. */
+  healthData?: HealthDataSettings;
 }
 
 export interface UserTargets {
@@ -241,6 +264,8 @@ export interface WorkoutEntry {
   sets?: number;
   reps?: number;
   weight?: number;        // kg or lbs
+  /** 'device' = from health-data sync; 'manual' = user-entered (default) */
+  source?: 'manual' | 'device';
   notes?: string;
 }
 
@@ -279,6 +304,11 @@ export interface IDailyLog {
   totalSugar?: number;
   totalSodium?: number;
   caloriesBurned: number;
+  // Device-sourced metrics (populated by health-data sync)
+  heartRate?:      number;
+  steps?:          number;
+  activeCalories?: number;
+  distanceKm?:     number;
   notes?: string;
   todoCompletions?: Array<{ templateId: string; completedAt: string }>;
   /** XP already awarded for this specific date (0–50). */
@@ -422,6 +452,12 @@ export interface DailyPlanData {
     calorieGap?: number;
     recentWorkoutsPerWeek?: number;
     avgWorkoutDurationMin?: number;
+  };
+  regenerationCounts?: {
+    food?: number;
+    workout?: number;
+    overview?: number;
+    full?: number;
   };
   yesterdayFeedback?: {
     workoutDifficulty?: 'too_easy' | 'just_right' | 'too_hard';

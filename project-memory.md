@@ -1,9 +1,9 @@
 ---
 state: populated
 created: 2026-03-26
-last_updated: 2026-04-07
-last_read: 2026-04-07
-updated_by: claude-sonnet-4-6
+last_updated: 2026-04-14
+last_read: 2026-04-12
+updated_by: codex-5.3
 staleness_days: 3
 ---
 
@@ -19,7 +19,7 @@ staleness_days: 3
 
 | Section | Last Updated | Updated By | Stale After | Status |
 |---------|-------------|------------|-------------|--------|
-| context/ | 2026-04-07 | claude-sonnet-4-6 | 3 days | Current |
+| context/ | 2026-04-14 | codex-5.3 | 3 days | Current |
 | agents/ | 2026-03-26 | claude-sonnet-4-6 | 7 days | Stale |
 | skills/ | 2026-03-26 | claude-sonnet-4-6 | 10 days | Current |
 | rules/ | 2026-03-26 | claude-sonnet-4-6 | 14 days | Current |

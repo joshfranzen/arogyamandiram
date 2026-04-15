@@ -5,7 +5,7 @@
 // This centralizes error handling, auth headers, and
 // ensures no sensitive data leaks in request payloads.
 
-import type { ApiResponse } from '@/types';
+import type { ApiResponse, HealthDataSyncSource } from '@/types';
 
 const BASE_URL = '/api';
 
@@ -255,7 +255,7 @@ export const api = {
     ),
 
   generatePlanNow: (type?: 'food' | 'workout' | 'overview' | 'full') =>
-    apiFetch<{ plan: Record<string, unknown> }>('/ai/daily-plan', {
+    apiFetch<{ plan: Record<string, unknown>; debugLog?: Record<string, unknown> }>('/ai/daily-plan', {
       method: 'POST',
       body: JSON.stringify({ type: type ?? 'full' }),
     }),
@@ -334,6 +334,47 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ text, imageBase64, imageMimeType }),
     }),
+
+  // Health Data Sync
+  getHealthDataConfig: () =>
+    apiFetch<{
+      endpoint: string;
+      hasApiKey: boolean;
+      enabled: boolean;
+      syncIntervalMinutes: number;
+      lastSyncAt: string | null;
+      lastSyncSource: HealthDataSyncSource | '';
+      lastSchemaJson: string;
+      lastSyncStatus: string;
+      lastSyncError: string;
+    }>('/health-data'),
+
+  saveHealthDataConfig: (cfg: {
+    endpoint?: string;
+    apiKey?: string;
+    clearApiKey?: boolean;
+    enabled?: boolean;
+    syncIntervalMinutes?: number;
+  }) =>
+    apiFetch<{ ok: boolean }>('/health-data', {
+      method: 'POST',
+      body: JSON.stringify(cfg),
+    }),
+
+  triggerHealthDataSync: (opts?: { source?: HealthDataSyncSource }) =>
+    apiFetch<{
+      ok: boolean;
+      schema: Record<string, string>;
+      rowCount: number;
+      syncActions: { field: string; status: string; detail?: string }[];
+    }>('/health-data', { method: 'PUT', body: JSON.stringify(opts ?? {}) }),
+
+  getHealthMetricsHistory: (days = 7) =>
+    apiFetch<{
+      history: { date: string; heartRate?: number; steps?: number; activeCalories?: number; distanceKm?: number }[];
+      today:   { date: string; heartRate?: number; steps?: number; activeCalories?: number; distanceKm?: number } | null;
+      days: number;
+    }>(`/health-metrics?days=${days}`),
 };
 
 export default api;

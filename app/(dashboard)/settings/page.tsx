@@ -7,6 +7,7 @@ import {
   Shield, Eye, EyeOff, CheckCircle2, Sparkles, Utensils, Dumbbell,
   Loader2, RefreshCw, Flame, Droplets, Scale, Moon,
   Mail, Plus, X, ListChecks, Pill, Zap, Trash2, Pencil, CheckSquare,
+  Smartphone, RotateCcw, AlertCircle,
 } from 'lucide-react';
 import { showToast } from '@/components/ui/Toast';
 import { CardSkeleton } from '@/components/ui/Skeleton';
@@ -16,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { getTargetsForUser } from '@/lib/health';
 import DashboardPageShell from '@/components/layout/DashboardPageShell';
 import Link from 'next/link';
+import Image from 'next/image';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -23,7 +25,7 @@ interface TodoTemplate { id: string; title: string; note: string; time: string; 
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-type Tab = 'profile' | 'body' | 'targets' | 'api-keys' | 'notifications' | 'email' | 'todos';
+type Tab = 'profile' | 'body' | 'targets' | 'api-keys' | 'notifications' | 'email' | 'todos' | 'health-data';
 
 const NAV_ITEMS: { key: Tab; label: string; icon: React.ElementType; desc: string }[] = [
   { key: 'profile',       label: 'Profile',        icon: User,          desc: 'Personal info & metrics' },
@@ -33,6 +35,7 @@ const NAV_ITEMS: { key: Tab; label: string; icon: React.ElementType; desc: strin
   { key: 'notifications', label: 'Notifications',  icon: Bell,          desc: 'Reminders & schedule' },
   { key: 'email',         label: 'Email',          icon: Mail,          desc: 'SMTP, IMAP & recipients' },
   { key: 'todos',         label: 'Daily Todos',    icon: CheckSquare,   desc: 'Recurring checklist' },
+  { key: 'health-data',   label: 'Health Data',    icon: Smartphone,    desc: 'External health sync' },
 ];
 
 const activityLevels = [
@@ -49,6 +52,31 @@ const goals = [
   { value: 'gain',     label: 'Gain Weight', desc: 'Calorie surplus' },
 ];
 
+const bodyTypeOptions = [
+  {
+    value: 'ectomorph',
+    label: 'Lean frame',
+    image: '/images/body-types/ectomorph.png',
+  },
+  {
+    value: 'mesomorph',
+    label: 'Athletic frame',
+    image: '/images/body-types/mesomorph.png',
+  },
+  {
+    value: 'endomorph',
+    label: 'Soft frame',
+    image: '/images/body-types/endomorph.png',
+  },
+] as const;
+
+const bodyFatGuides = [
+  { label: 'Very lean', range: '10-14%', value: 12, clue: 'Muscle lines visible, very little belly fat.' },
+  { label: 'Lean', range: '15-19%', value: 17, clue: 'Some definition, small belly softness.' },
+  { label: 'Average', range: '20-24%', value: 22, clue: 'No clear abs, moderate belly/chest fat.' },
+  { label: 'Higher', range: '25-30%', value: 27, clue: 'Visible belly fat, chest and waist look fuller.' },
+] as const;
+
 // ─── Inner component (uses useSearchParams) ───────────────────────────────────
 
 function SettingsInner() {
@@ -57,7 +85,7 @@ function SettingsInner() {
   const { user, loading, refetch } = useUser();
 
   const rawTab = searchParams.get('tab') as Tab | null;
-  const validTabs: Tab[] = ['profile', 'body', 'targets', 'api-keys', 'notifications', 'email', 'todos'];
+  const validTabs: Tab[] = ['profile', 'body', 'targets', 'api-keys', 'notifications', 'email', 'todos', 'health-data'];
   const [activeTab, setActiveTabState] = useState<Tab>(
     rawTab && validTabs.includes(rawTab) ? rawTab : 'profile'
   );
@@ -113,7 +141,10 @@ function SettingsInner() {
   const [savingRecipients, setSavingRecipients] = useState(false);
   const [sendingTestEmail, setSendingTestEmail] = useState(false);
   const [timezone, setTimezone] = useState('');
-  const [waterHourlyEnabled, setWaterHourlyEnabled] = useState(true);
+  const [waterReminderEnabled, setWaterReminderEnabled] = useState(true);
+  const [waterStartTime, setWaterStartTime] = useState('06:00');
+  const [waterEndTime, setWaterEndTime] = useState('21:00');
+  const [waterFrequencyMinutes, setWaterFrequencyMinutes] = useState(60);
   const [breakfastTime, setBreakfastTime] = useState('');
   const [lunchTime, setLunchTime] = useState('');
   const [dinnerTime, setDinnerTime] = useState('');
@@ -136,6 +167,21 @@ function SettingsInner() {
   const [savingImap, setSavingImap] = useState(false);
   const [imapConfigured, setImapConfigured] = useState(false);
   const imapPollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ── Health Data state ──────────────────────────────────────────────────────
+  const [hdEndpoint, setHdEndpoint] = useState('');
+  const [hdApiKey, setHdApiKey] = useState('');
+  const [hdShowApiKey, setHdShowApiKey] = useState(false);
+  const [hdHasApiKey, setHdHasApiKey] = useState(false);
+  const [hdEnabled, setHdEnabled] = useState(false);
+  const [hdInterval, setHdInterval] = useState(60);
+  const [hdLastSyncAt, setHdLastSyncAt] = useState<string | null>(null);
+  const [hdLastSyncSource, setHdLastSyncSource] = useState<'manual' | 'auto' | ''>('');
+  const [hdLastStatus, setHdLastStatus] = useState('');
+  const [hdLastError, setHdLastError] = useState('');
+  const [hdSaving, setHdSaving] = useState(false);
+  const [hdSyncing, setHdSyncing] = useState(false);
+  const [hdLoaded, setHdLoaded] = useState(false);
   const imapPollingStartedAtRef = useRef<number | null>(null);
   const imapPollingInFlightRef = useRef(false);
   const hasShownImapVerifiedToastRef = useRef(false);
@@ -189,8 +235,19 @@ function SettingsInner() {
       setSleepNotif(s.notifications?.sleep ?? true);
       const saved = s.recipientEmails?.length ? s.recipientEmails : (s.ccEmails?.length ? s.ccEmails : []);
       setRecipientEmails(Array.from(new Set(saved.map((e: string) => e.trim().toLowerCase()))));
-      setTimezone(s.reminderSchedule?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || '');
-      setWaterHourlyEnabled(s.reminderSchedule?.waterHourlyEnabled ?? true);
+      const resolvedTimezone = s.reminderSchedule?.timezone || user.profile?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+      setTimezone(resolvedTimezone);
+      const savedWater = s.reminderSchedule?.water;
+      const rawWaterFrequency = savedWater?.frequencyMinutes ?? s.reminderSchedule?.waterFrequencyMinutes;
+      const parsedWaterFrequency = Number(rawWaterFrequency);
+      setWaterReminderEnabled(savedWater?.enabled ?? (s.reminderSchedule?.waterHourlyEnabled ?? true));
+      setWaterStartTime(savedWater?.startTime || '06:00');
+      setWaterEndTime(savedWater?.endTime || '21:00');
+      setWaterFrequencyMinutes((previousFrequency) =>
+        Number.isFinite(parsedWaterFrequency) && parsedWaterFrequency >= 15 && parsedWaterFrequency <= 240
+          ? parsedWaterFrequency
+          : previousFrequency
+      );
       setBreakfastTime(s.reminderSchedule?.mealTimes?.breakfast || '');
       setLunchTime(s.reminderSchedule?.mealTimes?.lunch || '');
       setDinnerTime(s.reminderSchedule?.mealTimes?.dinner || '');
@@ -221,6 +278,25 @@ function SettingsInner() {
   }, [user]);
 
   useEffect(() => () => { stopImapVerificationPolling(); }, []);
+
+  // ── Load health data config when tab opens ─────────────────────────────────
+  useEffect(() => {
+    if (activeTab !== 'health-data' || hdLoaded) return;
+    void (async () => {
+      const res = await api.getHealthDataConfig();
+      if (res.success && res.data) {
+        setHdEndpoint(res.data.endpoint || '');
+        setHdHasApiKey(res.data.hasApiKey ?? false);
+        setHdEnabled(res.data.enabled ?? false);
+        setHdInterval(res.data.syncIntervalMinutes ?? 60);
+        setHdLastSyncAt(res.data.lastSyncAt ?? null);
+        setHdLastSyncSource(res.data.lastSyncSource ?? '');
+        setHdLastStatus(res.data.lastSyncStatus || '');
+        setHdLastError(res.data.lastSyncError || '');
+      }
+      setHdLoaded(true);
+    })();
+  }, [activeTab, hdLoaded]);
 
   useEffect(() => {
     const shouldPoll = emailChecklist.imapTestSent && !emailChecklist.imapReplyVerifiedAt;
@@ -376,21 +452,141 @@ function SettingsInner() {
   const savePreferences = async () => {
     setPrefSaving(true);
     try {
+      const toMinutes = (timeValue: string) => {
+        const [h, m] = timeValue.split(':').map((v) => parseInt(v, 10));
+        if (Number.isNaN(h) || Number.isNaN(m)) return null;
+        return h * 60 + m;
+      };
+      const startMinutes = toMinutes(waterStartTime);
+      const endMinutes = toMinutes(waterEndTime);
+      if (startMinutes === null || endMinutes === null || startMinutes >= endMinutes) {
+        showToast('Water reminder start time must be before end time', 'error');
+        return;
+      }
+
       const res = await api.updateSettings({
         units,
         notifications: { water: waterNotif, meals: mealNotif, weighIn: weighInNotif, workout: workoutNotif, sleep: sleepNotif },
         reminderSchedule: {
-          timezone, waterHourlyEnabled,
+          timezone,
+          // Keep legacy flat frequency key for backward compatibility during migration.
+          waterFrequencyMinutes,
+          water: {
+            enabled: waterReminderEnabled,
+            startTime: waterStartTime,
+            endTime: waterEndTime,
+            frequencyMinutes: waterFrequencyMinutes,
+          },
           mealTimes: { breakfast: breakfastTime, lunch: lunchTime, dinner: dinnerTime },
           sleepTime,
           workoutTime,
           weighInTime,
         },
       });
-      if (res.success) { showToast('Preferences saved', 'success'); refetch(); }
+      if (res.success) {
+        const updatedReminderSchedule = (res.data as { settings?: { reminderSchedule?: Record<string, unknown> } } | undefined)?.settings?.reminderSchedule;
+        const updatedWater = updatedReminderSchedule?.water as Record<string, unknown> | undefined;
+        const updatedRawFrequency = updatedWater?.frequencyMinutes ?? updatedReminderSchedule?.waterFrequencyMinutes;
+        const updatedParsedFrequency = Number(updatedRawFrequency);
+        if (Number.isFinite(updatedParsedFrequency) && updatedParsedFrequency >= 15 && updatedParsedFrequency <= 240) {
+          setWaterFrequencyMinutes(updatedParsedFrequency);
+        }
+        showToast('Preferences saved', 'success');
+        refetch();
+      }
       else showToast(res.error || 'Failed to save', 'error');
     } catch { showToast('Failed to save preferences', 'error'); }
     finally { setPrefSaving(false); }
+  };
+
+  // ── Health Data save & sync ────────────────────────────────────────────────
+  const saveHealthDataConfig = async () => {
+    setHdSaving(true);
+    try {
+      const res = await api.saveHealthDataConfig({
+        endpoint: hdEndpoint,
+        ...(hdApiKey ? { apiKey: hdApiKey } : {}),
+        enabled: hdEnabled,
+        syncIntervalMinutes: hdInterval,
+      });
+      if (res.success) {
+        showToast('Health data settings saved', 'success');
+        setHdApiKey('');
+        if (hdApiKey) setHdHasApiKey(true);
+        setHdLoaded(false); // reload on next visit
+      } else {
+        showToast(res.error || 'Failed to save', 'error');
+      }
+    } catch { showToast('Failed to save health data settings', 'error'); }
+    finally { setHdSaving(false); }
+  };
+
+  const triggerHealthSync = async () => {
+    if (!hdEndpoint.trim()) { showToast('Enter an endpoint URL first', 'error'); return; }
+    setHdSyncing(true);
+    const requestedAt = new Date().toISOString();
+    try {
+      const res = await api.triggerHealthDataSync({ source: 'manual' });
+      if (res.success && res.data) {
+        const { schema, rowCount, syncActions } = res.data;
+        setHdLastSyncAt(new Date().toISOString());
+        setHdLastSyncSource('manual');
+        setHdLastStatus('ok');
+        setHdLastError('');
+        showToast(`Synced ${rowCount} row${rowCount !== 1 ? 's' : ''} successfully`, 'success');
+        if (process.env.NEXT_PUBLIC_DEBUG_MODE === 'true') {
+          fetch('/api/debug-logs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              page: 'health-data',
+              agent: 'sync',
+              log: {
+                userRequest: { endpoint: hdEndpoint, requestedAt },
+                syncResult: { schema, rowCount, syncActions },
+                metadata: {
+                  timestamp: new Date().toISOString(),
+                  status: 'success',
+                },
+              },
+            }),
+          }).catch(() => {});
+        }
+      } else {
+        setHdLastSyncSource('manual');
+        setHdLastStatus('error');
+        setHdLastError(res.error || 'Unknown error');
+        showToast(res.error || 'Sync failed', 'error');
+        if (process.env.NEXT_PUBLIC_DEBUG_MODE === 'true') {
+          fetch('/api/debug-logs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              page: 'health-data',
+              agent: 'sync',
+              log: {
+                userRequest: { endpoint: hdEndpoint, requestedAt },
+                syncResult: null,
+                metadata: {
+                  timestamp: new Date().toISOString(),
+                  status: 'error',
+                  error: res.error || 'Unknown error',
+                },
+              },
+            }),
+          }).catch(() => {});
+        }
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Sync failed';
+      setHdLastSyncSource('manual');
+      setHdLastStatus('error');
+      setHdLastError(msg);
+      showToast(msg, 'error');
+    }
+    finally { setHdSyncing(false); }
   };
 
   function addRecipientEmail() {
@@ -644,14 +840,15 @@ function SettingsInner() {
                 <Activity className="h-4 w-4 text-accent-rose" />
                 <h2 className="text-base font-semibold text-text-primary">Activity level</h2>
               </div>
+              <p className="mt-1 text-xs text-text-muted">Auto-detected from your last completed week (Mon-Sun).</p>
               <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-5">
                 {activityLevels.map((al) => (
-                  <button key={al.value} type="button" onClick={() => setActivityLevel(al.value)}
+                  <div key={al.value}
                     className={cn('rounded-2xl border px-3 py-3 text-left text-xs transition-all',
-                      activityLevel === al.value ? 'border-emerald-500 bg-emerald-500/10' : 'border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700')}>
+                      activityLevel === al.value ? 'border-emerald-500 bg-emerald-500/10' : 'border-zinc-800 bg-zinc-900/50 text-zinc-400')}>
                     <p className={cn('font-semibold', activityLevel === al.value ? 'text-emerald-400' : 'text-zinc-200')}>{al.label}</p>
                     <p className="mt-0.5 text-[10px] text-zinc-400">{al.desc}</p>
-                  </button>
+                  </div>
                 ))}
               </div>
             </div>
@@ -691,20 +888,24 @@ function SettingsInner() {
             <div className="glass-card rounded-2xl p-6">
               <div className="flex items-center gap-2">
                 <PersonStanding className="h-4 w-4 text-accent-cyan" />
-                <h2 className="text-base font-semibold text-text-primary">Body Type</h2>
+                <h2 className="text-base font-semibold text-text-primary">Body Shape</h2>
               </div>
-              <p className="mt-1 text-xs text-text-muted">Helps AI personalize your workout and nutrition plans.</p>
+              <p className="mt-1 text-xs text-text-muted">Choose visually.</p>
               <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                {[
-                  { value: 'ectomorph', label: 'Ectomorph', desc: 'Lean & hard to gain weight' },
-                  { value: 'mesomorph', label: 'Mesomorph', desc: 'Athletic & muscular build' },
-                  { value: 'endomorph', label: 'Endomorph', desc: 'Stores fat more easily' },
-                ].map((bt) => (
+                {bodyTypeOptions.map((bt) => (
                   <button key={bt.value} type="button" onClick={() => setBodyType(bt.value)}
-                    className={cn('rounded-2xl border px-4 py-4 text-left text-xs transition-all',
+                    className={cn('overflow-hidden rounded-2xl border text-left text-xs transition-all',
                       bodyType === bt.value ? 'border-emerald-500 bg-emerald-500/10' : 'border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700')}>
-                    <p className={cn('font-semibold text-sm', bodyType === bt.value ? 'text-emerald-400' : 'text-zinc-200')}>{bt.label}</p>
-                    <p className="mt-1 text-[11px] text-zinc-400 leading-relaxed">{bt.desc}</p>
+                    <div className="p-2">
+                      <Image
+                        src={bt.image}
+                        alt={bt.label}
+                        width={1024}
+                        height={683}
+                        className="h-40 w-full rounded-lg bg-white object-contain"
+                      />
+                    </div>
+                    <p className={cn('px-3 py-2 font-semibold text-sm', bodyType === bt.value ? 'text-emerald-400' : 'text-zinc-200')}>{bt.label}</p>
                   </button>
                 ))}
               </div>
@@ -713,10 +914,37 @@ function SettingsInner() {
             {/* Body Fat */}
             <div className="glass-card rounded-2xl p-6">
               <h2 className="text-base font-semibold text-text-primary">Body Fat %</h2>
-              <p className="mt-1 text-xs text-text-muted">Optional — used to refine AI recommendations.</p>
-              <input type="number" value={bodyFat} onChange={(e) => setBodyFat(e.target.value)}
-                placeholder="e.g. 18" min={1} max={60}
-                className="glass-input mt-4 w-40 rounded-xl px-3 py-2 text-sm bg-zinc-900 border border-zinc-800 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
+              <p className="mt-1 text-xs text-text-muted">Not sure of exact %? Pick the closest visual range first, then fine-tune if needed.</p>
+              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {bodyFatGuides.map((guide) => {
+                  const selected = Number(bodyFat) === guide.value;
+                  return (
+                    <button
+                      key={guide.label}
+                      type="button"
+                      onClick={() => setBodyFat(String(guide.value))}
+                      className={cn(
+                        'rounded-2xl border px-4 py-3 text-left text-xs transition-all',
+                        selected
+                          ? 'border-emerald-500 bg-emerald-500/10'
+                          : 'border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700'
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className={cn('text-sm font-semibold', selected ? 'text-emerald-400' : 'text-zinc-200')}>{guide.label}</p>
+                        <span className="rounded-full border border-zinc-700 px-2 py-0.5 text-[10px] text-zinc-300">{guide.range}</span>
+                      </div>
+                      <p className="mt-1 text-[11px] text-zinc-400 leading-relaxed">{guide.clue}</p>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-4">
+                <label className="text-xs font-medium text-text-muted">Exact body fat % (optional)</label>
+                <input type="number" value={bodyFat} onChange={(e) => setBodyFat(e.target.value)}
+                  placeholder="e.g. 18" min={1} max={60}
+                  className="glass-input mt-1 w-40 rounded-xl px-3 py-2 text-sm bg-zinc-900 border border-zinc-800 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
+              </div>
             </div>
 
             {/* Fat focus areas */}
@@ -724,7 +952,7 @@ function SettingsInner() {
               <h2 className="text-base font-semibold text-text-primary">Fat Loss Focus Areas</h2>
               <p className="mt-1 text-xs text-text-muted">Where do you want to focus fat loss? Select up to 3.</p>
               <div className="mt-4 flex flex-wrap gap-2">
-                {(['belly', 'thighs', 'arms', 'chest', 'overall'] as const).map((area) => {
+                {(['belly', 'hips', 'thighs', 'arms', 'chest', 'overall'] as const).map((area) => {
                   const selected = fatFocusAreas.includes(area);
                   const disabled = !selected && fatFocusAreas.length >= 3;
                   return (
@@ -1041,17 +1269,52 @@ function SettingsInner() {
                     <p className="mt-1 text-[10px] text-text-muted">Last sent: {formatLastSent(lastSentAt[t.key]) || 'None'}</p>
                   </div>
                 ))}
-                {/* Water toggle */}
-                <div className="sm:col-span-2 flex items-center justify-between rounded-2xl bg-white/[0.02] px-4 py-3">
-                  <div>
-                    <span className="text-sm font-medium text-text-secondary">Water reminders (06:00–09:00)</span>
-                    <p className="text-[10px] text-text-muted mt-0.5">Last sent: {formatLastSent(lastSentAt.water) || 'None'}</p>
+                {/* Water schedule */}
+                <div className="sm:col-span-2 rounded-2xl bg-white/[0.02] px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <span className="text-sm font-medium text-text-secondary">Water reminders</span>
+                      <p className="text-[10px] text-text-muted mt-0.5">Last sent: {formatLastSent(lastSentAt.water) || 'None'}</p>
+                    </div>
+                    <button type="button" onClick={() => setWaterReminderEnabled(!waterReminderEnabled)}
+                      className={cn('relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200', waterReminderEnabled ? 'bg-accent-violet' : 'bg-white/[0.1]')}
+                      aria-pressed={waterReminderEnabled}>
+                      <span className={cn('absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform duration-200', waterReminderEnabled && 'translate-x-5')} />
+                    </button>
                   </div>
-                  <button type="button" onClick={() => setWaterHourlyEnabled(!waterHourlyEnabled)}
-                    className={cn('relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200', waterHourlyEnabled ? 'bg-accent-violet' : 'bg-white/[0.1]')}
-                    aria-pressed={waterHourlyEnabled}>
-                    <span className={cn('absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform duration-200', waterHourlyEnabled && 'translate-x-5')} />
-                  </button>
+                  <div className="mt-3 grid grid-cols-1 gap-1 text-[10px] text-text-muted sm:grid-cols-2">
+                    <p>Before Breakfast: no water reminders 30 min prior</p>
+                    <p>After Breakfast: resumes 60 min after meal</p>
+                    <p>Before Lunch: no water reminders 30 min prior</p>
+                    <p>After Lunch: resumes 60 min after meal</p>
+                    <p>Before Dinner: no water reminders 30 min prior</p>
+                    <p>After Dinner: resumes 60 min after meal</p>
+                  </div>
+                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-text-muted">Start time</label>
+                      <input type="time" value={waterStartTime} onChange={(e) => setWaterStartTime(e.target.value)}
+                        className="w-full rounded-xl bg-white/[0.03] border border-white/[0.06] px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent-violet/50 transition-colors" />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-text-muted">End time</label>
+                      <input type="time" value={waterEndTime} onChange={(e) => setWaterEndTime(e.target.value)}
+                        className="w-full rounded-xl bg-white/[0.03] border border-white/[0.06] px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent-violet/50 transition-colors" />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-text-muted">Frequency (minutes)</label>
+                      <select
+                        value={waterFrequencyMinutes}
+                        onChange={(e) => setWaterFrequencyMinutes(Number(e.target.value))}
+                        className="w-full rounded-xl bg-white/[0.03] border border-white/[0.06] px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent-violet/50 transition-colors"
+                      >
+                        {[15, 30, 45, 60, 90, 120].map((minutes) => (
+                          <option key={minutes} value={minutes}>{minutes} min</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-[10px] text-text-muted">Default window is 06:00 to 21:00 in your timezone.</p>
                 </div>
               </div>
             </div>
@@ -1191,6 +1454,166 @@ function SettingsInner() {
 
         {/* ══════ TODOS ══════ */}
         {activeTab === 'todos' && <TodosSettingsTab />}
+
+        {/* ══════ HEALTH DATA ══════ */}
+        {activeTab === 'health-data' && (
+          <>
+            {/* Endpoint */}
+            <div className="glass-card rounded-2xl p-6">
+              <div className="flex items-center gap-2">
+                <Smartphone className="h-4 w-4 text-emerald-400" />
+                <h2 className="text-base font-semibold text-text-primary">Health Data Source</h2>
+              </div>
+              <p className="mt-1 text-xs text-text-muted">
+                Connect an external health data endpoint (mobile app, wearable, or custom API). The fetched data will be sent to the orchestrator to automatically update your health logs.
+              </p>
+
+              <div className="mt-5 space-y-4">
+                <div>
+                  <label className="text-xs font-medium text-text-muted">Endpoint URL</label>
+                  <input
+                    type="url"
+                    value={hdEndpoint}
+                    onChange={(e) => setHdEndpoint(e.target.value)}
+                    placeholder="https://your-health-api.example.com/data"
+                    className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm bg-zinc-900 border border-zinc-800 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium text-text-muted">
+                    API Token / Bearer Key
+                    {hdHasApiKey && !hdApiKey && (
+                      <span className="ml-2 text-emerald-400">● Saved</span>
+                    )}
+                  </label>
+                  <div className="relative mt-1">
+                    <input
+                      type={hdShowApiKey ? 'text' : 'password'}
+                      value={hdApiKey}
+                      onChange={(e) => setHdApiKey(e.target.value)}
+                      placeholder={hdHasApiKey ? '••••••••  (leave blank to keep existing)' : 'Optional — sent as Bearer token'}
+                      className="glass-input w-full rounded-xl px-3 py-2 pr-10 text-sm bg-zinc-900 border border-zinc-800 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setHdShowApiKey((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+                    >
+                      {hdShowApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <label className="text-xs font-medium text-text-muted">Auto-sync interval</label>
+                    <select
+                      value={hdInterval}
+                      onChange={(e) => setHdInterval(Number(e.target.value))}
+                      className="glass-input mt-1 rounded-xl px-3 py-2 text-sm bg-zinc-900 border border-zinc-800 focus:ring-1 focus:ring-emerald-500 outline-none"
+                    >
+                      <option value={15}>Every 15 minutes</option>
+                      <option value={30}>Every 30 minutes</option>
+                      <option value={60}>Every hour</option>
+                      <option value={180}>Every 3 hours</option>
+                      <option value={360}>Every 6 hours</option>
+                      <option value={720}>Every 12 hours</option>
+                      <option value={1440}>Once a day</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-5">
+                    <span className="text-xs text-text-muted">Auto-sync</span>
+                    <button
+                      type="button"
+                      onClick={() => setHdEnabled((v) => !v)}
+                      className={cn(
+                        'relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors',
+                        hdEnabled ? 'bg-emerald-500' : 'bg-zinc-700'
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          'pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out',
+                          hdEnabled ? 'translate-x-4' : 'translate-x-0'
+                        )}
+                      />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={saveHealthDataConfig}
+                  disabled={hdSaving}
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50"
+                >
+                  {hdSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={triggerHealthSync}
+                  disabled={hdSyncing || !hdEndpoint.trim()}
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.04] px-5 py-2.5 text-sm font-medium text-text-primary hover:bg-white/[0.06] disabled:opacity-50"
+                >
+                  {hdSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+                  Sync Now
+                </button>
+              </div>
+            </div>
+
+            {/* Last sync status */}
+            {(hdLastSyncAt || hdLastStatus) && (
+              <div className="glass-card rounded-2xl p-6">
+                <div className="flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-text-muted" />
+                  <h2 className="text-base font-semibold text-text-primary">Last Sync</h2>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {hdLastSyncAt && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-zinc-500">Time</span>
+                      <span className="text-sm text-zinc-300">{new Date(hdLastSyncAt).toLocaleString()}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-zinc-500">Type</span>
+                    <span className="text-sm text-zinc-300">
+                      {hdLastSyncSource === 'auto'
+                        ? 'Auto-sync (interval)'
+                        : hdLastSyncSource === 'manual'
+                          ? 'Manual (Sync Now)'
+                          : 'Unknown (older sync record)'}
+                    </span>
+                  </div>
+                  {hdLastStatus && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-zinc-500">Status</span>
+                      <div className="flex items-center gap-1.5">
+                        {hdLastStatus === 'ok' ? (
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                        ) : (
+                          <AlertCircle className="h-3.5 w-3.5 text-rose-400" />
+                        )}
+                        <span className={cn('text-sm font-medium', hdLastStatus === 'ok' ? 'text-emerald-400' : 'text-rose-400')}>
+                          {hdLastStatus === 'ok' ? 'Success' : 'Error'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  {hdLastStatus === 'error' && hdLastError && (
+                    <p className="text-xs text-rose-400 bg-rose-500/10 rounded-lg px-3 py-2">{hdLastError}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+          </>
+        )}
 
       </div>
     </div>

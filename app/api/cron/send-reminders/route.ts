@@ -4,7 +4,7 @@
 // Called by Vercel Cron regularly (every 15 minutes).
 // Dispatches reminder emails based on each user's timezone,
 // schedule preferences, and notification toggles.
-// No defaults — if a user hasn't configured a value, that reminder is skipped.
+// Time-based reminders are user-configurable; water uses a default 06:00-21:00 window.
 
 import { NextRequest } from 'next/server';
 import connectDB from '@/lib/db';
@@ -78,16 +78,27 @@ function isDueInWindow(
   return diff >= 0 && diff < windowMinutes;
 }
 
-function sentInSame30MinWindow(lastSentAt: Date | string | undefined, timezone: string, now: Date): boolean {
+function sentInSameWaterFrequencyWindow(
+  lastSentAt: Date | string | undefined,
+  timezone: string,
+  now: Date,
+  startMinutes: number,
+  frequencyMinutes: number
+): boolean {
   if (!lastSentAt) return false;
   const lastDate = new Date(lastSentAt);
   if (Number.isNaN(lastDate.getTime())) return false;
+
   const lastLocal = getLocalDateTimeParts(lastDate, timezone);
   const nowLocal = getLocalDateTimeParts(now, timezone);
   if (lastLocal.localDate !== nowLocal.localDate) return false;
-  if (lastLocal.hour !== nowLocal.hour) return false;
-  // Same 30-min block: 0–29 = block 0, 30–59 = block 1
-  return Math.floor(lastLocal.minute / 30) === Math.floor(nowLocal.minute / 30);
+
+  const lastTotal = lastLocal.hour * 60 + lastLocal.minute;
+  const nowTotal = nowLocal.hour * 60 + nowLocal.minute;
+  if (lastTotal < startMinutes || nowTotal < startMinutes) return false;
+
+  return Math.floor((lastTotal - startMinutes) / frequencyMinutes)
+    === Math.floor((nowTotal - startMinutes) / frequencyMinutes);
 }
 
 function sameLocalDate(lastSentAt: Date | string | undefined, timezone: string, now: Date): boolean {
@@ -97,6 +108,16 @@ function sameLocalDate(lastSentAt: Date | string | undefined, timezone: string, 
   const lastLocal = getLocalDateTimeParts(lastDate, timezone);
   const nowLocal = getLocalDateTimeParts(now, timezone);
   return lastLocal.localDate === nowLocal.localDate;
+}
+
+function isInMinutesWindow(nowMinutes: number, startMinutes: number, endMinutes: number): boolean {
+  const day = 24 * 60;
+  const start = ((startMinutes % day) + day) % day;
+  const end = ((endMinutes % day) + day) % day;
+  if (start <= end) {
+    return nowMinutes >= start && nowMinutes < end;
+  }
+  return nowMinutes >= start || nowMinutes < end;
 }
 
 function validateCronSecret(req: NextRequest): boolean {
@@ -144,17 +165,37 @@ export async function POST(req: NextRequest) {
 
     const dueReminderTypes: ReminderType[] = [];
     const mealTimes = (reminderSchedule.mealTimes as Record<string, string> | undefined) ?? {};
+    const mealMinuteValues = [mealTimes.breakfast, mealTimes.lunch, mealTimes.dinner]
+      .map((mealTime) => (mealTime ? parseHourMinute(mealTime) : null))
+      .filter((parsed): parsed is { hour: number; minute: number } => Boolean(parsed))
+      .map((parsed) => parsed.hour * 60 + parsed.minute);
 
-    // Water: only between 06:00–09:00 local time, every 30 min
-    const waterStart = 6 * 60;
-    const waterEnd   = 9 * 60;
-    const waterEnabled = (reminderSchedule.waterHourlyEnabled as boolean | undefined) !== false;
+    // Water: defaults to 06:00–21:00 local time, configurable start/end/frequency
+    const waterConfig = (reminderSchedule.water as Record<string, unknown> | undefined) ?? {};
+    const waterStart = parseHourMinute((waterConfig.startTime as string | undefined) ?? '06:00');
+    const waterEnd = parseHourMinute((waterConfig.endTime as string | undefined) ?? '21:00');
+    const waterStartMinutes = waterStart ? waterStart.hour * 60 + waterStart.minute : 6 * 60;
+    const waterEndMinutes = waterEnd ? waterEnd.hour * 60 + waterEnd.minute : 21 * 60;
+    const rawWaterFrequency = Number(waterConfig.frequencyMinutes ?? 60);
+    const waterFrequency = Number.isInteger(rawWaterFrequency)
+      ? Math.min(240, Math.max(15, rawWaterFrequency))
+      : 60;
+    const waterEnabled = typeof waterConfig.enabled === 'boolean'
+      ? waterConfig.enabled
+      : (reminderSchedule.waterHourlyEnabled as boolean | undefined) !== false;
+    const inWaterWindow = waterEndMinutes > waterStartMinutes
+      && nowTotalMinutes >= waterStartMinutes
+      && nowTotalMinutes < waterEndMinutes;
+    const minutesSinceWaterStart = nowTotalMinutes - waterStartMinutes;
+    const isWaterTick = inWaterWindow && minutesSinceWaterStart >= 0 && minutesSinceWaterStart % waterFrequency < 15;
+    const blockedByMealWindow = mealMinuteValues.some((mealMinutes) =>
+      isInMinutesWindow(nowTotalMinutes, mealMinutes - 30, mealMinutes + 60)
+    );
     if (
       waterEnabled
-      && nowTotalMinutes >= waterStart
-      && nowTotalMinutes < waterEnd
-      && (localNow.minute < 15 || (localNow.minute >= 30 && localNow.minute < 45))
-      && !sentInSame30MinWindow(lastSentAt.water, timezone, now)
+      && isWaterTick
+      && !blockedByMealWindow
+      && !sentInSameWaterFrequencyWindow(lastSentAt.water, timezone, now, waterStartMinutes, waterFrequency)
     ) {
       dueReminderTypes.push('water');
     }

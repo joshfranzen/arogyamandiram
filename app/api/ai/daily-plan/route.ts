@@ -24,7 +24,11 @@ async function callOpenAI(
   apiKey: string,
   systemPrompt: string,
   userPrompt: string
-): Promise<Record<string, unknown>> {
+): Promise<{
+  parsed: Record<string, unknown>;
+  rawText: string;
+  usage: { prompt_tokens?: number; completion_tokens?: number } | undefined;
+}> {
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -55,7 +59,11 @@ async function callOpenAI(
   const data = await res.json();
   const rawText: string = data?.choices?.[0]?.message?.content;
   if (!rawText?.trim()) throw new Error('OpenAI returned an empty response.');
-  return JSON.parse(rawText) as Record<string, unknown>;
+  return {
+    parsed: JSON.parse(rawText) as Record<string, unknown>,
+    rawText,
+    usage: data?.usage as { prompt_tokens?: number; completion_tokens?: number } | undefined,
+  };
 }
 
 // ─── Shared: build context for a user ────────────────────────────────────────
@@ -214,7 +222,14 @@ Respond with this exact JSON:
 Rules: Focus on Indian cuisine, 4-6 suggestions across meal types. If protein gap > 20g, prioritize high-protein foods (paneer, dal, eggs, chicken). Avoid user's disliked foods.`;
 
   const userPrompt = [ctx.profileContext, ctx.recentContext, ctx.yesterdayContext, ctx.feedbackContext, `Plan date: ${ctx.targetDate}`].filter(Boolean).join('\n');
-  return callOpenAI(apiKey, system, userPrompt);
+  const ai = await callOpenAI(apiKey, system, userPrompt);
+  return {
+    ...ai,
+    request: {
+      systemPrompt: system,
+      userPrompt,
+    },
+  };
 }
 
 async function generateWorkoutPlan(ctx: Awaited<ReturnType<typeof buildUserContext>>, apiKey: string) {
@@ -246,7 +261,14 @@ Respond with this exact JSON:
 Rules: Balanced session (warm-up → main → cool-down), duration close to target. Adjust intensity based on difficulty feedback.`;
 
   const userPrompt = [ctx.profileContext, ctx.recentContext, ctx.difficultyNote, `Plan date: ${ctx.targetDate}`].filter(Boolean).join('\n');
-  return callOpenAI(apiKey, system, userPrompt);
+  const ai = await callOpenAI(apiKey, system, userPrompt);
+  return {
+    ...ai,
+    request: {
+      systemPrompt: system,
+      userPrompt,
+    },
+  };
 }
 
 async function generateOverview(ctx: Awaited<ReturnType<typeof buildUserContext>>, apiKey: string) {
@@ -263,7 +285,14 @@ Respond with this exact JSON:
 }`;
 
   const userPrompt = [ctx.profileContext, ctx.recentContext, ctx.yesterdayContext, ctx.predictionContext, `Plan date: ${ctx.targetDate}`].filter(Boolean).join('\n');
-  return callOpenAI(apiKey, system, userPrompt);
+  const ai = await callOpenAI(apiKey, system, userPrompt);
+  return {
+    ...ai,
+    request: {
+      systemPrompt: system,
+      userPrompt,
+    },
+  };
 }
 
 // ─── Shared: build plan for one user (full — used by cron) ───────────────────
@@ -272,7 +301,28 @@ async function buildPlanForUser(
   userId: string,
   apiKey: string,
   targetDate: string
-): Promise<Record<string, unknown>> {
+): Promise<{
+  parsed: Record<string, unknown>;
+  generationContext: {
+    yesterdayProteinG?: number;
+    proteinGapG?: number;
+    yesterdayCalories?: number;
+    calorieGap?: number;
+    recentWorkoutsPerWeek?: number;
+    avgWorkoutDurationMin?: number;
+  };
+  fitnessLevelDerived: string;
+  predictionData: {
+    weeklyWeightChangeKg: number;
+    projectedWeightKg: number | null;
+  };
+  request: {
+    systemPrompt: string;
+    userPrompt: string;
+    rawResponse: string;
+    usage: { prompt_tokens?: number; completion_tokens?: number } | undefined;
+  };
+}> {
   const ctx = await buildUserContext(userId, targetDate);
 
   const systemPrompt = `You are an elite AI health coach for Arogyamandiram, an Indian health app. You generate a complete personalized daily health plan.
@@ -336,13 +386,19 @@ Rules:
     `Plan date: ${targetDate}`,
   ].filter(Boolean).join('\n');
 
-  const parsed = await callOpenAI(apiKey, systemPrompt, userPrompt);
+  const ai = await callOpenAI(apiKey, systemPrompt, userPrompt);
 
   return {
-    parsed,
+    parsed: ai.parsed,
     generationContext: ctx.generationContext,
     fitnessLevelDerived: ctx.fitnessLevel,
     predictionData: ctx.predictionData,
+    request: {
+      systemPrompt,
+      userPrompt,
+      rawResponse: ai.rawText,
+      usage: ai.usage,
+    },
   };
 }
 
@@ -423,50 +479,120 @@ export async function POST(req: NextRequest) {
     const type = (['food', 'workout', 'overview'].includes(body.type ?? '') ? body.type : 'full') as
       'food' | 'workout' | 'overview' | 'full';
 
-    // Rate limit: max 3 manual regenerations per day (shared across all types)
+    // Rate limit: max 3 manual regenerations per day, per section type
     const existing = await DailyPlan.findOne({ userId, date: today }).lean() as {
       regenerationCount?: number;
+      regenerationCounts?: { food?: number; workout?: number; overview?: number; full?: number };
       status?: string;
     } | null;
 
-    if (existing && (existing.regenerationCount ?? 0) >= 3) {
-      return errorResponse('You\'ve regenerated your plan 3 times today. Check back tomorrow for a fresh plan.', 429);
+    const legacyCount = existing?.regenerationCount ?? 0;
+    const counts = existing?.regenerationCounts ?? {};
+    const bucketCount =
+      (type === 'full' ? (counts.full ?? legacyCount) : (counts[type] ?? 0));
+    if (existing && bucketCount >= 3) {
+      const sectionLabel = type === 'full' ? 'full plan' : `${type} plan`;
+      return errorResponse(`You've regenerated your ${sectionLabel} 3 times today. Try again tomorrow.`, 429);
     }
 
     await DailyPlan.findOneAndUpdate(
       { userId, date: today },
-      { $inc: { regenerationCount: 1 } },
+      {
+        $inc: {
+          [`regenerationCounts.${type}`]: 1,
+          ...(type === 'full' ? { regenerationCount: 1 } : {}),
+        },
+      },
       { upsert: true }
     );
 
     try {
       const ctx = await buildUserContext(userId, today);
       let updateFields: Record<string, unknown> = { generatedAt: new Date(), status: 'ready' };
+      let debugLog: Record<string, unknown> | null;
+      const generationStartedAt = new Date().toISOString();
 
       if (type === 'food') {
-        const result = await generateFoodPlan(ctx, apiKey) as {
+        const result = await generateFoodPlan(ctx, apiKey);
+        const foodResult = result.parsed as {
           foodPlan?: { suggestions?: unknown[]; reasoning?: string };
         };
-        updateFields['foodPlan.suggestions'] = result.foodPlan?.suggestions ?? [];
-        updateFields['foodPlan.reasoning'] = result.foodPlan?.reasoning ?? null;
+        updateFields['foodPlan.suggestions'] = foodResult.foodPlan?.suggestions ?? [];
+        updateFields['foodPlan.reasoning'] = foodResult.foodPlan?.reasoning ?? null;
+        debugLog = {
+          userRequest: {
+            type,
+            targetDate: today,
+            requestedAt: generationStartedAt,
+          },
+          aiRequest: result.request,
+          aiResponse: {
+            parsed: foodResult,
+            rawResponse: result.rawText,
+          },
+          metadata: {
+            model: 'gpt-4o-mini',
+            usage: result.usage,
+            timestamp: new Date().toISOString(),
+            status: 'success',
+          },
+        };
 
       } else if (type === 'workout') {
-        const result = await generateWorkoutPlan(ctx, apiKey) as {
+        const result = await generateWorkoutPlan(ctx, apiKey);
+        const workoutResult = result.parsed as {
           workoutPlan?: Record<string, unknown>;
         };
-        updateFields['workoutPlan'] = result.workoutPlan ?? null;
+        updateFields['workoutPlan'] = workoutResult.workoutPlan ?? null;
+        debugLog = {
+          userRequest: {
+            type,
+            targetDate: today,
+            requestedAt: generationStartedAt,
+          },
+          aiRequest: result.request,
+          aiResponse: {
+            parsed: workoutResult,
+            rawResponse: result.rawText,
+          },
+          metadata: {
+            model: 'gpt-4o-mini',
+            usage: result.usage,
+            timestamp: new Date().toISOString(),
+            status: 'success',
+          },
+        };
 
       } else if (type === 'overview') {
-        const result = await generateOverview(ctx, apiKey) as {
+        const result = await generateOverview(ctx, apiKey);
+        const overviewResult = result.parsed as {
           topInsight?: string;
           prediction?: { weeklyWeightChangeKg?: number; projectedWeightKg?: number; basis?: string };
         };
-        updateFields['topInsight'] = result.topInsight ?? null;
-        updateFields['prediction'] = result.prediction ?? null;
+        updateFields['topInsight'] = overviewResult.topInsight ?? null;
+        updateFields['prediction'] = overviewResult.prediction ?? null;
+        debugLog = {
+          userRequest: {
+            type,
+            targetDate: today,
+            requestedAt: generationStartedAt,
+          },
+          aiRequest: result.request,
+          aiResponse: {
+            parsed: overviewResult,
+            rawResponse: result.rawText,
+          },
+          metadata: {
+            model: 'gpt-4o-mini',
+            usage: result.usage,
+            timestamp: new Date().toISOString(),
+            status: 'success',
+          },
+        };
 
       } else {
         // full
-        const { parsed, generationContext, fitnessLevelDerived } = await buildPlanForUser(userId, apiKey, today);
+        const { parsed, generationContext, fitnessLevelDerived, request } = await buildPlanForUser(userId, apiKey, today);
         const aiResult = parsed as {
           topInsight?: string;
           foodPlan?: { suggestions?: unknown[]; reasoning?: string };
@@ -484,6 +610,27 @@ export async function POST(req: NextRequest) {
           fitnessLevelDerived,
           generationContext,
         };
+        debugLog = {
+          userRequest: {
+            type,
+            targetDate: today,
+            requestedAt: generationStartedAt,
+          },
+          aiRequest: {
+            systemPrompt: request.systemPrompt,
+            userPrompt: request.userPrompt,
+          },
+          aiResponse: {
+            parsed: aiResult,
+            rawResponse: request.rawResponse,
+          },
+          metadata: {
+            model: 'gpt-4o-mini',
+            usage: request.usage,
+            timestamp: new Date().toISOString(),
+            status: 'success',
+          },
+        };
       }
 
       const plan = await DailyPlan.findOneAndUpdate(
@@ -492,7 +639,7 @@ export async function POST(req: NextRequest) {
         { new: true, upsert: true }
       ).lean();
 
-      return maskedResponse({ plan });
+      return maskedResponse({ plan, debugLog });
     } catch (genErr) {
       await DailyPlan.findOneAndUpdate(
         { userId, date: today },

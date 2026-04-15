@@ -9,8 +9,23 @@ import { maskedResponse, errorResponse, maskUser } from '@/lib/apiMask';
 import { getAuthUserId, isUserId } from '@/lib/session';
 import { getAgeFromDateOfBirth } from '@/lib/utils';
 import { generateTargets } from '@/lib/health';
+import { getLatestLoggedWeight } from '@/lib/latestWeight';
+import { deriveActivityLevel } from '@/lib/deriveActivityLevel';
 
 export const dynamic = 'force-dynamic';
+
+function isValidTimezone(timezone: string): boolean {
+  try {
+    Intl.DateTimeFormat('en-US', { timeZone: timezone }).format(new Date());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function isValidTimeString(value: string): boolean {
+  return /^([01]\d|2[0-3]):([0-5]\d)$/.test(value);
+}
 
 // GET /api/user - Get current user profile (masked)
 export async function GET() {
@@ -25,6 +40,16 @@ export async function GET() {
       .lean();
 
     if (!user) return errorResponse('User not found', 404);
+
+    const profile = (user.profile ?? {}) as Record<string, unknown>;
+    const latestWeight = await getLatestLoggedWeight(String(userId));
+    const derivedActivityLevel = await deriveActivityLevel(userId);
+
+    if (latestWeight != null) {
+      profile.weight = latestWeight;
+    }
+    profile.activityLevel = derivedActivityLevel;
+    user.profile = profile;
 
     return maskedResponse(maskUser(user));
   } catch (err) {
@@ -119,6 +144,82 @@ export async function PUT(req: NextRequest) {
         if (key === 'notifications' && typeof value === 'object') {
           for (const [nKey, nVal] of Object.entries(value as Record<string, boolean>)) {
             updateData[`settings.notifications.${nKey}`] = nVal;
+          }
+        } else if (key === 'reminderSchedule' && typeof value === 'object' && value !== null) {
+          const schedule = value as Record<string, unknown>;
+
+          if (typeof schedule.timezone === 'string' && schedule.timezone.trim()) {
+            const tz = schedule.timezone.trim();
+            if (!isValidTimezone(tz)) return errorResponse('Invalid timezone', 400);
+            updateData['settings.reminderSchedule.timezone'] = tz;
+            updateData['profile.timezone'] = tz;
+          }
+
+          if (typeof schedule.waterHourlyEnabled === 'boolean') {
+            updateData['settings.reminderSchedule.waterHourlyEnabled'] = schedule.waterHourlyEnabled;
+          }
+
+          if (typeof schedule.water === 'object' && schedule.water !== null) {
+            const water = schedule.water as Record<string, unknown>;
+            const startTime = typeof water.startTime === 'string' ? water.startTime : '';
+            const endTime = typeof water.endTime === 'string' ? water.endTime : '';
+            if (typeof water.enabled === 'boolean') {
+              updateData['settings.reminderSchedule.water.enabled'] = water.enabled;
+            }
+            if (startTime) {
+              if (!isValidTimeString(startTime)) return errorResponse('Invalid water start time', 400);
+              updateData['settings.reminderSchedule.water.startTime'] = startTime;
+            }
+            if (endTime) {
+              if (!isValidTimeString(endTime)) return errorResponse('Invalid water end time', 400);
+              updateData['settings.reminderSchedule.water.endTime'] = endTime;
+            }
+            if (startTime && endTime) {
+              const [startHour, startMinute] = startTime.split(':').map(Number);
+              const [endHour, endMinute] = endTime.split(':').map(Number);
+              if ((startHour * 60 + startMinute) >= (endHour * 60 + endMinute)) {
+                return errorResponse('Water start time must be before end time', 400);
+              }
+            }
+            if (water.frequencyMinutes !== undefined) {
+              const frequency = Number(water.frequencyMinutes);
+              if (!Number.isInteger(frequency) || frequency < 15 || frequency > 240) {
+                return errorResponse('Water frequency must be an integer between 15 and 240 minutes', 400);
+              }
+              updateData['settings.reminderSchedule.water.frequencyMinutes'] = frequency;
+              updateData['settings.reminderSchedule.waterFrequencyMinutes'] = frequency;
+            }
+          } else if (schedule.waterFrequencyMinutes !== undefined) {
+            // Backward compatibility if client sends legacy flat key
+            const frequency = Number(schedule.waterFrequencyMinutes);
+            if (!Number.isInteger(frequency) || frequency < 15 || frequency > 240) {
+              return errorResponse('Water frequency must be an integer between 15 and 240 minutes', 400);
+            }
+            updateData['settings.reminderSchedule.water.frequencyMinutes'] = frequency;
+            updateData['settings.reminderSchedule.waterFrequencyMinutes'] = frequency;
+          }
+
+          if (typeof schedule.mealTimes === 'object' && schedule.mealTimes !== null) {
+            const mealTimes = schedule.mealTimes as Record<string, unknown>;
+            for (const keyName of ['breakfast', 'lunch', 'dinner']) {
+              const timeValue = mealTimes[keyName];
+              if (typeof timeValue === 'string') {
+                if (timeValue && !isValidTimeString(timeValue)) {
+                  return errorResponse(`Invalid ${keyName} time`, 400);
+                }
+                updateData[`settings.reminderSchedule.mealTimes.${keyName}`] = timeValue;
+              }
+            }
+          }
+
+          for (const reminderKey of ['sleepTime', 'workoutTime', 'weighInTime']) {
+            const reminderValue = schedule[reminderKey];
+            if (typeof reminderValue === 'string') {
+              if (reminderValue && !isValidTimeString(reminderValue)) {
+                return errorResponse(`Invalid ${reminderKey} value`, 400);
+              }
+              updateData[`settings.reminderSchedule.${reminderKey}`] = reminderValue;
+            }
           }
         } else {
           updateData[`settings.${key}`] = value;

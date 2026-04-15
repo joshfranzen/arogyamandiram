@@ -27,11 +27,10 @@ type SectionId = (typeof SECTION_IDS)[number];
 
 /** Static tree: page -> agents */
 const DEBUG_TREE: { page: string; agents: string[] }[] = [
-  { page: 'ai-assistant', agents: ['orchestrator'] },
-  { page: 'food', agents: ['meal-ideas', 'ai-logger'] },
-  { page: 'insights', agents: ['yesterday', 'weekly', 'monthly', 'yearly'] },
-  { page: 'workout', agents: ['ai-logger', 'workout-planner'] },
+  { page: 'orchestrator', agents: ['water', 'weight', 'sleep', 'food-ai-logger', 'meal-ideas', 'workout-ai-logger', 'workout-plan', 'custom-food', 'unknown'] },
+  { page: 'today-plan', agents: ['overview', 'food', 'workout'] },
   { page: 'targets', agents: ['health-plan'] },
+  { page: 'health-data', agents: ['sync'] },
   { page: 'email', agents: ['smtp', 'imap'] },
 ];
 
@@ -151,6 +150,16 @@ function LogViewRenderer({
       />
     );
   }
+  if (page === 'orchestrator' && agent === 'food-logger') {
+    return (
+      <AILoggerLogView
+        log={log as unknown as AILoggerDebugLog}
+        openSections={openSections}
+        onToggleSection={onToggleSection}
+        allExpanded={allExpanded}
+      />
+    );
+  }
   if (page === 'insights') {
     return (
       <InsightsLogView
@@ -193,9 +202,9 @@ function LogViewRenderer({
 
 export default function DebugPage() {
   const { orchestratorLogs } = useDebugLogs();
-  const [expandedPages, setExpandedPages] = useState<Set<string>>(new Set(['ai-assistant']));
+  const [expandedPages, setExpandedPages] = useState<Set<string>>(new Set(['orchestrator']));
   const [selectedAgent, setSelectedAgent] = useState<{ page: string; agent: string } | null>(
-    { page: 'ai-assistant', agent: 'orchestrator' }
+    { page: 'orchestrator', agent: 'orchestrator' }
   );
   const [agentLogs, setAgentLogs] = useState<Record<string, unknown>[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
@@ -203,7 +212,7 @@ export default function DebugPage() {
   const [selectedOrchestratorLog, setSelectedOrchestratorLog] = useState<OrchestratorLog | null>(null);
 
   const isOrchestratorSelected =
-    selectedAgent?.page === 'ai-assistant' && selectedAgent?.agent === 'orchestrator';
+    selectedAgent?.page === 'orchestrator' && selectedAgent?.agent === 'orchestrator';
   const [openSections, setOpenSections] = useState<Set<SectionId>>(new Set(SECTION_IDS));
   const [allExpanded, setAllExpanded] = useState(true);
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());

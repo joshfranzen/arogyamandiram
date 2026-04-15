@@ -1,7 +1,6 @@
 'use client';
 
-import { X, Sparkles, Maximize2 } from 'lucide-react';
-import Link from 'next/link';
+import { X, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useOrchestratorSidebar } from '@/contexts/OrchestratorSidebarContext';
 import CommandInput from '@/components/orchestrator/CommandInput';
@@ -39,21 +38,12 @@ export default function OrchestratorSidebar() {
             <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
             <span className="text-sm font-semibold text-neutral-200">Health Assistant</span>
           </div>
-          <div className="flex items-center gap-1">
-            <Link
-              href="/ai"
-              className="flex h-7 w-7 items-center justify-center text-neutral-500 hover:text-emerald-400 transition-colors"
-              title="Open AI full screen"
-            >
-              <Maximize2 className="h-4 w-4" />
-            </Link>
-            <button
-              onClick={closeSidebar}
-              className="flex h-7 w-7 items-center justify-center text-neutral-500 hover:text-neutral-300 transition-colors"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
+          <button
+            onClick={closeSidebar}
+            className="flex h-7 w-7 items-center justify-center text-neutral-500 hover:text-neutral-300 transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
         {/* Conversation */}
