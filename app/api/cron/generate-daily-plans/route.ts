@@ -159,7 +159,7 @@ async function generateForUser(
       })))}`
     : 'No recent tracking data.';
 
-  const systemPrompt = `You are an elite AI health coach for Arogyamandiram (Indian health app). Generate a complete personalized daily health plan.
+  const systemPrompt = `You are an elite AI health coach for Arogyamandiram. Generate a complete personalized daily health plan.
 
 IMPORTANT: Respond with this exact JSON:
 {
@@ -176,7 +176,7 @@ IMPORTANT: Respond with this exact JSON:
   "prediction": { "weeklyWeightChangeKg": number, "projectedWeightKg": number, "basis": string }
 }
 
-Rules: Indian cuisine, 4-6 food suggestions, cover multiple meal types, avoid disliked foods, adjust workout intensity based on difficulty feedback, protein-focused if gap > 20g.`;
+Rules: 4-6 food suggestions across multiple meal types, avoid disliked foods, adjust workout intensity based on difficulty feedback, protein-focused if gap > 20g.`;
 
   const userPrompt = [
     profileContext,
@@ -249,41 +249,34 @@ export async function POST(req: NextRequest) {
   let failed = 0;
   const errors: string[] = [];
 
-  // Process in batches of 10 to avoid rate limiting
-  const BATCH_SIZE = 10;
-  for (let i = 0; i < users.length; i += BATCH_SIZE) {
-    const batch = users.slice(i, i + BATCH_SIZE);
-    await Promise.allSettled(
-      batch.map(async (user) => {
-        const userId = user._id.toString();
-        try {
-          const encryptedKey = user.apiKeys?.openai;
-          if (!encryptedKey) return;
+  for (const user of users) {
+    const userId = user._id.toString();
+    try {
+      const encryptedKey = user.apiKeys?.openai;
+      if (!encryptedKey) continue;
 
-          let apiKey: string;
-          try {
-            apiKey = decrypt(encryptedKey);
-          } catch {
-            return; // skip users with corrupt keys silently
-          }
+      let apiKey: string;
+      try {
+        apiKey = decrypt(encryptedKey);
+      } catch {
+        continue; // skip users with corrupt keys silently
+      }
 
-          await generateForUser(userId, apiKey, tomorrowDate);
-          processed++;
-        } catch (err) {
-          failed++;
-          const msg = `User ${userId}: ${err instanceof Error ? err.message : String(err)}`;
-          errors.push(msg);
-          console.error('[Cron Generate Daily Plans]', msg);
+      await generateForUser(userId, apiKey, tomorrowDate);
+      processed++;
+    } catch (err) {
+      failed++;
+      const msg = `User ${userId}: ${err instanceof Error ? err.message : String(err)}`;
+      errors.push(msg);
+      console.error('[Cron Generate Daily Plans]', msg);
 
-          // Mark plan as failed
-          await DailyPlan.findOneAndUpdate(
-            { userId, date: tomorrowDate },
-            { $set: { status: 'failed', errorMessage: errors[errors.length - 1] } },
-            { upsert: true }
-          ).catch(() => {});
-        }
-      })
-    );
+      // Mark plan as failed
+      await DailyPlan.findOneAndUpdate(
+        { userId, date: tomorrowDate },
+        { $set: { status: 'failed', errorMessage: msg } },
+        { upsert: true }
+      ).catch(() => {});
+    }
   }
 
   console.log(`[Cron Generate Daily Plans] Completed: ${processed} processed, ${failed} failed`);

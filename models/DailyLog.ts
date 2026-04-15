@@ -47,6 +47,8 @@ const WorkoutEntrySchema = new Schema(
     reps: { type: Number, min: 0 },
     weight: { type: Number, min: 0 },
     notes: { type: String, default: '' },
+    // 'device' = came from health-data sync; 'manual' = user-entered
+    source: { type: String, enum: ['manual', 'device'], default: 'manual' },
   },
   { _id: true }
 );
@@ -97,6 +99,11 @@ const DailyLogSchema = new Schema<IDailyLogDocument>(
     totalSugar: { type: Number, default: 0 },
     totalSodium: { type: Number, default: 0 },
     caloriesBurned: { type: Number, default: 0 },
+    // Device-sourced health metrics (populated by health-data sync)
+    heartRate:      { type: Number, min: 0, max: 300 },
+    steps:          { type: Number, min: 0 },
+    activeCalories: { type: Number, min: 0 },
+    distanceKm:     { type: Number, min: 0 },
     notes: { type: String, default: '', maxlength: 500 },
     todoCompletions: {
       type: [

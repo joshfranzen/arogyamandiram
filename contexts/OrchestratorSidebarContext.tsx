@@ -187,11 +187,12 @@ export function OrchestratorSidebarProvider({ children }: { children: ReactNode 
         if (debugLog) {
           addOrchestratorLog({ ...debugLog, id });
           if (process.env.NEXT_PUBLIC_DEBUG_MODE === 'true') {
+            const logWithId = { ...debugLog, id };
             fetch('/api/debug-logs', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               credentials: 'include',
-              body: JSON.stringify({ page: 'ai-assistant', agent: 'orchestrator', log: { ...debugLog, id } }),
+              body: JSON.stringify({ page: 'orchestrator', agent: tool, log: logWithId }),
             }).catch(() => {});
           }
         }

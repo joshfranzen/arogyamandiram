@@ -1,4 +1,5 @@
 import { Leaf, Drumstick, Plus } from 'lucide-react';
+import { getFoodCategoryLabel } from '@/lib/foodCategories';
 import { cn } from '@/lib/utils';
 
 interface FoodResultCardProps {
@@ -23,7 +24,7 @@ export default function FoodResultCard({ food, onSelect }: FoodResultCardProps) 
       onClick={onSelect}
       className="flex w-full items-center gap-3 rounded-2xl border border-neutral-800 bg-neutral-900/60 p-3 text-left transition-all hover:border-neutral-700 hover:bg-neutral-900 active:scale-[0.99]"
     >
-      {/* Veg/Non-veg indicator */}
+      {/* Vegetarian/protein indicator */}
       <div
         className={cn(
           'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl',
@@ -44,7 +45,7 @@ export default function FoodResultCard({ food, onSelect }: FoodResultCardProps) 
           {food.servingSize}
           {food.servingUnit} ·
           <span className="ml-1 font-semibold text-emerald-400">{food.calories} kcal</span>
-          <span className="ml-2 capitalize text-neutral-500">{food.category.replace('_', ' ')}</span>
+          <span className="ml-2 text-neutral-500">{getFoodCategoryLabel(food.category)}</span>
         </p>
       </div>
 

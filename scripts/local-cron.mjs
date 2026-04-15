@@ -1,7 +1,7 @@
 // ============================================
 // scripts/local-cron.mjs — Local cron simulator
 // ============================================
-// Fires the same cron endpoints Vercel would call every 15 minutes.
+// Fires local cron endpoints every 15 minutes.
 // Run alongside `next dev` via `npm run dev` (concurrently).
 
 import { readFileSync } from 'fs';
@@ -55,6 +55,7 @@ async function runCron(path) {
 async function tick() {
   const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   console.log(`tick at ${now}`);
+  await runCron('/api/cron/sync-health-data');
   await runCron('/api/cron/send-reminders');
   await runCron('/api/cron/process-email-replies');
 }

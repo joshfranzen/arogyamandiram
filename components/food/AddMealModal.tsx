@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { X, Minus, Plus, Coffee, Sun, Moon, Cookie } from 'lucide-react';
+import { getFoodCategoryLabel } from '@/lib/foodCategories';
 import { cn, getCurrentTime, formatNumber } from '@/lib/utils';
 
 interface FoodMeasure {
@@ -150,7 +151,7 @@ export default function AddMealModal({ food, onClose, onAdd, loading }: AddMealM
         <div className="flex items-start justify-between">
           <div>
             <h3 className="text-lg font-semibold text-text-primary">{food.name}</h3>
-            <p className="text-xs text-text-muted capitalize">{food.category.replace('_', ' ')}</p>
+            <p className="text-xs text-text-muted">{getFoodCategoryLabel(food.category)}</p>
           </div>
           <button
             onClick={onClose}

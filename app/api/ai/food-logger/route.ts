@@ -48,15 +48,15 @@ const PARSE_INSTRUCTIONS = `
 You are a precision food parsing engine for a global nutrition tracking app.
 
 Parse the user's meal into distinct food items from any cuisine worldwide.
-Correct spelling errors silently (e.g. "pulov" → "veg pulao", "raitha" → "raita").
+Correct spelling errors silently (e.g. "salmon" → "salmon", "yoghrt" → "yogurt").
 
 Rules:
 - Split only clearly separate dishes/sides ("burger with fries" → 2 items).
 - For combo text with add-ons/sides (e.g. "burger with fries and coke", "grilled cheese with 2 sauce packets"), split into separate items when each component is eaten separately.
 - Keep ingredients mentioned inside a dish as part of that item, not separate
-  ("pulao with cashews" → 1 item, "raita with onion" → 1 item).
+  ("rice bowl with avocado" → 1 item, "yogurt with berries" → 1 item).
 - Include key ingredients in the item name so Step 2 can estimate nutrition accurately
-  ("veg pulao with cashews and soya chunks" not just "veg pulao").
+  ("rice bowl with chicken and avocado" not just "rice bowl").
 - Preserve known brand names in item names when present (e.g. Vadilal, Haldiram's, MTR, Amul, Dunkin, McDonald's, KFC, Domino's).
 - Normalize obvious misspellings of brand names while preserving brand context.
 - If quantity is missing, use quantity = 1 and unit = "serving".
@@ -70,16 +70,16 @@ Rules:
   E.g. "25 tortilla chips" → quantity: 62, unit: "g"
 - Units: piece, bowl, serving, cup, g, ml, tbsp, tsp.
 
-- If the user specifies weight per piece (e.g. "3 dosa each 65g", "2 cookies (30g each)"):
+- If the user specifies weight per piece (e.g. "3 muffins each 65g", "2 cookies (30g each)"):
   - Set quantity to the piece count (e.g. 3) and unit to a normalized unit such as "piece".
   - Always include a numeric field "each_weight_g" with the weight of ONE piece in grams (e.g. 65).
   - If the user does NOT specify weight per piece, still include "each_weight_g" and set it to 0.
   - Do NOT embed the per-piece weight into the name string.
   Example:
-    Input text: "3 dosa each 65g and 20g mango pickle"
+    Input text: "3 muffins each 65g and 20g hot sauce"
     Parsed items:
-      - { "name": "dosa with jeera and masala powder", "quantity": 3, "unit": "piece", "each_weight_g": 65 }
-      - { "name": "mango pickle", "quantity": 20, "unit": "g" }
+      - { "name": "blueberry muffin", "quantity": 3, "unit": "piece", "each_weight_g": 65 }
+      - { "name": "hot sauce", "quantity": 20, "unit": "g" }
 
 Return JSON only using tool: parse_meal_foods
 `;
@@ -98,13 +98,13 @@ const PARSE_MEAL_TOOL = {
         items: {
           type: 'object',
           properties: {
-            name: { type: 'string', description: 'Food item name (e.g. "sambar rice", "chips", "curd rice").' },
-            quantity: { type: 'number', description: 'Numeric quantity (e.g. 2 for "2 idlis"). Use 1 if unknown.' },
+            name: { type: 'string', description: 'Food item name (e.g. "chicken rice bowl", "chips", "greek yogurt").' },
+            quantity: { type: 'number', description: 'Numeric quantity (e.g. 2 for "2 tacos"). Use 1 if unknown.' },
             unit: { type: 'string', description: 'Unit: piece, bowl, serving, cup, ml, g, tbsp, tsp, etc.' },
             each_weight_g: {
               type: 'number',
               description:
-                'If the user specified weight per piece (e.g. "3 dosa each 65g"), this is the weight of ONE piece in grams. If not specified, set to 0.',
+                'If the user specified weight per piece (e.g. "3 muffins each 65g"), this is the weight of ONE piece in grams. If not specified, set to 0.',
             },
           },
           required: ['name', 'quantity', 'unit', 'each_weight_g'],
@@ -151,15 +151,15 @@ Units will already be normalized to one of: piece, bowl, serving, cup, g, ml, tb
 ━━━ MACRO & MICRONUTRIENT RULES ━━━
 1. Normalize the food name to its closest standard food.
    Strip purely descriptive qualifiers that don't affect nutrition.
-   E.g. "veg pulao with veggies masala" → "veg pulao with soya chunks and cashews"
-        "raita with onion and tomato" → "raita"
+   E.g. "rice bowl with grilled veggies" → "rice bowl with vegetables"
+        "greek yogurt with blueberries" → "greek yogurt with blueberries"
 
-2. Estimate macros and micros using USDA, IFCT (Indian Food Composition Tables),
+2. Estimate macros and micros using USDA, regional food composition tables,
    or well-known brand data — whichever is most specific.
 
 2a. FAT PERCENTAGE CROSS-CHECK (mandatory):
    If the food name explicitly states a fat percentage (e.g. "6% fat milk", "2% fat yogurt",
-   "3.5% fat paneer"), the fat in grams MUST match that percentage for the given quantity.
+   "5% fat cheese"), the fat in grams MUST match that percentage for the given quantity.
    Formula: fat_g = (fat_percentage / 100) × volume_or_weight_in_ml_or_g × density_factor
    For liquids like milk, use density ≈ 1 g/ml (so 200 ml ≈ 200 g).
    Example: "6% fat milk, 200 ml" → fat = 6/100 × 200 = 12 g (NOT 6.8 g).
@@ -175,7 +175,7 @@ Units will already be normalized to one of: piece, bowl, serving, cup, g, ml, tb
    quantity and unit. Never return per-unit, per-serving, or per-100g nutrition.
 
    For piece items, return TOTAL for all pieces.
-   Example: quantity=3, unit=piece, dosa (~130 kcal each) => calories should be ~390 total, not ~130.
+   Example: quantity=3, unit=piece, taco (~130 kcal each) => calories should be ~390 total, not ~130.
    If total_weight_g is provided, base nutrition on total_weight_g for the whole eaten quantity.
 
 4. Calorie integrity check:
@@ -204,7 +204,7 @@ const MEAL_NUTRITION_TOOL = {
   type: 'function' as const,
   name: 'get_meal_nutrition',
   description:
-    'Estimate nutrition for each item. Normalize names; use USDA or Indian food references. Return same quantity and unit as input; scale nutrition by quantity.',
+    'Estimate nutrition for each item. Normalize names; use USDA, regional food references, or brand data. Return same quantity and unit as input; scale nutrition by quantity.',
   strict: true,
   parameters: {
     type: 'object',
@@ -219,7 +219,7 @@ const MEAL_NUTRITION_TOOL = {
             name: {
               type: 'string',
               description:
-                'Normalized standard food name (e.g. "veg pulao", "raita", "idli", "chicken sandwich").',
+                'Normalized standard food name (e.g. "rice bowl", "greek yogurt", "taco", "chicken sandwich").',
             },
             calories: {
               type: 'number',
@@ -396,7 +396,7 @@ function normalizeItem(obj: Record<string, unknown>): NormalizedItem {
 }
 
 const DENSE_PIECE_ITEM_PATTERN =
-  /dosa|idli|chapati|roti|paratha|puri|sandwich|burger|cookie|biscuit|samosa|cutlet|roll|wrap|pizza|nugget/i;
+  /sandwich|burger|cookie|biscuit|muffin|cutlet|roll|wrap|pizza|nugget|taco|dumpling|pastry/i;
 
 function computeTotal(items: NormalizedItem[]) {
   const caloriesSum = items.reduce((s, i) => s + i.calories, 0);
@@ -519,7 +519,7 @@ export async function POST(req: NextRequest) {
 
     if (!parseToolCall || typeof parseToolCall.arguments !== 'string') {
       return errorResponse(
-        'Could not parse meal description. Try listing items clearly (e.g. "2 idlis, sambar, curd rice").',
+        'Could not parse meal description. Try listing items clearly (e.g. "2 tacos, soup, greek yogurt").',
         422
       );
     }
@@ -527,7 +527,7 @@ export async function POST(req: NextRequest) {
     const parsedArgs = extractJsonFromText(parseToolCall.arguments);
     if (!parsedArgs || !Array.isArray(parsedArgs.items) || parsedArgs.items.length === 0) {
       return errorResponse(
-        'Could not extract food items from the description. Try listing each item (e.g. "100g rice, 2 chapatis").',
+        'Could not extract food items from the description. Try listing each item (e.g. "100g rice, 2 tortillas").',
         422
       );
     }
@@ -737,7 +737,7 @@ export async function POST(req: NextRequest) {
 
     if (items.length === 0) {
       return errorResponse(
-        'Could not parse any food items from the description. Try listing each item clearly (e.g. "100g rice, 50ml dal, 2 chapatis").',
+        'Could not parse any food items from the description. Try listing each item clearly (e.g. "100g rice, 50ml soup, 2 tortillas").',
         422
       );
     }

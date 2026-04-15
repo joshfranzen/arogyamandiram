@@ -22,12 +22,12 @@ const steps = [
   {
     id: 'water',
     title: 'Stay hydrated, effortlessly',
-    body: 'Tap quick-add presets (100ml, 250ml, 500ml, 750ml) or enter a custom amount. Watch the animated water glass fill in real time. The progress ring and glass indicators update with every log.',
+    body: 'Tap any of the four quick-add water buttons. In Settings → Customizations, you can replace those default amounts with your own bottle or glass sizes.',
   },
   {
     id: 'food',
-    title: 'Log meals from 150+ Indian foods',
-    body: 'Search curries, dals, breads, rice, street food, snacks, and more. Log entries under Breakfast, Lunch, Dinner, or Snacks. Your calorie ring and macro bars — protein, carbs, fat, fiber — update instantly with each meal.',
+    title: 'Log meals from 150+ built-in foods',
+    body: 'Search across the built-in catalog, then log entries under Breakfast, Lunch, Dinner, or Snacks. Your calorie ring and macro bars — protein, carbs, fat, fiber — update instantly with each meal.',
   },
   {
     id: 'workout',
@@ -229,4 +229,3 @@ export default function DashboardTour({ onClose }: DashboardTourProps) {
     </div>
   );
 }
-

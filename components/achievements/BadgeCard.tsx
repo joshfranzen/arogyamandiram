@@ -32,7 +32,7 @@ const DECK_CARD_CLASS: Record<BadgeRarity, string> = {
 
 /** Banner background for NAME / TIER top row */
 const DECK_BANNER_BG: Record<BadgeRarity, string> = {
-  legendary: 'bg-amber-700/80 text-amber-100',
+  legendary: 'bg-amber-600/80 text-amber-50',
   epic: 'bg-violet-700/80 text-white',
   rare: 'bg-emerald-700/80 text-emerald-50',
   common: 'bg-emerald-800/80 text-green-100',

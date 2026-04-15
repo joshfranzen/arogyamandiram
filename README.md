@@ -2,9 +2,9 @@
 
 **Your Premium Health & Wellness Companion**
 
-A full-stack health tracking web app built with Next.js 14, featuring Indian food database, water tracking, weight journal, workout planner, and AI-powered recommendations.
+A full-stack health tracking web app built with Next.js 15, featuring food logging, water tracking, weight journal, workout planning, sleep tracking, and AI-powered recommendations.
 
-![Next.js](https://img.shields.io/badge/Next.js-14-black) ![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue) ![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-green) ![Tailwind](https://img.shields.io/badge/Tailwind-3.4-38bdf8)
+![Next.js](https://img.shields.io/badge/Next.js-15-black) ![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue) ![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-green) ![Tailwind](https://img.shields.io/badge/Tailwind-3.4-38bdf8)
 
 ---
 
@@ -23,13 +23,13 @@ A full-stack health tracking web app built with Next.js 14, featuring Indian foo
 - Motivation section on the dashboard with your latest badge
 
 ### 🍛 Food Logger
-- **150+ Indian foods** built-in: curries, dals, breads, rice, sweets, snacks, beverages, dry fruits
+- **150+ curated foods** built-in for quick logging across common meal types and staples
 - Fuzzy search with relevance scoring
-- Category filters (Curries, Dals, Breads, Rice, Snacks, Sweets, Drinks, Non-Veg, Fruits)
+- Category filters for mains, legumes, breads, grains, snacks, desserts, drinks, protein, fruits, dips, and more
 - Custom food entry for anything not in the database
 - Quantity adjustor with scaled nutrition preview
 - Auto meal-type detection by time of day
-- Optional Edamam API integration for 900k+ international foods
+- USDA FoodData Central fallback for broader food search coverage
 
 ### 💧 Water Tracker
 - Animated water glass visualization with wave effects
@@ -55,7 +55,7 @@ A full-stack health tracking web app built with Next.js 14, featuring Indian foo
 ### 🤖 Insights
 - AI-powered insights: yesterday, weekly, monthly, yearly (gated by logged data)
 - Privacy-first: we never send your name or email—only anonymized health metrics
-- Personalized Indian meal suggestions
+- Personalized meal suggestions
 - Custom workout plan generator
 - Requires OpenAI API key (user provides their own)
 
@@ -75,7 +75,7 @@ A full-stack health tracking web app built with Next.js 14, featuring Indian foo
 - **Encrypted API Keys**: User API keys encrypted with AES-256-GCM before storage
 - **Password Hashing**: bcrypt with 12 salt rounds
 - **JWT Sessions**: 30-day expiry via NextAuth.js
-- **Route Protection**: Middleware-based auth for all dashboard routes
+- **Route Protection**: Dashboard layout guards plus API session checks for protected flows
 - **Request Sanitization**: Frontend API client strips blocked fields before sending
 
 ---
@@ -84,7 +84,7 @@ A full-stack health tracking web app built with Next.js 14, featuring Indian foo
 
 | Layer | Technology |
 |-------|-----------|
-| Framework | Next.js 14 (App Router) |
+| Framework | Next.js 15 (App Router) |
 | Language | TypeScript 5.7 (strict) |
 | Styling | Tailwind CSS 3.4 |
 | Database | MongoDB (Mongoose 8) |
@@ -104,7 +104,7 @@ A full-stack health tracking web app built with Next.js 14, featuring Indian foo
 - Node.js 18+
 - MongoDB Atlas account (free tier works)
 - (Optional) OpenAI API key for AI features
-- (Optional) Edamam API key for international food search
+- (Optional) USDA FoodData Central API key for broader food search coverage
 
 **What you need to provide:**
 
@@ -112,10 +112,10 @@ A full-stack health tracking web app built with Next.js 14, featuring Indian foo
 |------|-----------|-----------------|-------|
 | `MONGODB_URI` | Yes | [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) — create a free cluster, copy connection string | Use the same cluster for local + Vercel if you want to share data. |
 | `NEXTAUTH_SECRET` | Yes | Run `openssl rand -base64 32` | Must stay stable per deployed environment. |
-| `ENCRYPTION_KEY` | Yes | Run `openssl rand -hex 32` | **If you share a MongoDB cluster between local and Vercel, this MUST be the same value everywhere. Changing it will make all previously stored API keys (OpenAI/Edamam) undecryptable until users re-enter them.** |
+| `ENCRYPTION_KEY` | Yes | Run `openssl rand -hex 32` | **If you share a MongoDB cluster between local and Vercel, this MUST be the same value everywhere. Changing it will make all previously stored API keys undecryptable until users re-enter them.** |
 | `NEXTAUTH_URL` | Yes | Use `http://localhost:3000` for local dev | Set to your Vercel URL in production. |
 | `OPENAI_API_KEY` | Optional | [OpenAI](https://platform.openai.com/api-keys) — for insights, meal ideas, workout plans | Optional server-wide fallback. Users can also add their own key in **Settings → API Keys**, which is AES-256 encrypted in MongoDB. In production (Vercel), it is recommended to set this so AI continues to work even if a user key is missing or broken. |
-| `EDAMAM_APP_ID` & `EDAMAM_APP_KEY` | Optional | [Edamam](https://developer.edamam.com/) — for international food search | Optional server-wide fallback; users can still use the built-in Indian food database without this. |
+| `FDC_API_KEY` | Optional | [USDA FoodData Central](https://fdc.nal.usda.gov/api-guide/) — for broader food search | Optional server-wide fallback for external food lookup beyond the built-in catalog. |
 
 ### Installation
 
@@ -144,8 +144,7 @@ ENCRYPTION_KEY=your-32-byte-hex-string-for-aes256
 
 # Optional - Server defaults for AI & food search
 OPENAI_API_KEY=sk-...
-EDAMAM_APP_ID=your-edamam-app-id
-EDAMAM_APP_KEY=your-edamam-app-key
+FDC_API_KEY=your-usda-fooddata-central-api-key
 
 NODE_ENV=development
 ```
@@ -200,12 +199,13 @@ arogyamandiram/
 │   ├── api/
 │   │   ├── auth/                 # NextAuth + register
 │   │   ├── user/                 # Profile, API keys, onboarding
-│   │   ├── foods/                # Food search
+│   │   ├── foods/                # Food search + USDA fallback
 │   │   ├── daily-log/            # Daily log + meals
 │   │   ├── water/                # Water intake
 │   │   ├── weight/               # Weight history
 │   │   ├── workouts/             # Workout CRUD
-│   │   └── ai/                   # AI recommendations
+│   │   ├── cron/                 # Scheduled syncs, reminders, daily plans
+│   │   └── ai/                   # AI plans, recommendations, logging
 │   ├── globals.css               # Dark theme + glassmorphism
 │   ├── layout.tsx                # Root layout
 │   └── page.tsx                  # Landing page
@@ -226,16 +226,16 @@ arogyamandiram/
 │   ├── db.ts                     # MongoDB connection
 │   ├── encryption.ts             # AES-256 encryption
 │   ├── health.ts                 # BMR, TDEE, macro calculations
-│   ├── indianFoods.ts            # 150+ Indian food database
 │   ├── session.ts                # Auth helpers
 │   ├── gamification.ts           # Streak and badge calculation logic
 │   └── utils.ts                  # Formatters, validators
 ├── models/
 │   ├── User.ts                   # User schema
-│   └── DailyLog.ts               # Daily log schema
+│   ├── DailyLog.ts               # Daily log schema
+│   ├── DailyPlan.ts              # AI daily plan schema
+│   └── Food.ts                   # Food cache/search schema
 ├── types/
 │   └── index.ts                  # TypeScript definitions
-└── middleware.ts                  # Route protection
 ```
 
 ---
@@ -257,23 +257,28 @@ arogyamandiram/
 
 ---
 
-## 🍛 Indian Food Database
+## 🍛 Food Catalog
 
-150+ foods with accurate per-serving nutrition data:
-
-| Category | Count | Examples |
-|----------|-------|---------|
-| Curries | 25 | Paneer Butter Masala, Butter Chicken, Chole, Palak Paneer |
-| Dals | 8 | Dal Tadka, Dal Makhani, Moong Dal, Rasam |
-| Breads | 24 | Roti, Naan, Paratha, Dosa, Uttapam, Appam |
-| Rice | 13 | Biryani (Veg/Chicken/Mutton), Pulao, Khichdi |
-| Sweets | 25 | Gulab Jamun, Rasgulla, Jalebi, Halwa, Kulfi |
-| Snacks | 20 | Samosa, Pani Puri, Vada Pav, Dhokla, Momos |
-| Beverages | 12 | Masala Chai, Lassi, Nimbu Pani, Filter Coffee |
-| Non-Veg | 8 | Tandoori Chicken, Fish Fry, Seekh Kebab |
-| Fruits & Dry Fruits | 14 | Mango, Almonds, Dates, Walnuts |
+150+ built-in foods with accurate per-serving nutrition data across mains, legumes, breads, rice dishes, snacks, sweets, drinks, fruits, seafood, and more.
 
 Each item includes: calories, protein, carbs, fat, fiber, serving size, veg/vegan flags.
+
+---
+
+## 🤖 Integrating with AI Tools
+
+This project ships with a shared memory system (`.memory/`) that any AI coding tool can load. The entry point is `project-memory.md` + `.memory/README.md`.
+
+Each tool reads its own instruction file:
+
+| Tool | File |
+|------|------|
+| Claude Code | `CLAUDE.md` |
+| Codex / OpenAI Agents | `AGENTS.md` |
+| Cursor | `.cursorrules` |
+| GitHub Copilot | `.github/copilot-instructions.md` |
+
+All files point to the same `.memory/` system — no duplication.
 
 ---
 
@@ -283,4 +288,4 @@ MIT
 
 ---
 
-Built with ❤️ for Indian health & wellness
+Built for everyday health tracking, anywhere

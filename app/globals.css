@@ -1239,8 +1239,11 @@ body {
   }
 
   .deck-card-legendary {
-    border-color: transparent;
-    background: linear-gradient(180deg, rgba(180, 83, 9, 0.35) 0%, rgba(30, 30, 40, 0.95) 40%);
+    border-color: #b45309;
+    background: linear-gradient(180deg, rgba(217, 119, 6, 0.32) 0%, rgba(30, 30, 40, 0.95) 42%);
+    box-shadow:
+      0 0 0 1px rgba(251, 191, 36, 0.25) inset,
+      0 8px 20px rgba(0, 0, 0, 0.28);
   }
 
   .deck-card-epic {

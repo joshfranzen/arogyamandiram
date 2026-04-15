@@ -5,18 +5,19 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Bell, Key, Save, Settings, Target, User, Ruler, Activity, Flag, PersonStanding,
   Shield, Eye, EyeOff, CheckCircle2, Sparkles, Utensils, Dumbbell,
-  Loader2, RefreshCw, Flame, Droplets, Drumstick, Cookie, ChefHat, Scale, Timer, Moon,
+  Loader2, RefreshCw, Flame, Droplets, Scale, Moon,
   Mail, Plus, X, ListChecks, Pill, Zap, Trash2, Pencil, CheckSquare,
+  Smartphone, RotateCcw, AlertCircle, SlidersHorizontal,
 } from 'lucide-react';
 import { showToast } from '@/components/ui/Toast';
 import { CardSkeleton } from '@/components/ui/Skeleton';
 import { useUser } from '@/hooks/useUser';
 import api from '@/lib/apiClient';
-import { cn } from '@/lib/utils';
+import { cn, formatWater } from '@/lib/utils';
 import { getTargetsForUser } from '@/lib/health';
 import DashboardPageShell from '@/components/layout/DashboardPageShell';
-import StatCard from '@/components/ui/StatCard';
 import Link from 'next/link';
+import Image from 'next/image';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -24,15 +25,22 @@ interface TodoTemplate { id: string; title: string; note: string; time: string; 
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-type Tab = 'profile' | 'targets' | 'api-keys' | 'preferences' | 'todos';
+type Tab = 'profile' | 'body' | 'targets' | 'customizations' | 'api-keys' | 'notifications' | 'email' | 'todos' | 'health-data';
 
 const NAV_ITEMS: { key: Tab; label: string; icon: React.ElementType; desc: string }[] = [
-  { key: 'profile',     label: 'Profile',      icon: User,         desc: 'Personal info & body composition' },
-  { key: 'targets',     label: 'Targets',      icon: Target,       desc: 'Daily goals & macros' },
-  { key: 'api-keys',    label: 'API Keys',     icon: Key,          desc: 'OpenAI & USDA Food keys' },
-  { key: 'preferences', label: 'Preferences',  icon: Bell,         desc: 'Units, reminders & email' },
-  { key: 'todos',       label: 'Daily Todos',  icon: CheckSquare,  desc: 'Recurring daily checklist items' },
+  { key: 'profile',       label: 'Profile',        icon: User,          desc: 'Personal info & metrics' },
+  { key: 'body',          label: 'Body',           icon: PersonStanding, desc: 'Composition & fitness' },
+  { key: 'targets',       label: 'Targets',        icon: Target,        desc: 'Daily goals & macros' },
+  { key: 'customizations', label: 'Customizations', icon: SlidersHorizontal, desc: 'Tracker-specific defaults' },
+  { key: 'api-keys',      label: 'API Keys',       icon: Key,           desc: 'OpenAI & USDA keys' },
+  { key: 'notifications', label: 'Notifications',  icon: Bell,          desc: 'Reminders & schedule' },
+  { key: 'email',         label: 'Email',          icon: Mail,          desc: 'SMTP, IMAP & recipients' },
+  { key: 'todos',         label: 'Daily Todos',    icon: CheckSquare,   desc: 'Recurring checklist' },
+  { key: 'health-data',   label: 'Health Data',    icon: Smartphone,    desc: 'External health sync' },
 ];
+
+const MAX_CUSTOM_WATER_GLASS_ML = 5000;
+const DEFAULT_WATER_QUICK_AMOUNTS = [100, 250, 500, 750] as const;
 
 const activityLevels = [
   { value: 'sedentary',   label: 'Sedentary',   desc: 'Little or no exercise' },
@@ -48,6 +56,31 @@ const goals = [
   { value: 'gain',     label: 'Gain Weight', desc: 'Calorie surplus' },
 ];
 
+const bodyTypeOptions = [
+  {
+    value: 'ectomorph',
+    label: 'Lean frame',
+    image: '/images/body-types/ectomorph.png',
+  },
+  {
+    value: 'mesomorph',
+    label: 'Athletic frame',
+    image: '/images/body-types/mesomorph.png',
+  },
+  {
+    value: 'endomorph',
+    label: 'Soft frame',
+    image: '/images/body-types/endomorph.png',
+  },
+] as const;
+
+const bodyFatGuides = [
+  { label: 'Very lean', range: '10-14%', value: 12, clue: 'Muscle lines visible, very little belly fat.' },
+  { label: 'Lean', range: '15-19%', value: 17, clue: 'Some definition, small belly softness.' },
+  { label: 'Average', range: '20-24%', value: 22, clue: 'No clear abs, moderate belly/chest fat.' },
+  { label: 'Higher', range: '25-30%', value: 27, clue: 'Visible belly fat, chest and waist look fuller.' },
+] as const;
+
 // ─── Inner component (uses useSearchParams) ───────────────────────────────────
 
 function SettingsInner() {
@@ -56,7 +89,7 @@ function SettingsInner() {
   const { user, loading, refetch } = useUser();
 
   const rawTab = searchParams.get('tab') as Tab | null;
-  const validTabs: Tab[] = ['profile', 'targets', 'api-keys', 'preferences', 'todos'];
+  const validTabs: Tab[] = ['profile', 'body', 'targets', 'customizations', 'api-keys', 'notifications', 'email', 'todos', 'health-data'];
   const [activeTab, setActiveTabState] = useState<Tab>(
     rawTab && validTabs.includes(rawTab) ? rawTab : 'profile'
   );
@@ -92,6 +125,10 @@ function SettingsInner() {
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
 
+  // ── Customizations state ───────────────────────────────────────────────────
+  const [customizationsSaving, setCustomizationsSaving] = useState(false);
+  const [customWaterAmounts, setCustomWaterAmounts] = useState<string[]>(DEFAULT_WATER_QUICK_AMOUNTS.map(String));
+
   // ── API Keys state ─────────────────────────────────────────────────────────
   const [apiKeysSaving, setApiKeysSaving] = useState(false);
   const [openaiKey, setOpenaiKey] = useState('');
@@ -111,12 +148,17 @@ function SettingsInner() {
   const [recipientInput, setRecipientInput] = useState('');
   const [savingRecipients, setSavingRecipients] = useState(false);
   const [sendingTestEmail, setSendingTestEmail] = useState(false);
-  const [timezone, setTimezone] = useState('Asia/Kolkata');
-  const [waterHourlyEnabled, setWaterHourlyEnabled] = useState(true);
-  const [breakfastTime, setBreakfastTime] = useState('08:00');
-  const [lunchTime, setLunchTime] = useState('13:00');
-  const [dinnerTime, setDinnerTime] = useState('20:00');
-  const [sleepTime, setSleepTime] = useState('22:30');
+  const [timezone, setTimezone] = useState('');
+  const [waterReminderEnabled, setWaterReminderEnabled] = useState(true);
+  const [waterStartTime, setWaterStartTime] = useState('06:00');
+  const [waterEndTime, setWaterEndTime] = useState('21:00');
+  const [waterFrequencyMinutes, setWaterFrequencyMinutes] = useState(60);
+  const [breakfastTime, setBreakfastTime] = useState('');
+  const [lunchTime, setLunchTime] = useState('');
+  const [dinnerTime, setDinnerTime] = useState('');
+  const [sleepTime, setSleepTime] = useState('');
+  const [workoutTime, setWorkoutTime] = useState('');
+  const [weighInTime, setWeighInTime] = useState('');
   const [lastSentAt, setLastSentAt] = useState<Record<string, string>>({});
   const [emailChecklist, setEmailChecklist] = useState({
     smtpSaved: false, smtpTestSent: false, imapSaved: false, imapTestSent: false,
@@ -133,6 +175,21 @@ function SettingsInner() {
   const [savingImap, setSavingImap] = useState(false);
   const [imapConfigured, setImapConfigured] = useState(false);
   const imapPollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ── Health Data state ──────────────────────────────────────────────────────
+  const [hdEndpoint, setHdEndpoint] = useState('');
+  const [hdApiKey, setHdApiKey] = useState('');
+  const [hdShowApiKey, setHdShowApiKey] = useState(false);
+  const [hdHasApiKey, setHdHasApiKey] = useState(false);
+  const [hdEnabled, setHdEnabled] = useState(false);
+  const [hdInterval, setHdInterval] = useState(60);
+  const [hdLastSyncAt, setHdLastSyncAt] = useState<string | null>(null);
+  const [hdLastSyncSource, setHdLastSyncSource] = useState<'manual' | 'auto' | ''>('');
+  const [hdLastStatus, setHdLastStatus] = useState('');
+  const [hdLastError, setHdLastError] = useState('');
+  const [hdSaving, setHdSaving] = useState(false);
+  const [hdSyncing, setHdSyncing] = useState(false);
+  const [hdLoaded, setHdLoaded] = useState(false);
   const imapPollingStartedAtRef = useRef<number | null>(null);
   const imapPollingInFlightRef = useRef(false);
   const hasShownImapVerifiedToastRef = useRef(false);
@@ -186,12 +243,30 @@ function SettingsInner() {
       setSleepNotif(s.notifications?.sleep ?? true);
       const saved = s.recipientEmails?.length ? s.recipientEmails : (s.ccEmails?.length ? s.ccEmails : []);
       setRecipientEmails(Array.from(new Set(saved.map((e: string) => e.trim().toLowerCase()))));
-      setTimezone(s.reminderSchedule?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata');
-      setWaterHourlyEnabled(s.reminderSchedule?.waterHourlyEnabled ?? true);
-      setBreakfastTime(s.reminderSchedule?.mealTimes?.breakfast || '08:00');
-      setLunchTime(s.reminderSchedule?.mealTimes?.lunch || '13:00');
-      setDinnerTime(s.reminderSchedule?.mealTimes?.dinner || '20:00');
-      setSleepTime(s.reminderSchedule?.sleepTime || '22:30');
+      const resolvedTimezone = s.reminderSchedule?.timezone || user.profile?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+      setTimezone(resolvedTimezone);
+      const savedWater = s.reminderSchedule?.water;
+      const rawWaterFrequency = savedWater?.frequencyMinutes ?? s.reminderSchedule?.waterFrequencyMinutes;
+      const parsedWaterFrequency = Number(rawWaterFrequency);
+      setWaterReminderEnabled(savedWater?.enabled ?? (s.reminderSchedule?.waterHourlyEnabled ?? true));
+      setWaterStartTime(savedWater?.startTime || '06:00');
+      setWaterEndTime(savedWater?.endTime || '21:00');
+      setWaterFrequencyMinutes((previousFrequency) =>
+        Number.isFinite(parsedWaterFrequency) && parsedWaterFrequency >= 15 && parsedWaterFrequency <= 240
+          ? parsedWaterFrequency
+          : previousFrequency
+      );
+      setBreakfastTime(s.reminderSchedule?.mealTimes?.breakfast || '');
+      setLunchTime(s.reminderSchedule?.mealTimes?.lunch || '');
+      setDinnerTime(s.reminderSchedule?.mealTimes?.dinner || '');
+      setSleepTime(s.reminderSchedule?.sleepTime || '');
+      setWorkoutTime(s.reminderSchedule?.workoutTime || '');
+      setWeighInTime(s.reminderSchedule?.weighInTime || '');
+      const savedQuickAmounts = s.customizations?.water?.quickAmountsMl;
+      const normalizedQuickAmounts = Array.isArray(savedQuickAmounts) && savedQuickAmounts.length === 4
+        ? savedQuickAmounts
+        : DEFAULT_WATER_QUICK_AMOUNTS;
+      setCustomWaterAmounts(normalizedQuickAmounts.map((value) => String(value)));
       const lsa = s.reminderSchedule?.lastSentAt ?? {};
       setLastSentAt({
         water: String(lsa.water ?? ''), breakfast: String(lsa.breakfast ?? ''),
@@ -216,6 +291,25 @@ function SettingsInner() {
   }, [user]);
 
   useEffect(() => () => { stopImapVerificationPolling(); }, []);
+
+  // ── Load health data config when tab opens ─────────────────────────────────
+  useEffect(() => {
+    if (activeTab !== 'health-data' || hdLoaded) return;
+    void (async () => {
+      const res = await api.getHealthDataConfig();
+      if (res.success && res.data) {
+        setHdEndpoint(res.data.endpoint || '');
+        setHdHasApiKey(res.data.hasApiKey ?? false);
+        setHdEnabled(res.data.enabled ?? false);
+        setHdInterval(res.data.syncIntervalMinutes ?? 60);
+        setHdLastSyncAt(res.data.lastSyncAt ?? null);
+        setHdLastSyncSource(res.data.lastSyncSource ?? '');
+        setHdLastStatus(res.data.lastSyncStatus || '');
+        setHdLastError(res.data.lastSyncError || '');
+      }
+      setHdLoaded(true);
+    })();
+  }, [activeTab, hdLoaded]);
 
   useEffect(() => {
     const shouldPoll = emailChecklist.imapTestSent && !emailChecklist.imapReplyVerifiedAt;
@@ -350,6 +444,39 @@ function SettingsInner() {
     finally { setRegeneratingPlan(false); }
   };
 
+  // ── Customizations save ────────────────────────────────────────────────────
+  const saveCustomizations = async () => {
+    const parsedAmounts = customWaterAmounts.map((value) => Number(value));
+    const invalidAmount = parsedAmounts.some((value) =>
+      !Number.isInteger(value) || value < 1 || value > MAX_CUSTOM_WATER_GLASS_ML
+    );
+    if (invalidAmount) {
+      showToast(`Each water amount must be a whole number between 1 and ${MAX_CUSTOM_WATER_GLASS_ML} ml`, 'error');
+      return;
+    }
+
+    setCustomizationsSaving(true);
+    try {
+      const res = await api.updateSettings({
+        customizations: {
+          water: {
+            quickAmountsMl: parsedAmounts,
+          },
+        },
+      });
+      if (res.success) {
+        showToast('Customizations saved', 'success');
+        await refetch();
+      } else {
+        showToast(res.error || 'Failed to save customizations', 'error');
+      }
+    } catch {
+      showToast('Failed to save customizations', 'error');
+    } finally {
+      setCustomizationsSaving(false);
+    }
+  };
+
   // ── API Keys save ──────────────────────────────────────────────────────────
   const saveApiKeys = async () => {
     setApiKeysSaving(true);
@@ -371,19 +498,141 @@ function SettingsInner() {
   const savePreferences = async () => {
     setPrefSaving(true);
     try {
+      const toMinutes = (timeValue: string) => {
+        const [h, m] = timeValue.split(':').map((v) => parseInt(v, 10));
+        if (Number.isNaN(h) || Number.isNaN(m)) return null;
+        return h * 60 + m;
+      };
+      const startMinutes = toMinutes(waterStartTime);
+      const endMinutes = toMinutes(waterEndTime);
+      if (startMinutes === null || endMinutes === null || startMinutes >= endMinutes) {
+        showToast('Water reminder start time must be before end time', 'error');
+        return;
+      }
+
       const res = await api.updateSettings({
         units,
         notifications: { water: waterNotif, meals: mealNotif, weighIn: weighInNotif, workout: workoutNotif, sleep: sleepNotif },
         reminderSchedule: {
-          timezone, waterHourlyEnabled,
+          timezone,
+          // Keep legacy flat frequency key for backward compatibility during migration.
+          waterFrequencyMinutes,
+          water: {
+            enabled: waterReminderEnabled,
+            startTime: waterStartTime,
+            endTime: waterEndTime,
+            frequencyMinutes: waterFrequencyMinutes,
+          },
           mealTimes: { breakfast: breakfastTime, lunch: lunchTime, dinner: dinnerTime },
           sleepTime,
+          workoutTime,
+          weighInTime,
         },
       });
-      if (res.success) { showToast('Preferences saved', 'success'); refetch(); }
+      if (res.success) {
+        const updatedReminderSchedule = (res.data as { settings?: { reminderSchedule?: Record<string, unknown> } } | undefined)?.settings?.reminderSchedule;
+        const updatedWater = updatedReminderSchedule?.water as Record<string, unknown> | undefined;
+        const updatedRawFrequency = updatedWater?.frequencyMinutes ?? updatedReminderSchedule?.waterFrequencyMinutes;
+        const updatedParsedFrequency = Number(updatedRawFrequency);
+        if (Number.isFinite(updatedParsedFrequency) && updatedParsedFrequency >= 15 && updatedParsedFrequency <= 240) {
+          setWaterFrequencyMinutes(updatedParsedFrequency);
+        }
+        showToast('Preferences saved', 'success');
+        refetch();
+      }
       else showToast(res.error || 'Failed to save', 'error');
     } catch { showToast('Failed to save preferences', 'error'); }
     finally { setPrefSaving(false); }
+  };
+
+  // ── Health Data save & sync ────────────────────────────────────────────────
+  const saveHealthDataConfig = async () => {
+    setHdSaving(true);
+    try {
+      const res = await api.saveHealthDataConfig({
+        endpoint: hdEndpoint,
+        ...(hdApiKey ? { apiKey: hdApiKey } : {}),
+        enabled: hdEnabled,
+        syncIntervalMinutes: hdInterval,
+      });
+      if (res.success) {
+        showToast('Health data settings saved', 'success');
+        setHdApiKey('');
+        if (hdApiKey) setHdHasApiKey(true);
+        setHdLoaded(false); // reload on next visit
+      } else {
+        showToast(res.error || 'Failed to save', 'error');
+      }
+    } catch { showToast('Failed to save health data settings', 'error'); }
+    finally { setHdSaving(false); }
+  };
+
+  const triggerHealthSync = async () => {
+    if (!hdEndpoint.trim()) { showToast('Enter an endpoint URL first', 'error'); return; }
+    setHdSyncing(true);
+    const requestedAt = new Date().toISOString();
+    try {
+      const res = await api.triggerHealthDataSync({ source: 'manual' });
+      if (res.success && res.data) {
+        const { schema, rowCount, syncActions } = res.data;
+        setHdLastSyncAt(new Date().toISOString());
+        setHdLastSyncSource('manual');
+        setHdLastStatus('ok');
+        setHdLastError('');
+        showToast(`Synced ${rowCount} row${rowCount !== 1 ? 's' : ''} successfully`, 'success');
+        if (process.env.NEXT_PUBLIC_DEBUG_MODE === 'true') {
+          fetch('/api/debug-logs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              page: 'health-data',
+              agent: 'sync',
+              log: {
+                userRequest: { endpoint: hdEndpoint, requestedAt },
+                syncResult: { schema, rowCount, syncActions },
+                metadata: {
+                  timestamp: new Date().toISOString(),
+                  status: 'success',
+                },
+              },
+            }),
+          }).catch(() => {});
+        }
+      } else {
+        setHdLastSyncSource('manual');
+        setHdLastStatus('error');
+        setHdLastError(res.error || 'Unknown error');
+        showToast(res.error || 'Sync failed', 'error');
+        if (process.env.NEXT_PUBLIC_DEBUG_MODE === 'true') {
+          fetch('/api/debug-logs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              page: 'health-data',
+              agent: 'sync',
+              log: {
+                userRequest: { endpoint: hdEndpoint, requestedAt },
+                syncResult: null,
+                metadata: {
+                  timestamp: new Date().toISOString(),
+                  status: 'error',
+                  error: res.error || 'Unknown error',
+                },
+              },
+            }),
+          }).catch(() => {});
+        }
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Sync failed';
+      setHdLastSyncSource('manual');
+      setHdLastStatus('error');
+      setHdLastError(msg);
+      showToast(msg, 'error');
+    }
+    finally { setHdSyncing(false); }
   };
 
   function addRecipientEmail() {
@@ -495,7 +744,6 @@ function SettingsInner() {
     );
   }
 
-  const currentTargets = user?.targets;
   const formulaTargets = user ? getTargetsForUser(user) : null;
   const openAiActive = !!user?.hasOpenAiKey;
   const fdcActive = !!user?.hasFdcKey;
@@ -505,11 +753,11 @@ function SettingsInner() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col gap-4 lg:flex-row lg:gap-6 lg:items-start">
+    <div className="flex flex-col gap-4 lg:flex-row lg:gap-6 lg:items-start lg:min-h-0">
 
       {/* ── Left nav — desktop ── */}
-      <aside className="hidden lg:flex lg:w-52 lg:shrink-0 lg:flex-col">
-        <div className="glass-card sticky top-4 rounded-2xl p-2">
+      <aside className="hidden lg:block lg:w-52 lg:shrink-0 lg:sticky lg:top-0 lg:self-start" style={{ maxHeight: 'calc(100vh - 10rem)' }}>
+        <div className="glass-card rounded-2xl p-2 overflow-y-auto" style={{ maxHeight: 'inherit' }}>
           {NAV_ITEMS.map((item) => (
             <button
               key={item.key}
@@ -553,7 +801,7 @@ function SettingsInner() {
       </div>
 
       {/* ── Content area ── */}
-      <div className="min-w-0 flex-1 space-y-4">
+      <div className="min-w-0 flex-1 min-h-0 space-y-4 pb-10">
 
         {/* ══════ PROFILE ══════ */}
         {activeTab === 'profile' && (
@@ -638,14 +886,15 @@ function SettingsInner() {
                 <Activity className="h-4 w-4 text-accent-rose" />
                 <h2 className="text-base font-semibold text-text-primary">Activity level</h2>
               </div>
+              <p className="mt-1 text-xs text-text-muted">Auto-detected from your last completed week (Mon-Sun).</p>
               <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-5">
                 {activityLevels.map((al) => (
-                  <button key={al.value} type="button" onClick={() => setActivityLevel(al.value)}
+                  <div key={al.value}
                     className={cn('rounded-2xl border px-3 py-3 text-left text-xs transition-all',
-                      activityLevel === al.value ? 'border-emerald-500 bg-emerald-500/10' : 'border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700')}>
+                      activityLevel === al.value ? 'border-emerald-500 bg-emerald-500/10' : 'border-zinc-800 bg-zinc-900/50 text-zinc-400')}>
                     <p className={cn('font-semibold', activityLevel === al.value ? 'text-emerald-400' : 'text-zinc-200')}>{al.label}</p>
                     <p className="mt-0.5 text-[10px] text-zinc-400">{al.desc}</p>
-                  </button>
+                  </div>
                 ))}
               </div>
             </div>
@@ -668,66 +917,6 @@ function SettingsInner() {
               </div>
             </div>
 
-            {/* Body Composition */}
-            <div className="glass-card rounded-2xl p-6">
-              <div className="flex items-center gap-2">
-                <PersonStanding className="h-4 w-4 text-accent-cyan" />
-                <h2 className="text-base font-semibold text-text-primary">Body Composition</h2>
-              </div>
-              <p className="mt-1 text-xs text-text-muted">Helps AI personalize your workout and nutrition plans.</p>
-              <div className="mt-4">
-                <label className="text-xs font-medium text-text-muted">Body Type</label>
-                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  {[
-                    { value: 'ectomorph', label: 'Ectomorph', desc: 'Lean & hard to gain' },
-                    { value: 'mesomorph', label: 'Mesomorph', desc: 'Athletic & muscular' },
-                    { value: 'endomorph', label: 'Endomorph', desc: 'Stores fat easily' },
-                  ].map((bt) => (
-                    <button key={bt.value} type="button" onClick={() => setBodyType(bt.value)}
-                      className={cn('rounded-2xl border px-3 py-3 text-left text-xs transition-all',
-                        bodyType === bt.value ? 'border-emerald-500 bg-emerald-500/10' : 'border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700')}>
-                      <p className={cn('font-semibold', bodyType === bt.value ? 'text-emerald-400' : 'text-zinc-200')}>{bt.label}</p>
-                      <p className="mt-0.5 text-[10px] text-zinc-400">{bt.desc}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="mt-4">
-                <label className="text-xs font-medium text-text-muted">Body Fat % (optional)</label>
-                <input type="number" value={bodyFat} onChange={(e) => setBodyFat(e.target.value)} placeholder="e.g. 18" min={1} max={60}
-                  className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm bg-zinc-900 border border-zinc-800 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none sm:w-40" />
-              </div>
-              <div className="mt-4">
-                <label className="text-xs font-medium text-text-muted">Where do you want to focus fat loss?</label>
-                <p className="mt-0.5 text-[10px] text-zinc-500">Select up to 3 areas</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {(['belly', 'thighs', 'arms', 'chest', 'overall'] as const).map((area) => {
-                    const selected = fatFocusAreas.includes(area);
-                    const disabled = !selected && fatFocusAreas.length >= 3;
-                    return (
-                      <button key={area} type="button" disabled={disabled}
-                        onClick={() => setFatFocusAreas((prev) => selected ? prev.filter((a) => a !== area) : [...prev, area])}
-                        className={cn('rounded-full border px-3 py-1.5 text-xs capitalize transition-all',
-                          selected ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
-                            : disabled ? 'cursor-not-allowed border-zinc-800 text-zinc-600 opacity-50'
-                              : 'border-zinc-700 text-zinc-400 hover:border-zinc-500')}>
-                        {area}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div className="mt-4">
-                <label className="text-xs font-medium text-text-muted">Fitness Level</label>
-                <div className="mt-1.5 flex items-center gap-2">
-                  <span className="rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-xs capitalize text-zinc-300">
-                    {(user?.profile as { fitnessLevelDerived?: string } | undefined)?.fitnessLevelDerived ?? 'Not yet detected'}
-                  </span>
-                  <span className="text-[10px] text-zinc-500">Auto-updated from your workout logs</span>
-                </div>
-              </div>
-            </div>
-
             <div className="flex justify-end">
               <button onClick={saveProfile} disabled={saving}
                 className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-6 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50">
@@ -738,32 +927,122 @@ function SettingsInner() {
           </>
         )}
 
+        {/* ══════ BODY COMPOSITION ══════ */}
+        {activeTab === 'body' && (
+          <>
+            {/* Body Type */}
+            <div className="glass-card rounded-2xl p-6">
+              <div className="flex items-center gap-2">
+                <PersonStanding className="h-4 w-4 text-accent-cyan" />
+                <h2 className="text-base font-semibold text-text-primary">Body Shape</h2>
+              </div>
+              <p className="mt-1 text-xs text-text-muted">Choose visually.</p>
+              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                {bodyTypeOptions.map((bt) => (
+                  <button key={bt.value} type="button" onClick={() => setBodyType(bt.value)}
+                    className={cn('overflow-hidden rounded-2xl border text-left text-xs transition-all',
+                      bodyType === bt.value ? 'border-emerald-500 bg-emerald-500/10' : 'border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700')}>
+                    <div className="p-2">
+                      <Image
+                        src={bt.image}
+                        alt={bt.label}
+                        width={1024}
+                        height={683}
+                        className="h-40 w-full rounded-lg bg-white object-contain"
+                      />
+                    </div>
+                    <p className={cn('px-3 py-2 font-semibold text-sm', bodyType === bt.value ? 'text-emerald-400' : 'text-zinc-200')}>{bt.label}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Body Fat */}
+            <div className="glass-card rounded-2xl p-6">
+              <h2 className="text-base font-semibold text-text-primary">Body Fat %</h2>
+              <p className="mt-1 text-xs text-text-muted">Not sure of exact %? Pick the closest visual range first, then fine-tune if needed.</p>
+              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {bodyFatGuides.map((guide) => {
+                  const selected = Number(bodyFat) === guide.value;
+                  return (
+                    <button
+                      key={guide.label}
+                      type="button"
+                      onClick={() => setBodyFat(String(guide.value))}
+                      className={cn(
+                        'rounded-2xl border px-4 py-3 text-left text-xs transition-all',
+                        selected
+                          ? 'border-emerald-500 bg-emerald-500/10'
+                          : 'border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700'
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className={cn('text-sm font-semibold', selected ? 'text-emerald-400' : 'text-zinc-200')}>{guide.label}</p>
+                        <span className="rounded-full border border-zinc-700 px-2 py-0.5 text-[10px] text-zinc-300">{guide.range}</span>
+                      </div>
+                      <p className="mt-1 text-[11px] text-zinc-400 leading-relaxed">{guide.clue}</p>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-4">
+                <label className="text-xs font-medium text-text-muted">Exact body fat % (optional)</label>
+                <input type="number" value={bodyFat} onChange={(e) => setBodyFat(e.target.value)}
+                  placeholder="e.g. 18" min={1} max={60}
+                  className="glass-input mt-1 w-40 rounded-xl px-3 py-2 text-sm bg-zinc-900 border border-zinc-800 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
+              </div>
+            </div>
+
+            {/* Fat focus areas */}
+            <div className="glass-card rounded-2xl p-6">
+              <h2 className="text-base font-semibold text-text-primary">Fat Loss Focus Areas</h2>
+              <p className="mt-1 text-xs text-text-muted">Where do you want to focus fat loss? Select up to 3.</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {(['belly', 'hips', 'thighs', 'arms', 'chest', 'overall'] as const).map((area) => {
+                  const selected = fatFocusAreas.includes(area);
+                  const disabled = !selected && fatFocusAreas.length >= 3;
+                  return (
+                    <button key={area} type="button" disabled={disabled}
+                      onClick={() => setFatFocusAreas((prev) => selected ? prev.filter((a) => a !== area) : [...prev, area])}
+                      className={cn('rounded-full border px-4 py-2 text-sm capitalize transition-all',
+                        selected ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
+                          : disabled ? 'cursor-not-allowed border-zinc-800 text-zinc-600 opacity-40'
+                            : 'border-zinc-700 text-zinc-400 hover:border-zinc-500')}>
+                      {area}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Fitness Level */}
+            <div className="glass-card rounded-2xl p-6">
+              <h2 className="text-base font-semibold text-text-primary">Fitness Level</h2>
+              <p className="mt-1 text-xs text-text-muted">Auto-detected from your last 14 days of workout logs.</p>
+              <div className="mt-4 flex items-center gap-3">
+                <span className="rounded-full border border-zinc-700 bg-zinc-900 px-4 py-1.5 text-sm capitalize text-zinc-300 font-medium">
+                  {(user?.profile as { fitnessLevelDerived?: string } | undefined)?.fitnessLevelDerived ?? 'Not yet detected'}
+                </span>
+                <span className="text-xs text-zinc-500">Updates automatically</span>
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <button onClick={saveProfile} disabled={saving}
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-6 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50">
+                {saving ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-black border-t-transparent" /> : <Save className="h-4 w-4" />}
+                Save
+              </button>
+            </div>
+          </>
+        )}
+
         {/* ══════ TARGETS ══════ */}
         {activeTab === 'targets' && (
           <>
-            {/* Stat summary */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-              <StatCard icon={Flame} label="Calories" value={`${currentTargets?.dailyCalories ?? '—'}`} subtitle="kcal/day" iconColor="text-accent-amber" />
-              <StatCard icon={Droplets} label="Water" value={`${currentTargets?.dailyWater ?? '—'}`} subtitle="ml/day" iconColor="text-accent-cyan" />
-              <StatCard icon={Drumstick} label="Protein" value={`${currentTargets?.protein ?? '—'}`} subtitle="g/day" iconColor="text-accent-violet" />
-              <StatCard icon={Cookie} label="Carbs" value={`${currentTargets?.carbs ?? '—'}`} subtitle="g/day" iconColor="text-accent-amber" />
-              <StatCard icon={ChefHat} label="Fat" value={`${currentTargets?.fat ?? '—'}`} subtitle="g/day" iconColor="text-accent-rose" />
-              <StatCard icon={Scale} label="Ideal Weight" value={`${currentTargets?.idealWeight ?? '—'}`} subtitle="kg" iconColor="text-accent-emerald" />
-              <StatCard icon={Timer} label="Workout" value={`${currentTargets?.dailyWorkoutMinutes ?? '—'}`} subtitle="min/day" iconColor="text-accent-cyan" />
-              <StatCard icon={Flame} label="Burn Goal" value={`${currentTargets?.dailyCalorieBurn ?? '—'}`} subtitle="kcal/day" iconColor="text-accent-amber" />
-              <StatCard icon={Moon} label="Sleep" value={`${currentTargets?.sleepHours ?? '—'}`} subtitle="hours/night" iconColor="text-accent-violet" />
-            </div>
-
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               {/* Left: actions */}
               <div className="flex flex-col gap-4">
-                <div className="glass-card rounded-2xl p-6">
-                  <p className="text-sm font-semibold text-text-primary">How targets work</p>
-                  <p className="mt-2 text-xs leading-relaxed text-text-muted">
-                    Targets are calculated from your profile using BMR/TDEE for calories, weight and activity for water, and age for sleep. Updating your profile recalculates them automatically.
-                  </p>
-                </div>
-
                 <div className="glass-card rounded-2xl p-6">
                   <p className="text-sm font-semibold text-text-primary">Recalculate from profile</p>
                   <p className="mt-2 text-xs text-text-muted">Refresh all targets using your current profile data.</p>
@@ -871,26 +1150,9 @@ function SettingsInner() {
         {/* ══════ API KEYS ══════ */}
         {activeTab === 'api-keys' && (
           <>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <StatCard icon={Sparkles} label="OpenAI" value={openAiActive ? 'Active' : 'Not connected'} subtitle="Meal ideas, workout plan, insights" iconColor={openAiActive ? 'text-accent-emerald' : 'text-text-muted'} className={cn(!openAiActive && 'opacity-90')} />
-              <StatCard icon={Utensils} label="USDA FoodData Central" value={fdcActive ? 'Active' : 'Not connected'} subtitle="300k+ foods — free key at fdc.nal.usda.gov" iconColor={fdcActive ? 'text-accent-emerald' : 'text-text-muted'} className={cn(!fdcActive && 'opacity-90')} />
-            </div>
-
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              {/* Left: security info */}
+              {/* Left: info */}
               <div className="flex flex-col gap-4">
-                <div className="glass-card rounded-2xl p-6">
-                  <div className="flex items-start gap-3">
-                    <Shield className="mt-0.5 h-5 w-5 shrink-0 text-accent-cyan" />
-                    <div>
-                      <p className="text-sm font-semibold text-text-primary">Encrypted storage</p>
-                      <p className="mt-1 text-xs leading-relaxed text-text-secondary">
-                        Keys are encrypted with AES-256 before storage. They are never sent to the browser — only boolean flags are returned.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
                 <div className="glass-card rounded-2xl p-6 flex-1">
                   <p className="text-sm font-semibold text-text-primary">Where these keys are used</p>
                   <div className="mt-4 space-y-2">
@@ -916,6 +1178,7 @@ function SettingsInner() {
 
               {/* Right: key inputs */}
               <div className="glass-card flex flex-col rounded-2xl p-6 space-y-5">
+                <p className="flex items-center gap-1.5 text-[11px] text-text-muted"><Shield className="h-3 w-3 text-accent-cyan shrink-0" /> AES-256 encrypted — never exposed to the browser</p>
                 {[
                   {
                     label: 'OpenAI API Key', active: openAiActive, show: showOpenai,
@@ -964,81 +1227,243 @@ function SettingsInner() {
           </>
         )}
 
-        {/* ══════ PREFERENCES ══════ */}
-        {activeTab === 'preferences' && (
+        {/* ══════ CUSTOMIZATIONS ══════ */}
+        {activeTab === 'customizations' && (
           <>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <StatCard icon={Scale} label="Units" value={units === 'metric' ? 'Metric' : 'Imperial'} subtitle={units === 'metric' ? 'kg, cm' : 'lbs, in'} iconColor="text-accent-violet" />
-              <StatCard icon={Bell} label="Reminders" value={`${enabledCount}/5 enabled`} subtitle="Water, meals, weigh-in, workout, sleep" iconColor={enabledCount > 0 ? 'text-accent-emerald' : 'text-text-muted'} />
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              {/* Units */}
-              <div className="glass-card rounded-2xl p-6">
-                <p className="text-sm font-semibold text-text-primary">Units</p>
-                <p className="mt-2 text-xs text-text-muted">Choose how weight and height are displayed across the app.</p>
-                <div className="mt-4 grid grid-cols-2 gap-2">
-                  {(['metric', 'imperial'] as const).map((u) => (
-                    <button key={u} type="button" onClick={() => setUnits(u)}
-                      className={cn('rounded-2xl border px-4 py-3 text-left transition-all',
-                        units === u ? 'border-accent-violet/30 bg-accent-violet/10 text-accent-violet'
-                          : 'border-white/[0.06] bg-white/[0.03] text-text-muted hover:bg-white/[0.05]')}>
-                      <p className="text-sm font-semibold capitalize">{u}</p>
-                      <p className="mt-0.5 text-[11px] opacity-80">{u === 'metric' ? 'kg, cm' : 'lbs, in'}</p>
-                    </button>
-                  ))}
-                </div>
+            <div className="glass-card rounded-2xl p-6">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal className="h-4 w-4 text-accent-cyan" />
+                <h2 className="text-base font-semibold text-text-primary">Water tracker</h2>
               </div>
+              <p className="mt-1 text-xs text-text-muted">
+                Edit the four quick-add water buttons. The Water page will use these values directly instead of showing a separate custom button.
+              </p>
 
-              {/* Notifications */}
-              <div className="glass-card rounded-2xl p-6">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-text-primary">Reminder notifications</p>
-                    <p className="mt-1 text-xs text-text-muted">Control what you get nudged about.</p>
-                  </div>
-                  <span className="rounded-full bg-white/[0.04] px-3 py-1 text-[11px] font-medium text-text-muted">{enabledCount}/5 on</span>
-                </div>
-                <div className="mt-4 space-y-2">
-                  {[
-                    { key: 'water', label: 'Water reminders', value: waterNotif, set: setWaterNotif, icon: Droplets, color: 'text-accent-cyan' },
-                    { key: 'meals', label: 'Meal logging reminders', value: mealNotif, set: setMealNotif, icon: Utensils, color: 'text-accent-emerald' },
-                    { key: 'weighIn', label: 'Daily weigh-in', value: weighInNotif, set: setWeighInNotif, icon: Scale, color: 'text-accent-amber' },
-                    { key: 'workout', label: 'Workout reminders', value: workoutNotif, set: setWorkoutNotif, icon: Dumbbell, color: 'text-accent-rose' },
-                    { key: 'sleep', label: 'Sleep reminders', value: sleepNotif, set: setSleepNotif, icon: Moon, color: 'text-accent-violet' },
-                  ].map((item) => (
-                    <div key={item.key} className="flex items-center justify-between gap-3 rounded-2xl bg-white/[0.02] px-4 py-3">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.04]', item.color)}>
-                          <item.icon className="h-4 w-4" />
-                        </div>
-                        <span className="truncate text-sm font-medium text-text-secondary">{item.label}</span>
-                      </div>
-                      <button type="button" onClick={() => item.set(!item.value)}
-                        className={cn('relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200', item.value ? 'bg-accent-violet' : 'bg-white/[0.1]')}
-                        aria-pressed={item.value}>
-                        <span className={cn('absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform duration-200', item.value && 'translate-x-5')} />
-                      </button>
+              <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,26rem)_1fr]">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {customWaterAmounts.map((amount, index) => (
+                    <div key={index}>
+                      <label className="text-xs font-medium text-text-muted">Quick add {index + 1} (ml)</label>
+                      <input
+                        type="number"
+                        value={amount}
+                        onChange={(e) => setCustomWaterAmounts((prev) => prev.map((item, itemIndex) => itemIndex === index ? e.target.value : item))}
+                        min={1}
+                        max={MAX_CUSTOM_WATER_GLASS_ML}
+                        placeholder={`e.g. ${DEFAULT_WATER_QUICK_AMOUNTS[index]}`}
+                        className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm"
+                      />
                     </div>
                   ))}
+                  <p className="sm:col-span-2 text-[11px] text-text-muted">
+                    Defaults are 100 ml, 250 ml, 500 ml, and 750 ml. Replace any slot with your actual bottle or glass amount.
+                  </p>
                 </div>
-                <div className="mt-4 flex justify-end">
-                  <button onClick={savePreferences} disabled={prefSaving}
-                    className="glass-button-primary flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold disabled:opacity-50">
-                    {prefSaving ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <Save className="h-4 w-4" />}
-                    Save
-                  </button>
+
+                <div className="rounded-2xl bg-white/[0.02] p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Preview</p>
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    {customWaterAmounts.map((amount, index) => {
+                      const parsedAmount = Number(amount);
+                      const displayAmount = Number.isInteger(parsedAmount) && parsedAmount > 0
+                        ? formatWater(parsedAmount)
+                        : 'Set amount';
+
+                      return (
+                        <div key={index} className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-4 py-3">
+                          <p className="text-[11px] uppercase tracking-wide text-text-muted">Button {index + 1}</p>
+                          <p className="mt-1 text-sm font-semibold text-text-primary">{displayAmount}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
+            </div>
+
+            <div className="flex justify-end">
+              <button onClick={saveCustomizations} disabled={customizationsSaving}
+                className="glass-button-primary flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold disabled:opacity-50">
+                {customizationsSaving ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <Save className="h-4 w-4" />}
+                Save
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ══════ NOTIFICATIONS ══════ */}
+        {activeTab === 'notifications' && (
+          <>
+            {/* Units */}
+            <div className="glass-card rounded-2xl p-6">
+              <p className="text-sm font-semibold text-text-primary">Units</p>
+              <p className="mt-1 text-xs text-text-muted">How weight and height are displayed across the app.</p>
+              <div className="mt-4 grid grid-cols-2 gap-2 max-w-xs">
+                {(['metric', 'imperial'] as const).map((u) => (
+                  <button key={u} type="button" onClick={() => setUnits(u)}
+                    className={cn('rounded-2xl border px-4 py-3 text-left transition-all',
+                      units === u ? 'border-accent-violet/30 bg-accent-violet/10 text-accent-violet'
+                        : 'border-white/[0.06] bg-white/[0.03] text-text-muted hover:bg-white/[0.05]')}>
+                    <p className="text-sm font-semibold capitalize">{u}</p>
+                    <p className="mt-0.5 text-[11px] opacity-80">{u === 'metric' ? 'kg, cm' : 'lbs, in'}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Reminder toggles */}
+            <div className="glass-card rounded-2xl p-6">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-text-primary">Reminder notifications</p>
+                  <p className="mt-1 text-xs text-text-muted">Control which reminders you receive by email.</p>
+                </div>
+                <span className="rounded-full bg-white/[0.04] px-3 py-1 text-[11px] font-medium text-text-muted">{enabledCount}/5 on</span>
+              </div>
+              <div className="mt-4 space-y-2">
+                {[
+                  { key: 'water',   label: 'Water reminders',        value: waterNotif,   set: setWaterNotif,   icon: Droplets, color: 'text-accent-cyan' },
+                  { key: 'meals',   label: 'Meal logging reminders',  value: mealNotif,    set: setMealNotif,    icon: Utensils, color: 'text-accent-emerald' },
+                  { key: 'weighIn', label: 'Daily weigh-in',          value: weighInNotif, set: setWeighInNotif, icon: Scale,    color: 'text-accent-amber' },
+                  { key: 'workout', label: 'Workout reminders',       value: workoutNotif, set: setWorkoutNotif, icon: Dumbbell, color: 'text-accent-rose' },
+                  { key: 'sleep',   label: 'Sleep reminders',         value: sleepNotif,   set: setSleepNotif,   icon: Moon,     color: 'text-accent-violet' },
+                ].map((item) => (
+                  <div key={item.key} className="flex items-center justify-between gap-3 rounded-2xl bg-white/[0.02] px-4 py-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/[0.04]', item.color)}>
+                        <item.icon className="h-4 w-4" />
+                      </div>
+                      <span className="truncate text-sm text-text-secondary">{item.label}</span>
+                    </div>
+                    <button type="button" onClick={() => item.set(!item.value)}
+                      className={cn('relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200', item.value ? 'bg-accent-violet' : 'bg-white/[0.1]')}
+                      aria-pressed={item.value}>
+                      <span className={cn('absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform duration-200', item.value && 'translate-x-5')} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Reminder schedule */}
+            <div className="glass-card rounded-2xl p-6">
+              <p className="text-sm font-semibold text-text-primary">Reminder schedule</p>
+              <p className="mt-1 text-xs text-text-muted">Set the times for each reminder. Leave blank to disable that reminder.</p>
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {/* Timezone */}
+                <div className="sm:col-span-2">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-medium text-text-muted">Timezone</label>
+                    <button type="button"
+                      onClick={() => setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone)}
+                      className="text-[10px] text-accent-violet hover:underline">
+                      Auto-detect
+                    </button>
+                  </div>
+                  <input type="text" value={timezone} onChange={(e) => setTimezone(e.target.value)}
+                    placeholder="e.g. Asia/Kolkata"
+                    className="w-full rounded-xl bg-white/[0.03] border border-white/[0.06] px-3 py-2 text-sm text-text-primary placeholder:text-text-muted/50 focus:outline-none focus:border-accent-violet/50 transition-colors" />
+                </div>
+                {[
+                  { label: 'Breakfast time',            value: breakfastTime, set: setBreakfastTime, key: 'breakfast' },
+                  { label: 'Lunch time',                value: lunchTime,     set: setLunchTime,     key: 'lunch' },
+                  { label: 'Dinner time',               value: dinnerTime,    set: setDinnerTime,    key: 'dinner' },
+                  { label: 'Sleep reminder time',       value: sleepTime,     set: setSleepTime,     key: 'sleep' },
+                  { label: 'Workout time',              value: workoutTime,   set: setWorkoutTime,   key: 'workout' },
+                  { label: 'Weigh-in time (morning)',   value: weighInTime,   set: setWeighInTime,   key: 'weighIn' },
+                ].map((t) => (
+                  <div key={t.key}>
+                    <label className="mb-1.5 block text-xs font-medium text-text-muted">{t.label}</label>
+                    <input type="time" value={t.value} onChange={(e) => t.set(e.target.value)}
+                      className="w-full rounded-xl bg-white/[0.03] border border-white/[0.06] px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent-violet/50 transition-colors" />
+                    <p className="mt-1 text-[10px] text-text-muted">Last sent: {formatLastSent(lastSentAt[t.key]) || 'None'}</p>
+                  </div>
+                ))}
+                {/* Water schedule */}
+                <div className="sm:col-span-2 rounded-2xl bg-white/[0.02] px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <span className="text-sm font-medium text-text-secondary">Water reminders</span>
+                      <p className="text-[10px] text-text-muted mt-0.5">Last sent: {formatLastSent(lastSentAt.water) || 'None'}</p>
+                    </div>
+                    <button type="button" onClick={() => setWaterReminderEnabled(!waterReminderEnabled)}
+                      className={cn('relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200', waterReminderEnabled ? 'bg-accent-violet' : 'bg-white/[0.1]')}
+                      aria-pressed={waterReminderEnabled}>
+                      <span className={cn('absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform duration-200', waterReminderEnabled && 'translate-x-5')} />
+                    </button>
+                  </div>
+                  <div className="mt-3 grid grid-cols-1 gap-1 text-[10px] text-text-muted sm:grid-cols-2">
+                    <p>Before Breakfast: no water reminders 30 min prior</p>
+                    <p>After Breakfast: resumes 60 min after meal</p>
+                    <p>Before Lunch: no water reminders 30 min prior</p>
+                    <p>After Lunch: resumes 60 min after meal</p>
+                    <p>Before Dinner: no water reminders 30 min prior</p>
+                    <p>After Dinner: resumes 60 min after meal</p>
+                  </div>
+                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-text-muted">Start time</label>
+                      <input type="time" value={waterStartTime} onChange={(e) => setWaterStartTime(e.target.value)}
+                        className="w-full rounded-xl bg-white/[0.03] border border-white/[0.06] px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent-violet/50 transition-colors" />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-text-muted">End time</label>
+                      <input type="time" value={waterEndTime} onChange={(e) => setWaterEndTime(e.target.value)}
+                        className="w-full rounded-xl bg-white/[0.03] border border-white/[0.06] px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent-violet/50 transition-colors" />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-text-muted">Frequency (minutes)</label>
+                      <select
+                        value={waterFrequencyMinutes}
+                        onChange={(e) => setWaterFrequencyMinutes(Number(e.target.value))}
+                        className="w-full rounded-xl bg-white/[0.03] border border-white/[0.06] px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent-violet/50 transition-colors"
+                      >
+                        {[15, 30, 45, 60, 90, 120].map((minutes) => (
+                          <option key={minutes} value={minutes}>{minutes} min</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-[10px] text-text-muted">Default window is 06:00 to 21:00 in your timezone.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <button onClick={savePreferences} disabled={prefSaving}
+                className="glass-button-primary flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold disabled:opacity-50">
+                {prefSaving ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <Save className="h-4 w-4" />}
+                Save
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ══════ EMAIL ══════ */}
+        {activeTab === 'email' && (
+          <>
+            {/* Setup status */}
+            <div className="flex flex-wrap gap-2">
+              {[
+                { label: 'Recipients', done: emailChecklist.recipientListSaved },
+                { label: 'SMTP',       done: emailChecklist.smtpSaved },
+                { label: 'SMTP test',  done: emailChecklist.smtpTestSent },
+                { label: 'IMAP',       done: emailChecklist.imapSaved },
+                { label: 'IMAP test',  done: emailChecklist.imapTestSent },
+                { label: 'IMAP reply', done: Boolean(emailChecklist.imapReplyVerifiedAt) },
+              ].map((s) => (
+                <span key={s.label} className={cn('flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium border',
+                  s.done ? 'bg-accent-emerald/10 border-accent-emerald/20 text-accent-emerald' : 'bg-white/[0.03] border-white/[0.06] text-text-muted')}>
+                  <CheckCircle2 className={cn('h-3 w-3', s.done ? 'text-accent-emerald' : 'text-text-muted opacity-30')} />
+                  {s.label}
+                </span>
+              ))}
             </div>
 
             {/* Recipients */}
             <div className="glass-card rounded-2xl p-6">
-              <div className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-accent-violet shrink-0" />
-                <p className="text-sm font-semibold text-text-primary">Recipients</p>
-              </div>
-              <p className="mt-1.5 text-xs text-text-muted">Reminder and test emails are sent to this list.</p>
+              <p className="text-sm font-semibold text-text-primary">Recipients</p>
+              <p className="mt-1 text-xs text-text-muted">Reminder and test emails go to this list.</p>
               <div className="mt-3 flex gap-2">
                 <input type="email" value={recipientInput} onChange={(e) => setRecipientInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && addRecipientEmail()} placeholder="email@example.com"
@@ -1063,7 +1488,7 @@ function SettingsInner() {
               )}
               <div className="mt-4 flex justify-end gap-2">
                 <button onClick={sendTestEmail} disabled={sendingTestEmail || savingRecipients}
-                  className="flex min-w-[130px] items-center justify-center rounded-xl border border-white/[0.12] bg-white/[0.03] px-5 py-2 text-sm font-semibold text-text-secondary hover:bg-white/[0.06] disabled:opacity-50">
+                  className="flex items-center justify-center rounded-xl border border-white/[0.12] bg-white/[0.03] px-5 py-2 text-sm font-semibold text-text-secondary hover:bg-white/[0.06] disabled:opacity-50">
                   {sendingTestEmail ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : 'Send Test Email'}
                 </button>
                 <button onClick={saveRecipientEmails} disabled={savingRecipients || sendingTestEmail}
@@ -1071,67 +1496,6 @@ function SettingsInner() {
                   {savingRecipients ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <Save className="h-4 w-4" />}
                   Save
                 </button>
-              </div>
-            </div>
-
-            {/* Reminder schedule + checklist */}
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div className="glass-card rounded-2xl p-6">
-                <p className="text-sm font-semibold text-text-primary">Reminder schedule</p>
-                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div className="sm:col-span-2">
-                    <label className="mb-1.5 block text-xs font-medium text-text-muted">Timezone</label>
-                    <input type="text" value={timezone} onChange={(e) => setTimezone(e.target.value)} placeholder="Asia/Kolkata"
-                      className="w-full rounded-xl bg-white/[0.03] border border-white/[0.06] px-3 py-2 text-sm text-text-primary placeholder:text-text-muted/50 focus:outline-none focus:border-accent-violet/50 transition-colors" />
-                  </div>
-                  {[
-                    { label: 'Breakfast time', value: breakfastTime, set: setBreakfastTime, key: 'breakfast' },
-                    { label: 'Lunch time', value: lunchTime, set: setLunchTime, key: 'lunch' },
-                    { label: 'Dinner time', value: dinnerTime, set: setDinnerTime, key: 'dinner' },
-                    { label: 'Sleep reminder time', value: sleepTime, set: setSleepTime, key: 'sleep' },
-                  ].map((t) => (
-                    <div key={t.key}>
-                      <label className="mb-1.5 block text-xs font-medium text-text-muted">{t.label}</label>
-                      <input type="time" value={t.value} onChange={(e) => t.set(e.target.value)}
-                        className="w-full rounded-xl bg-white/[0.03] border border-white/[0.06] px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent-violet/50 transition-colors" />
-                      <p className="mt-1 text-[11px] text-text-muted">Last sent: {formatLastSent(lastSentAt[t.key]) || 'None'}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-3 flex items-center justify-between rounded-2xl bg-white/[0.02] px-4 py-3">
-                  <span className="text-sm font-medium text-text-secondary">Water reminders every 30 min</span>
-                  <button type="button" onClick={() => setWaterHourlyEnabled(!waterHourlyEnabled)}
-                    className={cn('relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200', waterHourlyEnabled ? 'bg-accent-violet' : 'bg-white/[0.1]')}
-                    aria-pressed={waterHourlyEnabled}>
-                    <span className={cn('absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform duration-200', waterHourlyEnabled && 'translate-x-5')} />
-                  </button>
-                </div>
-                <p className="mt-2 px-1 text-[11px] text-text-muted">Last sent: {formatLastSent(lastSentAt.water) || 'None'}</p>
-              </div>
-
-              <div className="glass-card rounded-2xl p-6">
-                <p className="text-sm font-semibold text-text-primary">Configuration checklist</p>
-                <p className="mt-1 text-xs text-text-muted">Save SMTP/IMAP and recipients. Reply to the IMAP test email with "1000 ml water" to verify.</p>
-                <div className="mt-4 space-y-2">
-                  {[
-                    { key: 'recipientListSaved', label: 'Recipient list saved', value: emailChecklist.recipientListSaved },
-                    { key: 'smtpSaved', label: 'SMTP saved', value: emailChecklist.smtpSaved },
-                    { key: 'smtpTestSent', label: 'SMTP test email sent', value: emailChecklist.smtpTestSent },
-                    { key: 'imapSaved', label: 'IMAP saved', value: emailChecklist.imapSaved },
-                    { key: 'imapTestSent', label: 'IMAP test email sent', value: emailChecklist.imapTestSent },
-                    { key: 'imapReplyVerifiedAt', label: 'IMAP reply verified', value: Boolean(emailChecklist.imapReplyVerifiedAt) },
-                  ].map((item) => (
-                    <div key={item.key} className="flex items-center justify-between rounded-2xl bg-white/[0.02] px-4 py-3">
-                      <span className="text-sm text-text-secondary">{item.label}</span>
-                      <span className={cn('text-xs font-semibold', item.value ? 'text-accent-emerald' : 'text-text-muted')}>
-                        {item.value ? 'Done' : 'Pending'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                {emailChecklist.imapReplyVerifiedAt && (
-                  <p className="mt-3 text-xs text-accent-emerald">Verified at: {new Date(emailChecklist.imapReplyVerifiedAt).toLocaleString()}</p>
-                )}
               </div>
             </div>
 
@@ -1152,21 +1516,21 @@ function SettingsInner() {
                 },
               ].map((cfg) => (
                 <div key={cfg.label} className={cn('glass-card rounded-2xl p-5 flex flex-col transition-all duration-300', cfg.configured && 'border border-accent-emerald/30')}>
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl', cfg.configured ? 'bg-accent-emerald/15 text-accent-emerald' : 'bg-white/[0.04] text-accent-emerald')}>
+                      <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-xl', cfg.configured ? 'bg-accent-emerald/15 text-accent-emerald' : 'bg-white/[0.04] text-text-muted')}>
                         <Mail className="h-4 w-4" />
                       </div>
                       <div>
                         <p className="text-sm font-semibold text-text-primary">{cfg.label}</p>
-                        <p className="mt-0.5 text-xs text-text-muted">{cfg.desc}</p>
+                        <p className="text-[11px] text-text-muted">{cfg.desc}</p>
                       </div>
                     </div>
                     {cfg.configured && (
                       <span className="shrink-0 rounded-full bg-accent-emerald/10 px-2.5 py-1 text-[11px] font-medium text-accent-emerald">Configured</span>
                     )}
                   </div>
-                  <div className="mt-4 space-y-2.5">
+                  <div className="mt-4 space-y-3">
                     <div>
                       <label className="mb-1.5 block text-xs font-medium text-text-muted">Email</label>
                       <input type="email" value={cfg.emailUser} onChange={(e) => cfg.setEmailUser(e.target.value)} placeholder="you@gmail.com"
@@ -1200,6 +1564,166 @@ function SettingsInner() {
 
         {/* ══════ TODOS ══════ */}
         {activeTab === 'todos' && <TodosSettingsTab />}
+
+        {/* ══════ HEALTH DATA ══════ */}
+        {activeTab === 'health-data' && (
+          <>
+            {/* Endpoint */}
+            <div className="glass-card rounded-2xl p-6">
+              <div className="flex items-center gap-2">
+                <Smartphone className="h-4 w-4 text-emerald-400" />
+                <h2 className="text-base font-semibold text-text-primary">Health Data Source</h2>
+              </div>
+              <p className="mt-1 text-xs text-text-muted">
+                Connect an external health data endpoint (mobile app, wearable, or custom API). The fetched data will be sent to the orchestrator to automatically update your health logs.
+              </p>
+
+              <div className="mt-5 space-y-4">
+                <div>
+                  <label className="text-xs font-medium text-text-muted">Endpoint URL</label>
+                  <input
+                    type="url"
+                    value={hdEndpoint}
+                    onChange={(e) => setHdEndpoint(e.target.value)}
+                    placeholder="https://your-health-api.example.com/data"
+                    className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm bg-zinc-900 border border-zinc-800 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium text-text-muted">
+                    API Token / Bearer Key
+                    {hdHasApiKey && !hdApiKey && (
+                      <span className="ml-2 text-emerald-400">● Saved</span>
+                    )}
+                  </label>
+                  <div className="relative mt-1">
+                    <input
+                      type={hdShowApiKey ? 'text' : 'password'}
+                      value={hdApiKey}
+                      onChange={(e) => setHdApiKey(e.target.value)}
+                      placeholder={hdHasApiKey ? '••••••••  (leave blank to keep existing)' : 'Optional — sent as Bearer token'}
+                      className="glass-input w-full rounded-xl px-3 py-2 pr-10 text-sm bg-zinc-900 border border-zinc-800 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setHdShowApiKey((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+                    >
+                      {hdShowApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <label className="text-xs font-medium text-text-muted">Auto-sync interval</label>
+                    <select
+                      value={hdInterval}
+                      onChange={(e) => setHdInterval(Number(e.target.value))}
+                      className="glass-input mt-1 rounded-xl px-3 py-2 text-sm bg-zinc-900 border border-zinc-800 focus:ring-1 focus:ring-emerald-500 outline-none"
+                    >
+                      <option value={15}>Every 15 minutes</option>
+                      <option value={30}>Every 30 minutes</option>
+                      <option value={60}>Every hour</option>
+                      <option value={180}>Every 3 hours</option>
+                      <option value={360}>Every 6 hours</option>
+                      <option value={720}>Every 12 hours</option>
+                      <option value={1440}>Once a day</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-5">
+                    <span className="text-xs text-text-muted">Auto-sync</span>
+                    <button
+                      type="button"
+                      onClick={() => setHdEnabled((v) => !v)}
+                      className={cn(
+                        'relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors',
+                        hdEnabled ? 'bg-emerald-500' : 'bg-zinc-700'
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          'pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out',
+                          hdEnabled ? 'translate-x-4' : 'translate-x-0'
+                        )}
+                      />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={saveHealthDataConfig}
+                  disabled={hdSaving}
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50"
+                >
+                  {hdSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={triggerHealthSync}
+                  disabled={hdSyncing || !hdEndpoint.trim()}
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.04] px-5 py-2.5 text-sm font-medium text-text-primary hover:bg-white/[0.06] disabled:opacity-50"
+                >
+                  {hdSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+                  Sync Now
+                </button>
+              </div>
+            </div>
+
+            {/* Last sync status */}
+            {(hdLastSyncAt || hdLastStatus) && (
+              <div className="glass-card rounded-2xl p-6">
+                <div className="flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-text-muted" />
+                  <h2 className="text-base font-semibold text-text-primary">Last Sync</h2>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {hdLastSyncAt && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-zinc-500">Time</span>
+                      <span className="text-sm text-zinc-300">{new Date(hdLastSyncAt).toLocaleString()}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-zinc-500">Type</span>
+                    <span className="text-sm text-zinc-300">
+                      {hdLastSyncSource === 'auto'
+                        ? 'Auto-sync (interval)'
+                        : hdLastSyncSource === 'manual'
+                          ? 'Manual (Sync Now)'
+                          : 'Unknown (older sync record)'}
+                    </span>
+                  </div>
+                  {hdLastStatus && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-zinc-500">Status</span>
+                      <div className="flex items-center gap-1.5">
+                        {hdLastStatus === 'ok' ? (
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                        ) : (
+                          <AlertCircle className="h-3.5 w-3.5 text-rose-400" />
+                        )}
+                        <span className={cn('text-sm font-medium', hdLastStatus === 'ok' ? 'text-emerald-400' : 'text-rose-400')}>
+                          {hdLastStatus === 'ok' ? 'Success' : 'Error'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  {hdLastStatus === 'error' && hdLastError && (
+                    <p className="text-xs text-rose-400 bg-rose-500/10 rounded-lg px-3 py-2">{hdLastError}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+          </>
+        )}
 
       </div>
     </div>
@@ -1572,14 +2096,25 @@ function TodosSettingsTab() {
 
 export default function SettingsPage() {
   return (
-    <div className="animate-fade-in flex flex-col max-lg:mobile-dash cards-stack-desktop settings-page">
-      <DashboardPageShell
-        title="Settings"
-        subtitle="Profile, targets, API keys & preferences"
-        icon={Settings}
-        mobileVariant="card"
-      />
-      <div className="mobile-fade-up mobile-dash-px lg:px-0 mt-4" style={{ animationDelay: '80ms' }}>
+    <div
+      className="settings-page flex flex-col"
+      style={{
+        height: '100%',
+        paddingTop: 'calc(var(--sat, env(safe-area-inset-top, 0px)) + 0.75rem)',
+      }}
+    >
+      {/* Fixed header — never scrolls */}
+      <div className="shrink-0 px-4 pb-3 sm:px-6 lg:px-6">
+        <DashboardPageShell
+          title="Settings"
+          subtitle="Profile, targets, customizations, API keys, and preferences"
+          icon={Settings}
+          mobileVariant="minimal"
+        />
+      </div>
+
+      {/* Scrollable content */}
+      <div className="hide-scrollbar flex-1 overflow-y-auto px-4 sm:px-6 lg:px-6 pb-[max(3.25rem,calc(var(--sab,env(safe-area-inset-bottom,0px))+2.5rem))] lg:pb-8">
         <Suspense fallback={
           <div className="flex gap-6">
             <div className="hidden w-52 shrink-0 lg:block"><CardSkeleton className="h-64" /></div>

@@ -4,6 +4,7 @@
 // Called by Vercel Cron regularly (every 15 minutes).
 // Dispatches reminder emails based on each user's timezone,
 // schedule preferences, and notification toggles.
+// Time-based reminders are user-configurable; water uses a default 06:00-21:00 window.
 
 import { NextRequest } from 'next/server';
 import connectDB from '@/lib/db';
@@ -24,24 +25,13 @@ const REMINDER_TO_NOTIF: Record<ReminderType, string> = {
   sleep:    'sleep',
 };
 
-const DEFAULT_TIMEZONE = 'Asia/Kolkata';
-const DEFAULT_MEAL_TIMES = {
-  breakfast: '08:00',
-  lunch: '13:00',
-  dinner: '20:00',
-} as const;
-const DEFAULT_SLEEP_TIME = '22:30';
-const DEFAULT_WORKOUT_TIME = '19:00';
-const DEFAULT_WEIGH_IN_TIME = '06:00';
-
-function getSafeTimezone(rawTimezone: string | undefined): string {
-  const timezone = rawTimezone || DEFAULT_TIMEZONE;
+function getValidTimezone(rawTimezone: string | undefined): string | null {
+  if (!rawTimezone) return null;
   try {
-    // Throws RangeError for invalid timezone IDs.
-    Intl.DateTimeFormat('en-US', { timeZone: timezone }).format(new Date());
-    return timezone;
+    Intl.DateTimeFormat('en-US', { timeZone: rawTimezone }).format(new Date());
+    return rawTimezone;
   } catch {
-    return DEFAULT_TIMEZONE;
+    return null;
   }
 }
 
@@ -88,16 +78,27 @@ function isDueInWindow(
   return diff >= 0 && diff < windowMinutes;
 }
 
-function sentInSame30MinWindow(lastSentAt: Date | string | undefined, timezone: string, now: Date): boolean {
+function sentInSameWaterFrequencyWindow(
+  lastSentAt: Date | string | undefined,
+  timezone: string,
+  now: Date,
+  startMinutes: number,
+  frequencyMinutes: number
+): boolean {
   if (!lastSentAt) return false;
   const lastDate = new Date(lastSentAt);
   if (Number.isNaN(lastDate.getTime())) return false;
+
   const lastLocal = getLocalDateTimeParts(lastDate, timezone);
   const nowLocal = getLocalDateTimeParts(now, timezone);
   if (lastLocal.localDate !== nowLocal.localDate) return false;
-  if (lastLocal.hour !== nowLocal.hour) return false;
-  // Same 30-min block: 0–29 = block 0, 30–59 = block 1
-  return Math.floor(lastLocal.minute / 30) === Math.floor(nowLocal.minute / 30);
+
+  const lastTotal = lastLocal.hour * 60 + lastLocal.minute;
+  const nowTotal = nowLocal.hour * 60 + nowLocal.minute;
+  if (lastTotal < startMinutes || nowTotal < startMinutes) return false;
+
+  return Math.floor((lastTotal - startMinutes) / frequencyMinutes)
+    === Math.floor((nowTotal - startMinutes) / frequencyMinutes);
 }
 
 function sameLocalDate(lastSentAt: Date | string | undefined, timezone: string, now: Date): boolean {
@@ -107,6 +108,16 @@ function sameLocalDate(lastSentAt: Date | string | undefined, timezone: string, 
   const lastLocal = getLocalDateTimeParts(lastDate, timezone);
   const nowLocal = getLocalDateTimeParts(now, timezone);
   return lastLocal.localDate === nowLocal.localDate;
+}
+
+function isInMinutesWindow(nowMinutes: number, startMinutes: number, endMinutes: number): boolean {
+  const day = 24 * 60;
+  const start = ((startMinutes % day) + day) % day;
+  const end = ((endMinutes % day) + day) % day;
+  if (start <= end) {
+    return nowMinutes >= start && nowMinutes < end;
+  }
+  return nowMinutes >= start || nowMinutes < end;
 }
 
 function validateCronSecret(req: NextRequest): boolean {
@@ -141,41 +152,85 @@ export async function POST(req: NextRequest) {
   for (const user of users) {
     const userId = String(user._id);
     const settings = (user.settings as Record<string, unknown>) ?? {};
-    const notifications = settings.notifications as
-      Record<string, boolean> | undefined;
+    const notifications = settings.notifications as Record<string, boolean> | undefined;
     const reminderSchedule = (settings.reminderSchedule as Record<string, unknown> | undefined) ?? {};
-    const timezone = getSafeTimezone(reminderSchedule.timezone as string | undefined);
+
+    // Skip users without a configured timezone — no default fallback
+    const timezone = getValidTimezone(reminderSchedule.timezone as string | undefined);
+    if (!timezone) continue;
+
     const localNow = getLocalDateTimeParts(now, timezone);
+    const nowTotalMinutes = localNow.hour * 60 + localNow.minute;
     const lastSentAt = (reminderSchedule.lastSentAt as Record<string, Date | string | undefined> | undefined) ?? {};
 
     const dueReminderTypes: ReminderType[] = [];
     const mealTimes = (reminderSchedule.mealTimes as Record<string, string> | undefined) ?? {};
+    const mealMinuteValues = [mealTimes.breakfast, mealTimes.lunch, mealTimes.dinner]
+      .map((mealTime) => (mealTime ? parseHourMinute(mealTime) : null))
+      .filter((parsed): parsed is { hour: number; minute: number } => Boolean(parsed))
+      .map((parsed) => parsed.hour * 60 + parsed.minute);
 
-    const shouldSendWater = (reminderSchedule.waterHourlyEnabled as boolean | undefined) !== false
-      && (localNow.minute < 15 || (localNow.minute >= 30 && localNow.minute < 45))
-      && !sentInSame30MinWindow(lastSentAt.water, timezone, now);
-    if (shouldSendWater) dueReminderTypes.push('water');
-    if (isDueInWindow(localNow.hour, localNow.minute, mealTimes.breakfast || DEFAULT_MEAL_TIMES.breakfast)
+    // Water: defaults to 06:00–21:00 local time, configurable start/end/frequency
+    const waterConfig = (reminderSchedule.water as Record<string, unknown> | undefined) ?? {};
+    const waterStart = parseHourMinute((waterConfig.startTime as string | undefined) ?? '06:00');
+    const waterEnd = parseHourMinute((waterConfig.endTime as string | undefined) ?? '21:00');
+    const waterStartMinutes = waterStart ? waterStart.hour * 60 + waterStart.minute : 6 * 60;
+    const waterEndMinutes = waterEnd ? waterEnd.hour * 60 + waterEnd.minute : 21 * 60;
+    const rawWaterFrequency = Number(waterConfig.frequencyMinutes ?? 60);
+    const waterFrequency = Number.isInteger(rawWaterFrequency)
+      ? Math.min(240, Math.max(15, rawWaterFrequency))
+      : 60;
+    const waterEnabled = typeof waterConfig.enabled === 'boolean'
+      ? waterConfig.enabled
+      : (reminderSchedule.waterHourlyEnabled as boolean | undefined) !== false;
+    const inWaterWindow = waterEndMinutes > waterStartMinutes
+      && nowTotalMinutes >= waterStartMinutes
+      && nowTotalMinutes < waterEndMinutes;
+    const minutesSinceWaterStart = nowTotalMinutes - waterStartMinutes;
+    const isWaterTick = inWaterWindow && minutesSinceWaterStart >= 0 && minutesSinceWaterStart % waterFrequency < 15;
+    const blockedByMealWindow = mealMinuteValues.some((mealMinutes) =>
+      isInMinutesWindow(nowTotalMinutes, mealMinutes - 30, mealMinutes + 60)
+    );
+    if (
+      waterEnabled
+      && isWaterTick
+      && !blockedByMealWindow
+      && !sentInSameWaterFrequencyWindow(lastSentAt.water, timezone, now, waterStartMinutes, waterFrequency)
+    ) {
+      dueReminderTypes.push('water');
+    }
+
+    // Meal reminders — only if user has configured that time
+    if (mealTimes.breakfast && isDueInWindow(localNow.hour, localNow.minute, mealTimes.breakfast)
       && !sameLocalDate(lastSentAt.breakfast, timezone, now)) {
       dueReminderTypes.push('breakfast');
     }
-    if (isDueInWindow(localNow.hour, localNow.minute, mealTimes.lunch || DEFAULT_MEAL_TIMES.lunch)
+    if (mealTimes.lunch && isDueInWindow(localNow.hour, localNow.minute, mealTimes.lunch)
       && !sameLocalDate(lastSentAt.lunch, timezone, now)) {
       dueReminderTypes.push('lunch');
     }
-    if (isDueInWindow(localNow.hour, localNow.minute, mealTimes.dinner || DEFAULT_MEAL_TIMES.dinner)
+    if (mealTimes.dinner && isDueInWindow(localNow.hour, localNow.minute, mealTimes.dinner)
       && !sameLocalDate(lastSentAt.dinner, timezone, now)) {
       dueReminderTypes.push('dinner');
     }
-    if (isDueInWindow(localNow.hour, localNow.minute, (reminderSchedule.sleepTime as string | undefined) || DEFAULT_SLEEP_TIME)
+
+    // Sleep — only if user has configured sleepTime
+    const sleepTime = reminderSchedule.sleepTime as string | undefined;
+    if (sleepTime && isDueInWindow(localNow.hour, localNow.minute, sleepTime)
       && !sameLocalDate(lastSentAt.sleep, timezone, now)) {
       dueReminderTypes.push('sleep');
     }
-    if (isDueInWindow(localNow.hour, localNow.minute, DEFAULT_WORKOUT_TIME)
+
+    // Workout — only if user has configured workoutTime
+    const workoutTime = reminderSchedule.workoutTime as string | undefined;
+    if (workoutTime && isDueInWindow(localNow.hour, localNow.minute, workoutTime)
       && !sameLocalDate(lastSentAt.workout, timezone, now)) {
       dueReminderTypes.push('workout');
     }
-    if (isDueInWindow(localNow.hour, localNow.minute, DEFAULT_WEIGH_IN_TIME)
+
+    // WeighIn — only if user has configured weighInTime
+    const weighInTime = reminderSchedule.weighInTime as string | undefined;
+    if (weighInTime && isDueInWindow(localNow.hour, localNow.minute, weighInTime)
       && !sameLocalDate(lastSentAt.weighIn, timezone, now)) {
       dueReminderTypes.push('weighIn');
     }
