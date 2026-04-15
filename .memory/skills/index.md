@@ -1,5 +1,11 @@
 # Skills
 
+## Meta-skills (always present)
+
+| Skill | File | Purpose |
+|-------|------|---------|
+| Agent Naming | `skills/agent-naming.md` | Rule for naming agent folders with human first names |
+
 ## Technology Stack
 
 | Skill | Version | Skill File | Used By |
