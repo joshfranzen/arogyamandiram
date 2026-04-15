@@ -286,14 +286,9 @@ Each tool reads its own instruction file:
 | Tool | File |
 |------|------|
 | Claude Code | `CLAUDE.md` |
-| Codex / OpenAI Agents | `AGENTS.md` *(cross-tool open standard)* |
+| Codex / OpenAI Agents | `AGENTS.md` |
 | Cursor | `.cursorrules` |
-| Gemini CLI | `GEMINI.md` |
 | GitHub Copilot | `.github/copilot-instructions.md` |
-| Cline | `.clinerules` |
-| Windsurf / Conventions | `CONVENTIONS.md` |
-| Zed / .rules | `.rules` |
-| Continue | `.continuerules` |
 
 All files point to the same `.memory/` system — no duplication.
 

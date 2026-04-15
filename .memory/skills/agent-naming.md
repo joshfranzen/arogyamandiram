@@ -1,35 +1,57 @@
-# Agent Naming
+# Skill: Agent Naming
 
-## The Rule
+How to name agents when you create or rename them in `.memory/agents/`.
 
-Every agent folder is named after a real human first name.
-The **role** (devops, fullstack, frontend, QA, data, etc.) lives inside `persona.md` — **not** in the folder name.
+## The rule
 
-- Folder names: lowercase ASCII (e.g. `agents/priya/`, `agents/kevin/`)
-- First names in docs: title case (e.g. "Priya", "Kevin")
+**Every agent folder is named after a real human first name.** The folder name is the *person*. The *role* (devops, nextjs full-stack, backend, QA, data, mobile, infra, etc.) lives inside `persona.md`, not in the folder name.
 
-## Why
+- Folder name: lowercase, ASCII, single word — e.g. `agents/kevin/`
+- Inside `persona.md`: `# Kevin — DevOps Engineer` followed by what he owns
+- Inside `skills.md`: the technologies this person is responsible for
 
-Role-named folders become stale when responsibilities shift. A person's name stays stable even as their role evolves.
+## Why human names
 
-## How to Add a New Agent
+- Ownership feels real. "Ask Kevin about the deployment setup" is more memorable than "ask devops-agent".
+- Names survive role changes. If the DevOps work expands into infra + CI, Kevin keeps the folder; his skills list grows.
+- No duplication. Two agents can't both be `backend`, but Kevin and Priya can clearly split backend work.
 
-1. Pick an unused name from the seed pool below (or any real human first name)
-2. Create `agents/<firstname>/` with `persona.md` and `skills.md`
-3. Open `persona.md` with heading `# <Firstname> — <Role Title>`
-4. Add the agent to `agents/index.md` and `manager/manager.md`
+## How to pick a name
 
-## Seed Pool (~40 names, diverse cultures worldwide)
+1. Draw from a diverse pool spanning cultures — American, Indian, European, African, East Asian, Middle Eastern, Latin American. Worldwide, not regional.
+2. Names must be distinct within the team — never reuse a name already in `agents/`.
+3. Prefer common, easy-to-pronounce first names. Skip surnames, nicknames, and anything ambiguous with a technology (`Django`, `Ruby`).
+4. Use `agents/<lowercase>/` for the folder and `Firstname` (title case) inside docs.
 
-| | | | | |
-|---|---|---|---|---|
-| Kevin | Priya | Mateo | Hiroshi | Aaliyah |
-| Kofi | Fatima | Chen | Ingrid | Rania |
-| Luca | Amara | Soren | Yuki | Tariq |
-| Nadia | Finn | Zara | Emeka | Leila |
-| Marco | Ananya | Tobias | Chidi | Saoirse |
-| Rafael | Mei | Anders | Adaeze | Isla |
-| Kwame | Sofía | Arjun | Miriam | Björn |
-| Camille | Dayo | Elin | Rohan | Astrid |
+## Seed name pool
 
-> These are suggestions. Any real human first name works.
+Pick any name from here, or any other real human first name. This is a suggestion, not a whitelist.
+
+```
+Aaliyah   Adaeze   Aditi    Aisha    Anders
+Ananya    Anya     Arjun    Astrid   Björn
+Camille   Carlos   Chen     Chiara   Chidi
+Daniel    Dayo     Diego    Elena    Elin
+Emeka     Fatima   Finn     Hiroshi  Ingrid
+Ivan      Isla     Jamal    Kenji    Kevin
+Kofi      Kwame    Leila    Luca     Marco
+Mateo     Matthew  Mei      Miriam   Nadia
+Noah      Olumide  Omar     Priya    Rafael
+Raj       Rania    Rashid   Rohan    Sakura
+Santiago  Saoirse  Sofía    Soren    Sven
+Tariq     Tobias   Yara     Yuki     Zainab
+Zara
+```
+
+## Example
+
+The project has a Next.js frontend, a MongoDB backend, and Vercel-based deploys. After reading the codebase you decide you need three agents:
+
+```
+agents/
+  priya/    # persona.md → "Priya — Next.js Fullstack Engineer"
+  mateo/    # persona.md → "Mateo — UI Frontend Engineer"
+  kevin/    # persona.md → "Kevin — DevOps Engineer"
+```
+
+Each `persona.md` states the role. Each `skills.md` lists the technologies and files that person owns. The manager's team roster and task router reference them by name: "Route deployment questions to Kevin."
