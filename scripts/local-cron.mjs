@@ -6,9 +6,12 @@
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { makeLogger } from './logger.mjs';
 
-const log = makeLogger('cron');
+const log = {
+  info:  (m) => console.log(m),
+  warn:  (m) => console.warn(m),
+  error: (m) => console.error(m),
+};
 
 function loadEnv() {
   try {
