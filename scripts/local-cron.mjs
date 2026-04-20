@@ -2,10 +2,13 @@
 // scripts/local-cron.mjs — Local cron simulator
 // ============================================
 // Fires local cron endpoints every 15 minutes.
-// Run alongside `next dev` via `npm run dev` (concurrently).
+// Run alongside `next dev` via `npm run dev`.
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { makeLogger } from './logger.mjs';
+
+const log = makeLogger('cron');
 
 function loadEnv() {
   try {
@@ -29,7 +32,7 @@ const BASE = `http://localhost:${PORT}`;
 const SECRET = process.env.CRON_SECRET ?? '';
 
 if (!SECRET) {
-  console.warn('CRON_SECRET not found — requests will be rejected with 401');
+  log.warn('CRON_SECRET not found — requests will be rejected with 401');
 }
 
 async function runCron(path) {
@@ -45,16 +48,15 @@ async function runCron(path) {
       (usersFound ?? usersScanned) != null && `users=${usersFound ?? usersScanned}`,
       errors?.length && `errors=${errors.length}`,
     ].filter(Boolean).join(' ');
-    console.log(`${path} → ${info || 'ok'}`);
-    if (errors?.length) console.warn('errors:', errors);
+    log.info(`${path} → ${info || 'ok'}`);
+    if (errors?.length) log.warn(`errors: ${JSON.stringify(errors)}`);
   } catch (err) {
-    console.error(`[cron] ${path} failed:`, err.message);
+    log.error(`${path} failed: ${err.message}`);
   }
 }
 
 async function tick() {
-  const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-  console.log(`tick at ${now}`);
+  log.info('cron tick');
   await runCron('/api/cron/sync-health-data');
   await runCron('/api/cron/send-reminders');
   await runCron('/api/cron/process-email-replies');
@@ -62,7 +64,7 @@ async function tick() {
 
 const INTERVAL_MS = 15 * 60 * 1000; // every 15 minutes, same as Vercel
 
-console.log('Local cron runner started — first tick in 10s, then every 15 min');
+log.info('local cron runner started — first tick in 10s, then every 15 min');
 setTimeout(async () => {
   await tick();
   setInterval(tick, INTERVAL_MS);

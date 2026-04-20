@@ -6,7 +6,7 @@
     "node": ">=20.19.0"
   },
   "scripts": {
-    "dev": "concurrently --kill-others --names \"next,cron\" --prefix-colors \"cyan,yellow\" \"DOTENV_CONFIG_PATH=.env.local NODE_OPTIONS='--require dotenv/config' next dev\" \"node scripts/local-cron.mjs\"",
+    "dev": "node scripts/dev.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
