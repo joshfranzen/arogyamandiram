@@ -29,6 +29,7 @@ const DEFAULT_TARGETS: UserTargets = {
   dailyWorkoutMinutes: 30,
   dailyCalorieBurn: 400,
   sleepHours: 8,
+  dailySteps: 8000,
 };
 
 function createEmptyStreaks(): UserStreaks {
@@ -41,6 +42,7 @@ function createEmptyStreaks(): UserStreaks {
       workout: 0,
       sleep: 0,
       weight: 0,
+      steps: 0,
     },
     best: {
       logging: 0,
@@ -50,6 +52,7 @@ function createEmptyStreaks(): UserStreaks {
       workout: 0,
       sleep: 0,
       weight: 0,
+      steps: 0,
     },
     starts: {},
   };
@@ -89,6 +92,13 @@ function isWorkoutSuccess(log: IDailyLog, targets: UserTargets): boolean {
 
 function isWeightSuccess(log: IDailyLog): boolean {
   return typeof log.weight === 'number';
+}
+
+function isStepsSuccess(log: IDailyLog, targets: UserTargets): boolean {
+  const steps = log.steps ?? 0;
+  if (steps <= 0) return false; // no device data — don't penalize
+  const goal = targets.dailySteps && targets.dailySteps > 0 ? targets.dailySteps : 8000;
+  return steps >= goal;
 }
 
 function isPerfectDay(log: IDailyLog, targets: UserTargets): boolean {
@@ -162,6 +172,7 @@ export async function calculateStreaks(
   let keepWorkout = true;
   let keepSleep = true;
   let keepWeight = true;
+  let keepSteps = true;
 
   // Track the first calendar day included in the *current* streak run
   // for each habit so the UI can say "Streak started Feb 12".
@@ -172,10 +183,11 @@ export async function calculateStreaks(
   let startWorkout: string | undefined;
   let startSleep: string | undefined;
   let startWeight: string | undefined;
+  let startSteps: string | undefined;
 
   // 24-hour grace: "today" never breaks the streak — user has until end of day.
   // Streak only breaks *tomorrow* if they didn't complete today (see e.g. Duolingo, Snapchat).
-  while (keepLogging || keepHealthy || keepCalories || keepWater || keepWorkout || keepSleep || keepWeight) {
+  while (keepLogging || keepHealthy || keepCalories || keepWater || keepWorkout || keepSleep || keepWeight || keepSteps) {
     const dateKey = formatISO(currentDate, { representation: 'date' });
     const log = byDate.get(dateKey);
     const isToday = isSameDay(currentDate, today);
@@ -195,6 +207,7 @@ export async function calculateStreaks(
     const sleepSuccess = isSleepSuccess(log, targets);
     const workoutSuccess = isWorkoutSuccess(log, targets);
     const weightSuccess = isWeightSuccess(log);
+    const stepsSuccess = isStepsSuccess(log, targets);
 
     const healthySuccess =
       caloriesSuccess || waterSuccess || sleepSuccess || workoutSuccess || weightSuccess;
@@ -208,6 +221,7 @@ export async function calculateStreaks(
     const effectiveWorkoutOk = workoutSuccess || isToday;
     const effectiveSleepOk = sleepSuccess || isToday;
     const effectiveWeightOk = weightSuccess || isToday;
+    const effectiveStepsOk = stepsSuccess || isToday;
 
     if (keepLogging && healthySuccess) {
       streaks.current.logging += 1;
@@ -258,6 +272,13 @@ export async function calculateStreaks(
       keepWeight = false;
     }
 
+    if (keepSteps && stepsSuccess) {
+      streaks.current.steps = (streaks.current.steps ?? 0) + 1;
+      startSteps = dateKey;
+    } else if (!effectiveStepsOk) {
+      keepSteps = false;
+    }
+
     currentDate = subDays(currentDate, 1);
     if (currentDate < fromDate) break;
   }
@@ -270,6 +291,7 @@ export async function calculateStreaks(
   let runWorkout = 0;
   let runSleep = 0;
   let runWeight = 0;
+  let runSteps = 0;
 
   for (const log of logs) {
     const caloriesSuccess = isCalorieSuccess(log, targets);
@@ -277,6 +299,7 @@ export async function calculateStreaks(
     const sleepSuccess = isSleepSuccess(log, targets);
     const workoutSuccess = isWorkoutSuccess(log, targets);
     const weightSuccess = isWeightSuccess(log);
+    const stepsSuccess = isStepsSuccess(log, targets);
 
     const healthySuccess =
       caloriesSuccess || waterSuccess || sleepSuccess || workoutSuccess || weightSuccess;
@@ -289,6 +312,7 @@ export async function calculateStreaks(
     runWorkout = workoutSuccess ? runWorkout + 1 : 0;
     runSleep = sleepSuccess ? runSleep + 1 : 0;
     runWeight = weightSuccess ? runWeight + 1 : 0;
+    runSteps = stepsSuccess ? runSteps + 1 : 0;
 
     streaks.best.logging = Math.max(streaks.best.logging, runLogging);
     streaks.best.healthy = Math.max(streaks.best.healthy, runHealthy);
@@ -297,6 +321,7 @@ export async function calculateStreaks(
     streaks.best.workout = Math.max(streaks.best.workout, runWorkout);
     streaks.best.sleep = Math.max(streaks.best.sleep, runSleep);
     streaks.best.weight = Math.max(streaks.best.weight, runWeight);
+    streaks.best.steps = Math.max(streaks.best.steps ?? 0, runSteps);
   }
 
   // Attach optional start dates only when the streak is non-zero.
@@ -308,6 +333,7 @@ export async function calculateStreaks(
     workout: streaks.current.workout > 0 ? startWorkout : undefined,
     sleep: streaks.current.sleep > 0 ? startSleep : undefined,
     weight: streaks.current.weight > 0 ? startWeight : undefined,
+    steps: (streaks.current.steps ?? 0) > 0 ? startSteps : undefined,
   };
 
   return streaks;

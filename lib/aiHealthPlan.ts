@@ -133,6 +133,8 @@ export function clampTargets(
     dailyWorkoutMinutes: Math.max(15, Math.min(120, Number(raw.dailyWorkoutMinutes) || 30)),
     dailyCalorieBurn: Math.max(100, Math.min(1000, Number(raw.dailyCalorieBurn) || 400)),
     sleepHours: Math.max(6, Math.min(10, Number(raw.sleepHours) || 8)),
+    dailySteps: Math.max(3000, Math.min(20000, Number(raw.dailySteps) || 8000)),
+    idealDistance: Math.round(Math.max(1, Math.min(20, Number(raw.idealDistance) || 5)) * 10) / 10,
   };
 }
 
@@ -147,7 +149,9 @@ const SYSTEM_PROMPT = `You are a certified nutritionist and fitness expert for A
     "idealWeight": number (kg, actual body weight target in kilograms, NOT BMI),
     "dailyWorkoutMinutes": number (15-120, recommended daily exercise duration),
     "dailyCalorieBurn": number (kcal to burn via exercise per day, 100-1000),
-    "sleepHours": number (6-10, recommended sleep)
+    "sleepHours": number (6-10, recommended sleep),
+    "dailySteps": number (steps/day, 5000-15000, based on activity level and goal),
+    "idealDistance": number (km/day, 2-15, recommended walking or running distance)
   },
   "explanations": {
     "idealWeight": "one short sentence with the computed kg value",
@@ -157,6 +161,8 @@ const SYSTEM_PROMPT = `You are a certified nutritionist and fitness expert for A
     "fat": "one short sentence with rationale",
     "dailyWorkoutMinutes": "one short sentence with rationale",
     "sleepHours": "one short sentence with rationale",
+    "dailySteps": "one short sentence with rationale",
+    "idealDistance": "one short sentence with rationale",
     "note": "one short personalized coaching note"
   }
 }
@@ -165,7 +171,7 @@ For idealWeight:
 - choose a healthy BMI (18.5-24.9), then convert to kg as weight_kg = BMI * (height_m)^2
 - return actual weight in kilograms, not BMI value
 - example: height 170cm, BMI 22 => 22 * 1.70^2 = 63.6 kg
-For water consider weight and activity. For calories use TDEE-based estimate for their goal (lose/maintain/gain). For workout minutes and calorie burn align with WHO guidelines and their goal. All numbers must be integers except idealWeight (one decimal).`;
+For water consider weight and activity. For calories use TDEE-based estimate for their goal (lose/maintain/gain). For workout minutes and calorie burn align with WHO guidelines and their goal. For dailySteps: sedentary=5000-7000, moderate=8000-10000, active=10000-15000. For idealDistance: correlate with step count (roughly 1km per 1300 steps). All numbers must be integers except idealWeight and idealDistance (one decimal).`;
 
 export interface GenerateHealthPlanResult {
   targets: UserTargets;

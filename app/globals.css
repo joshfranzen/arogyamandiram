@@ -194,6 +194,7 @@ body {
     grid-template-rows: 1fr;
     gap: 12px;
     grid-column: 1 / -1;
+    grid-row: 2;
     transition: grid-template-columns 300ms ease;
   }
   @media (min-width: 1024px) and (max-width: 1279px) {
@@ -529,6 +530,13 @@ body {
     background: rgba(255, 255, 255, 0.03);
     min-height: 0;
   }
+  .bento-all-stats .stat-mini-card {
+    background: linear-gradient(160deg, #111712 0%, #0c1410 100%);
+  }
+  .bento-all-stats .stat-mini-card:hover {
+    background: linear-gradient(160deg, #111712 0%, #0c1410 100%);
+    transform: none;
+  }
   .stat-mini-card:hover {
     background: rgba(255, 255, 255, 0.05);
     transform: translateY(-1px);
@@ -698,10 +706,11 @@ body {
     margin-top: auto;
   }
   .bento-streaks {
-    grid-column: span 2;
+    grid-column: 1 / -1;
+    grid-row: 1;
   }
   .streak-card {
-    @apply rounded-2xl px-5 py-5;
+    @apply rounded-2xl px-6 py-4;
   }
   .streak-card.card-glow {
     background: linear-gradient(160deg, #111712 0%, #0c1410 100%);
@@ -710,7 +719,7 @@ body {
     @apply font-heading text-2xl font-semibold tracking-tight text-text-primary;
   }
   .sdot {
-    @apply flex h-9 w-9 flex-1 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.04] text-[11px] font-semibold text-text-muted;
+    @apply flex w-9 h-9 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.04] text-[11px] font-semibold text-text-muted;
   }
   .sdot-today {
     border-color: rgba(16, 185, 129, 0.6);

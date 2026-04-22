@@ -167,6 +167,8 @@ export interface UserTargets {
   dailyWorkoutMinutes: number;  // recommended daily exercise duration
   dailyCalorieBurn: number;     // recommended daily calories to burn via exercise
   sleepHours: number;    // recommended sleep hours
+  dailySteps?: number;      // daily step goal (default 8000)
+  idealDistance?: number;   // km/day walking or running target
 }
 
 export interface UserStreaks {
@@ -178,6 +180,7 @@ export interface UserStreaks {
     workout: number;    // consecutive days with a workout (meeting burn threshold)
     sleep: number;      // consecutive days meeting sleep target
     weight: number;     // consecutive days logging weight
+    steps?: number;     // consecutive days meeting daily step goal
   };
   best: {
     logging: number;
@@ -187,6 +190,7 @@ export interface UserStreaks {
     workout: number;    // longest run of days meeting workout burn threshold
     sleep: number;
     weight: number;
+    steps?: number;     // longest run of days meeting daily step goal
   };
   /**
    * Optional start dates (ISO YYYY-MM-DD) for the *current* streak run
@@ -201,6 +205,7 @@ export interface UserStreaks {
     workout?: string;
     sleep?: string;
     weight?: string;
+    steps?: string;
   };
 }
 
@@ -231,8 +236,10 @@ export interface UserAchievements {
 export interface IUser {
   _id: Types.ObjectId;
   username?: string;
-  email: string;
-  password: string;
+  email?: string;
+  password?: string;
+  isGuest?: boolean;
+  guestFingerprint?: string;
   profile: UserProfile;
   apiKeys: UserApiKeys;
   settings: UserSettings;
@@ -387,7 +394,8 @@ export interface ApiResponse<T = unknown> {
 export interface SafeUser {
   id: string;
   username?: string;
-  email: string;
+  email?: string;
+  isGuest?: boolean;
   profile: UserProfile;
   settings: UserSettings;
   targets: UserTargets;

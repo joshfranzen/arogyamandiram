@@ -13,10 +13,11 @@ interface Toast {
 }
 
 let toastListeners: ((toast: Toast) => void)[] = [];
+let toastCounter = 0;
 
 export function showToast(message: string, type: ToastType = 'info') {
   const toast: Toast = {
-    id: Date.now().toString(),
+    id: `${Date.now()}-${++toastCounter}`,
     message,
     type,
   };
