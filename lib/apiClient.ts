@@ -376,6 +376,17 @@ export const api = {
       today:   { date: string; heartRate?: number; steps?: number; activeCalories?: number; distanceKm?: number } | null;
       days: number;
     }>(`/health-metrics?days=${days}`),
+
+  getAiHealthCheck: () =>
+    apiFetch<{
+      heartRate: { value: number | null; status: 'healthy' | 'low' | 'high' | 'unknown'; message: string };
+      steps: { value: number | null; goal: number; achieved: boolean; pct: number; message: string };
+      activeCalories: { value: number | null; goal: number; achieved: boolean; message: string };
+      distance: { value: number | null; avgKm7d: number | null; message: string };
+      overallScore: number;
+      summary: string;
+      tips: string[];
+    }>('/ai/health-check'),
 };
 
 export default api;

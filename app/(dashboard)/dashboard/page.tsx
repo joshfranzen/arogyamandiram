@@ -21,7 +21,8 @@ import { BadgeCard } from '@/components/achievements/BadgeCard';
 import { BadgeDetailModal } from '@/components/achievements/BadgeDetailModal';
 import { StreakCard as AchievementStreakCard } from '@/components/achievements/StreakCard';
 import StatMini from '@/components/ui/StatMini';
-import { Droplets, Flame, Moon, Utensils } from 'lucide-react';
+import { Droplets, Flame, Moon, Utensils, HeartPulse, Footprints, MapPin, Activity } from 'lucide-react';
+import api from '@/lib/apiClient';
 import type { UserBadge, UserStreaks } from '@/types';
 
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -43,7 +44,22 @@ export default function DashboardPage() {
   const { log, loading: logLoading } = useDailyLog();
   const { achievements } = useAchievements();
   const [mounted, setMounted] = useState(false);
+  const [healthMetrics, setHealthMetrics] = useState<{
+    heartRate?: number;
+    steps?: number;
+    activeCalories?: number;
+    distanceKm?: number;
+  } | null>(null);
+
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    api.getHealthMetricsHistory(1).then((res) => {
+      if (res.success && res.data?.today) {
+        setHealthMetrics(res.data.today);
+      }
+    }).catch(() => {});
+  }, []);
 
 
   const loading = userLoading || logLoading || !mounted;
@@ -119,6 +135,15 @@ export default function DashboardPage() {
 
         {/* Bento grid */}
         <div className="bento-grid">
+          {/* Streaks — pinned to top */}
+          <div className="bento-streaks">
+            <StreakCard
+              streaks={achievements?.streaks}
+              displayDayIndex={displayDayIndex}
+              loggingStreak={loggingStreak}
+            />
+          </div>
+
           {/* Ring + 4 stat cards in 2x2 */}
           <div className="bento-ring-stats">
             {/* Calorie ring spans 2 rows */}
@@ -172,66 +197,90 @@ export default function DashboardPage() {
             />
           </div>
 
-          {/* Water, Burn, Meals, Sleep — stat cards (each with section shade) */}
-          <div className="bento-stats-cards">
-            <div className="stat-card-water">
-              <StatMini
-                icon={<Droplets className="h-6 w-6 text-text-secondary" strokeWidth={1.8} />}
-                value={formatWater(log?.waterIntake || 0)}
-                label="Water"
-                sub="2.5 L target"
-                valueColor="text-accent-cyan"
-                labelClassName="text-text-secondary"
-                iconBg=""
-                compact
-              />
-            </div>
-            <div className="stat-card-burned">
-              <StatMini
-                icon={<Flame className="h-6 w-6 text-text-secondary" strokeWidth={1.8} />}
-                value={formatNumber(Math.round(burned))}
-                label="Burned"
-                sub={`${log?.workouts?.length || 0} workouts`}
-                valueColor="text-accent-rose"
-                labelClassName="text-text-secondary"
-                iconBg=""
-                compact
-              />
-            </div>
-            <div className="stat-card-meals">
-              <StatMini
-                icon={<Utensils className="h-6 w-6 text-text-secondary" strokeWidth={1.8} />}
-                value={String(meals.length)}
-                label="Meals"
-                sub={`${formatNumber(Math.round(totalCal))} kcal`}
-                valueColor="text-accent-amber"
-                labelClassName="text-text-secondary"
-                iconBg=""
-                compact
-              />
-            </div>
-            <div className="stat-card-sleep">
-              <StatMini
-                icon={<Moon className="h-6 w-6 text-text-secondary" strokeWidth={1.8} />}
-                value={log?.sleep ? `${log.sleep.duration.toFixed(1)}h` : '—'}
-                label="Sleep"
-                sub={log?.sleep ? `${log.sleep.quality}/5 quality` : '8h target'}
-                valueColor="text-accent-violet"
-                labelClassName="text-text-secondary"
-                iconBg=""
-                compact
-              />
-            </div>
-          </div>
-
-          {/* Streaks */}
-          <div className="bento-streaks">
-            <StreakCard
-              streaks={achievements?.streaks}
-              displayDayIndex={displayDayIndex}
-              loggingStreak={loggingStreak}
+          {/* All 8 stats in 4x2 grid */}
+          <div className="bento-all-stats col-span-full grid grid-cols-4 gap-3">
+            <StatMini
+              icon={<Droplets className="h-6 w-6 text-text-secondary" strokeWidth={1.8} />}
+              value={formatWater(log?.waterIntake || 0)}
+              label="Water"
+              sub="2.5 L target"
+              valueColor="text-accent-cyan"
+              labelClassName="text-text-secondary"
+              iconBg=""
+              compact
+            />
+            <StatMini
+              icon={<Flame className="h-6 w-6 text-text-secondary" strokeWidth={1.8} />}
+              value={formatNumber(Math.round(burned))}
+              label="Burned"
+              sub={`${log?.workouts?.length || 0} workouts`}
+              valueColor="text-accent-rose"
+              labelClassName="text-text-secondary"
+              iconBg=""
+              compact
+            />
+            <StatMini
+              icon={<Utensils className="h-6 w-6 text-text-secondary" strokeWidth={1.8} />}
+              value={String(meals.length)}
+              label="Meals"
+              sub={`${formatNumber(Math.round(totalCal))} kcal`}
+              valueColor="text-accent-amber"
+              labelClassName="text-text-secondary"
+              iconBg=""
+              compact
+            />
+            <StatMini
+              icon={<Moon className="h-6 w-6 text-text-secondary" strokeWidth={1.8} />}
+              value={log?.sleep ? `${log.sleep.duration.toFixed(1)}h` : '—'}
+              label="Sleep"
+              sub={log?.sleep ? `${log.sleep.quality}/5 quality` : '8h target'}
+              valueColor="text-accent-violet"
+              labelClassName="text-text-secondary"
+              iconBg=""
+              compact
+            />
+            <StatMini
+              icon={<Footprints className="h-6 w-6 text-text-secondary" strokeWidth={1.8} />}
+              value={healthMetrics?.steps != null ? formatNumber(healthMetrics.steps) : '—'}
+              label="Steps"
+              sub={healthMetrics?.steps != null ? `of ${formatNumber(targets.dailySteps ?? 8000)} goal` : 'No device data'}
+              valueColor="text-accent-emerald"
+              labelClassName="text-text-secondary"
+              iconBg=""
+              compact
+            />
+            <StatMini
+              icon={<HeartPulse className="h-6 w-6 text-text-secondary" strokeWidth={1.8} />}
+              value={healthMetrics?.heartRate != null ? String(healthMetrics.heartRate) : '—'}
+              label="Heart Rate"
+              sub={healthMetrics?.heartRate != null ? 'bpm' : 'No device data'}
+              valueColor="text-accent-rose"
+              labelClassName="text-text-secondary"
+              iconBg=""
+              compact
+            />
+            <StatMini
+              icon={<Activity className="h-6 w-6 text-text-secondary" strokeWidth={1.8} />}
+              value={healthMetrics?.activeCalories != null ? formatNumber(healthMetrics.activeCalories) : '—'}
+              label="Active Cal"
+              sub={healthMetrics?.activeCalories != null ? 'kcal burned' : 'No device data'}
+              valueColor="text-accent-amber"
+              labelClassName="text-text-secondary"
+              iconBg=""
+              compact
+            />
+            <StatMini
+              icon={<MapPin className="h-6 w-6 text-text-secondary" strokeWidth={1.8} />}
+              value={healthMetrics?.distanceKm != null ? `${healthMetrics.distanceKm.toFixed(1)}` : '—'}
+              label="Distance"
+              sub={healthMetrics?.distanceKm != null ? `of ${targets.idealDistance ?? 5} km goal` : 'No device data'}
+              valueColor="text-accent-cyan"
+              labelClassName="text-text-secondary"
+              iconBg=""
+              compact
             />
           </div>
+
         </div>
       </div>
 
@@ -301,6 +350,15 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Active Streaks – top of feed */}
+        <div className={cn('mobile-fade-up mobile-dash-px')} style={{ animationDelay: '60ms' }}>
+          <StreakCard
+            streaks={achievements?.streaks}
+            displayDayIndex={displayDayIndex}
+            loggingStreak={loggingStreak}
+          />
         </div>
 
         {/* Calorie ring card */}
@@ -407,19 +465,65 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* Wearable metrics 2x2 – mobile */}
+        <div className={cn('mobile-fade-up mobile-dash-px')} style={{ animationDelay: '200ms' }}>
+          <div className="m-stats-grid">
+            <div className="stat-card-water">
+              <StatMini
+                icon={<Footprints className="h-8 w-8 text-text-secondary" strokeWidth={1.8} />}
+                value={healthMetrics?.steps != null ? formatNumber(healthMetrics.steps) : '—'}
+                label="Steps"
+                sub={healthMetrics?.steps != null ? `of ${formatNumber(targets.dailySteps ?? 8000)}` : 'No data'}
+                valueColor="text-accent-emerald"
+                labelClassName="text-text-secondary"
+                iconBg=""
+                stackLabel
+              />
+            </div>
+            <div className="stat-card-burned">
+              <StatMini
+                icon={<HeartPulse className="h-8 w-8 text-text-secondary" strokeWidth={1.8} />}
+                value={healthMetrics?.heartRate != null ? String(healthMetrics.heartRate) : '—'}
+                label="Heart Rate"
+                sub={healthMetrics?.heartRate != null ? 'bpm' : 'No data'}
+                valueColor="text-accent-rose"
+                labelClassName="text-text-secondary"
+                iconBg=""
+                stackLabel
+              />
+            </div>
+            <div className="stat-card-meals">
+              <StatMini
+                icon={<Activity className="h-8 w-8 text-text-secondary" strokeWidth={1.8} />}
+                value={healthMetrics?.activeCalories != null ? formatNumber(healthMetrics.activeCalories) : '—'}
+                label="Active Cal"
+                sub={healthMetrics?.activeCalories != null ? 'kcal' : 'No data'}
+                valueColor="text-accent-amber"
+                labelClassName="text-text-secondary"
+                iconBg=""
+                stackLabel
+              />
+            </div>
+            <div className="stat-card-sleep">
+              <StatMini
+                icon={<MapPin className="h-8 w-8 text-text-secondary" strokeWidth={1.8} />}
+                value={healthMetrics?.distanceKm != null ? `${healthMetrics.distanceKm.toFixed(1)}km` : '—'}
+                label="Distance"
+                sub={healthMetrics?.distanceKm != null ? `of ${targets.idealDistance ?? 5} km` : 'No data'}
+                valueColor="text-accent-cyan"
+                labelClassName="text-text-secondary"
+                iconBg=""
+                stackLabel
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Recent Badges – same 5 BadgeCards as desktop/achievements */}
         <div className={cn('mobile-fade-up mobile-dash-px')} style={{ animationDelay: '240ms' }}>
           <RecentBadges earnedBadges={earnedBadges} />
         </div>
 
-        {/* Active Streaks – same StreakCard as desktop */}
-        <div className={cn('mobile-fade-up mobile-dash-px')} style={{ animationDelay: '320ms' }}>
-          <StreakCard
-            streaks={achievements?.streaks}
-            displayDayIndex={displayDayIndex}
-            loggingStreak={loggingStreak}
-          />
-        </div>
       </div>
     </div>
   );
@@ -645,20 +749,27 @@ function StreakCard({
   const daysToSeven = Math.max(1, 7 - loggingStreak);
 
   return (
-    <div className="streak-card card-glow">
-      <p className="mb-3 text-[11px] font-medium uppercase tracking-wider text-text-muted">
-        Active Streaks
-      </p>
-      {activeItems.length === 0 ? (
-        <div className="mb-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-4 text-center">
-          <p className="text-sm font-medium text-text-secondary">No active streaks</p>
-          <p className="mt-1 text-[11px] text-text-muted">Log today to start one.</p>
-        </div>
-      ) : (
-        <div className="mb-2.5 px-1">
-          <div className="flex gap-3 overflow-x-auto pb-1 hide-scrollbar">
+    <div className="streak-card card-glow flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
+      {/* Label + hint — full width on mobile, fixed-width on desktop */}
+      <div className="sm:shrink-0 sm:w-[220px]">
+        <p className="text-[11px] font-medium uppercase tracking-wider text-text-muted mb-1">
+          Active Streaks
+        </p>
+        <p className="text-[12px] text-text-muted leading-relaxed">
+          {loggingStreak >= 7
+            ? 'Keep your streak alive to climb badge tiers.'
+            : `${daysToSeven} day${daysToSeven === 1 ? '' : 's'} to your first 7-day badge.`}
+        </p>
+      </div>
+
+      {/* Streak items or empty state — fixed height so card never changes size */}
+      <div className="flex-1 min-w-0 h-16 sm:h-14 flex items-center overflow-hidden">
+        {activeItems.length === 0 ? (
+          <p className="text-sm text-text-muted/60 italic">Log today to start a streak.</p>
+        ) : (
+          <div className="flex gap-3 overflow-x-auto hide-scrollbar w-full h-full items-center">
             {activeItems.map((item) => (
-              <div key={item.key} className="w-[165px] shrink-0 sm:w-[175px] lg:w-[175px]">
+              <div key={item.key} className="w-[140px] sm:w-[160px] shrink-0 h-full">
                 <AchievementStreakCard
                   label={item.label}
                   current={s.current[item.key]}
@@ -667,14 +778,11 @@ function StreakCard({
               </div>
             ))}
           </div>
-        </div>
-      )}
-      <p className="mb-3 text-xs text-text-muted leading-relaxed">
-        {loggingStreak >= 7
-          ? 'Keep your active-day streak alive to climb to the next badge tier.'
-          : `Just ${daysToSeven} active day${daysToSeven === 1 ? '' : 's'} away from your first 7-day streak badge.`}
-      </p>
-      <div className="flex gap-1.5">
+        )}
+      </div>
+
+      {/* Day dots — full-width row on mobile, shrunk column on desktop */}
+      <div className="flex gap-1.5 sm:shrink-0">
         {DAY_LABELS.map((lbl, i) => (
           <div key={i} className={`sdot ${i === displayDayIndex ? 'sdot-today' : ''}`}>
             {lbl}

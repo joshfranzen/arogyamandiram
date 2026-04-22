@@ -127,29 +127,37 @@ export async function runHealthDataSync(input: {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
 
-    const res = await fetch(endpoint, {
-      method: 'GET',
-      headers,
-      signal: AbortSignal.timeout(15_000),
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15_000);
+    let res: Response;
+    try {
+      res = await fetch(endpoint, { method: 'GET', headers, signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+    }
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
-      return {
-        ok: false,
-        schema: {},
-        rowCount: 0,
-        syncActions,
-        error: `HTTP ${res.status}: ${errText.slice(0, 200) || 'Health endpoint request failed'}`,
-      };
+      const detail = `HTTP ${res.status} from ${endpoint}: ${errText.slice(0, 200) || 'Health endpoint request failed'}`;
+      console.error('[healthDataSync] HTTP error:', detail);
+      return { ok: false, schema: {}, rowCount: 0, syncActions, error: detail };
     }
     rawData = await res.json();
   } catch (err) {
+    const base = err instanceof Error ? err.message : String(err);
+    const cause = err instanceof Error && (err as NodeJS.ErrnoException & { cause?: unknown }).cause;
+    const causeMsg = cause instanceof Error
+      ? ` — cause: ${cause.message}`
+      : cause
+        ? ` — cause: ${String(cause)}`
+        : '';
+    const detail = `${base}${causeMsg} [endpoint: ${endpoint}]`;
+    console.error('[healthDataSync] fetch error:', detail);
     return {
       ok: false,
       schema: {},
       rowCount: 0,
       syncActions,
-      error: err instanceof Error ? err.message.slice(0, 200) : String(err).slice(0, 200),
+      error: detail.slice(0, 400),
     };
   }
 
@@ -170,14 +178,21 @@ export async function runHealthDataSync(input: {
     : toDateKey(new Date(), input.timezone);
   let mutatedLog = false;
 
-  const sleepHours = typeof record.sleepHours === 'number' ? record.sleepHours : null;
+  // New schema: record.sleep.totalHours / .bedtime / .wake
+  const sleepBlock = record.sleep && typeof record.sleep === 'object' ? record.sleep as Record<string, unknown> : null;
+  const sleepHours = sleepBlock && typeof sleepBlock.totalHours === 'number' ? sleepBlock.totalHours : null;
   if (sleepHours !== null && sleepHours > 0 && sleepHours <= 24) {
     try {
-      const wakeRef = recordDateStr ? new Date(recordDateStr) : new Date();
-      const safeWakeRef = Number.isNaN(wakeRef.getTime()) ? new Date() : wakeRef;
-      const wakeTime = to24hTime(safeWakeRef);
-      const bedDate = new Date(safeWakeRef.getTime() - sleepHours * 60 * 60 * 1000);
-      const bedtime = to24hTime(bedDate);
+      const rawBedtime = typeof sleepBlock?.bedtime === 'string' ? sleepBlock.bedtime : null;
+      const rawWake = typeof sleepBlock?.wake === 'string' ? sleepBlock.wake : null;
+      const wakeDate = rawWake ? new Date(rawWake) : null;
+      const bedDate = rawBedtime ? new Date(rawBedtime) : null;
+      const safeWake = wakeDate && !Number.isNaN(wakeDate.getTime()) ? wakeDate : new Date();
+      const safeBed = bedDate && !Number.isNaN(bedDate.getTime())
+        ? bedDate
+        : new Date(safeWake.getTime() - sleepHours * 60 * 60 * 1000);
+      const wakeTime = to24hTime(safeWake);
+      const bedtime = to24hTime(safeBed);
       await DailyLog.findOneAndUpdate(
         { userId: input.userId, date: logDate },
         {
@@ -187,9 +202,9 @@ export async function runHealthDataSync(input: {
         { new: true, upsert: true }
       );
       mutatedLog = true;
-      syncActions.push({ field: 'sleepHours', status: 'logged', detail: `${sleepHours}h sleep logged` });
+      syncActions.push({ field: 'sleep', status: 'logged', detail: `${sleepHours}h sleep logged (bed ${bedtime} → wake ${wakeTime})` });
     } catch (err) {
-      syncActions.push({ field: 'sleepHours', status: 'error', detail: err instanceof Error ? err.message : String(err) });
+      syncActions.push({ field: 'sleep', status: 'error', detail: err instanceof Error ? err.message : String(err) });
     }
   }
 
@@ -236,11 +251,15 @@ export async function runHealthDataSync(input: {
     }
   }
 
+  // New schema: record.heart.avgBpm / record.activity.{steps,activeCalories,distanceKm}
+  const heartBlock = record.heart && typeof record.heart === 'object' ? record.heart as Record<string, unknown> : null;
+  const activityBlock = record.activity && typeof record.activity === 'object' ? record.activity as Record<string, unknown> : null;
+
   const metricsUpdate: Record<string, number> = {};
-  if (typeof record.heartRate === 'number') metricsUpdate.heartRate = record.heartRate;
-  if (typeof record.steps === 'number') metricsUpdate.steps = record.steps;
-  if (typeof record.calories === 'number') metricsUpdate.activeCalories = record.calories;
-  if (typeof record.distanceKm === 'number') metricsUpdate.distanceKm = record.distanceKm;
+  if (heartBlock && typeof heartBlock.avgBpm === 'number') metricsUpdate.heartRate = heartBlock.avgBpm;
+  if (activityBlock && typeof activityBlock.steps === 'number') metricsUpdate.steps = activityBlock.steps;
+  if (activityBlock && typeof activityBlock.activeCalories === 'number') metricsUpdate.activeCalories = activityBlock.activeCalories;
+  if (activityBlock && typeof activityBlock.distanceKm === 'number') metricsUpdate.distanceKm = activityBlock.distanceKm;
   if (Object.keys(metricsUpdate).length > 0) {
     try {
       await DailyLog.findOneAndUpdate(

@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
     };
 
     const userName = (user.profile as Record<string, unknown>)?.name as string || '';
-    const toEmail = user.email as string;
+    const toEmail = (user.email as string | undefined) ?? '';
     const settings = (user.settings as Record<string, unknown>) ?? {};
     const recipientEmails = ((settings.recipientEmails as string[] | undefined)
       ?? (settings.ccEmails as string[] | undefined)
