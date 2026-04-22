@@ -81,7 +81,7 @@ async function buildUserContext(userId: string, targetDate: string) {
   const targets = user.targets as {
     dailyCalories?: number; dailyWater?: number; protein?: number; carbs?: number;
     fat?: number; idealWeight?: number; dailyWorkoutMinutes?: number;
-    dailyCalorieBurn?: number; sleepHours?: number;
+    dailyCalorieBurn?: number; sleepHours?: number; dailySteps?: number;
   };
 
   const age = profile.dateOfBirth
@@ -107,6 +107,7 @@ async function buildUserContext(userId: string, targetDate: string) {
     date: string; totalCalories?: number; totalProtein?: number; totalCarbs?: number;
     totalFat?: number; waterIntake?: number; weight?: number; caloriesBurned?: number;
     workouts?: { duration?: number }[]; sleep?: { duration?: number; quality?: number };
+    heartRate?: number; steps?: number; activeCalories?: number; distanceKm?: number;
   }[];
 
   const todayPlan = await DailyPlan.findOne({ userId, date: getToday() }).lean() as {
@@ -144,18 +145,25 @@ async function buildUserContext(userId: string, targetDate: string) {
     `Goal: ${profile.goal ?? '—'}, target weight ${profile.targetWeight ?? '—'}kg, activity ${profile.activityLevel ?? '—'}.`,
     `Body composition: type ${profile.bodyType ?? '—'}, body fat ${profile.bodyFat != null ? profile.bodyFat + '%' : '—'}, fitness ${fitnessLevel}, focus areas: ${profile.fatFocusAreas?.join(', ') || '—'}.`,
     `Daily targets: ${targets.dailyCalories ?? 2000} kcal, protein ${targets.protein ?? 150}g, carbs ${targets.carbs ?? 200}g, fat ${targets.fat ?? 67}g, water ${targets.dailyWater ?? 2500}ml.`,
-    `Extended targets: ideal weight ${targets.idealWeight ?? '—'}kg, workout ${targets.dailyWorkoutMinutes ?? 30} min/day, burn ${targets.dailyCalorieBurn ?? 400} kcal/day, sleep ${targets.sleepHours ?? 8}h.`,
+    `Extended targets: ideal weight ${targets.idealWeight ?? '—'}kg, workout ${targets.dailyWorkoutMinutes ?? 30} min/day, burn ${targets.dailyCalorieBurn ?? 400} kcal/day, sleep ${targets.sleepHours ?? 8}h, steps ${targets.dailySteps ?? 8000}/day.`,
   ].join('\n');
 
   const recentContext = recentLogs.length > 0
-    ? `Recent 7 days: ${JSON.stringify(recentLogs.map(l => ({
-        d: l.date,
-        cal: Number(l.totalCalories) || 0,
-        p: Number(l.totalProtein) || 0,
-        w: Number(l.waterIntake) || 0,
-        wm: Array.isArray(l.workouts) ? l.workouts.reduce((s, w) => s + (Number(w?.duration) || 0), 0) : 0,
-        s: l.sleep ? { dur: Number(l.sleep.duration) || 0, q: Number(l.sleep.quality) || 0 } : undefined,
-      })))}`
+    ? `Recent 7 days: ${JSON.stringify(recentLogs.map(l => {
+        const row: Record<string, unknown> = {
+          d: l.date,
+          cal: Number(l.totalCalories) || 0,
+          p: Number(l.totalProtein) || 0,
+          w: Number(l.waterIntake) || 0,
+          wm: Array.isArray(l.workouts) ? l.workouts.reduce((s, w) => s + (Number(w?.duration) || 0), 0) : 0,
+        };
+        if (l.sleep) row.s = { dur: Number(l.sleep.duration) || 0, q: Number(l.sleep.quality) || 0 };
+        if (l.heartRate != null && l.heartRate > 0) row.hr = l.heartRate;
+        if (l.steps != null && l.steps > 0) row.st = l.steps;
+        if (l.activeCalories != null && l.activeCalories > 0) row.ac = l.activeCalories;
+        if (l.distanceKm != null && l.distanceKm > 0) row.dk = Number(l.distanceKm.toFixed(2));
+        return row;
+      }))}`
     : 'No recent tracking data.';
 
   const yesterdayContext = yesterdayLog
@@ -233,32 +241,112 @@ Rules: Suggest 4-6 foods across meal types. Match the user's goals, preferences,
 }
 
 async function generateWorkoutPlan(ctx: Awaited<ReturnType<typeof buildUserContext>>, apiKey: string) {
-  const system = `You are an elite AI fitness coach for Arogyamandiram. Generate ONLY a workout plan.
+  const system = `
+  You are an elite performance-based fitness coach AI. Your job is to design
+a safe, scientifically grounded, personalized workout STRUCTURE for one user.
 
-Respond with this exact JSON:
+You do NOT compute calories. A downstream validator computes kcal from the
+(MET, durationMinutes, weight) you provide. Your only responsibilities are:
+  1. Choose exercises appropriate to the user's profile and goals.
+  2. Assign each exercise a MET value from the reference table.
+  3. Assign each exercise a durationMinutes value.
+  4. Ensure the plan's weighted-average MET meets the required threshold.
+
+=========================
+USER CONTEXT (dynamic — from backend)
+=========================
+- age: {{age}}
+- gender: {{gender}}
+- weight_kg: {{weight_kg}}
+- height_cm: {{height_cm}}
+- body_fat_pct: {{body_fat_pct}}
+- body_type: {{body_type}}              // ectomorph | mesomorph | endomorph
+- fitness_level: {{fitness_level}}      // beginner | intermediate | advanced
+- primary_goal: {{primary_goal}}        // fat_loss | maintain | muscle_gain | endurance
+- focus_areas: {{focus_areas}}          // e.g. ["belly","hips","chest"]
+- equipment: {{equipment}}              // e.g. ["bodyweight","dumbbells","jump_rope"]
+- injuries_or_limits: {{injuries}}      // e.g. ["knee_sensitive"] or []
+- target_workout_minutes: {{target_minutes}}
+- target_kcal_burn: {{target_kcal}}
+- recent_activity_summary: {{recent_activity}}   // last 7 days avg HR, steps, sleep
+
+=========================
+DERIVED TARGETS (compute mentally, don't output arithmetic)
+=========================
+- required_avg_MET = target_kcal_burn / weight_kg
+  (because MET × weight × 1h = kcal, so for a 1h session avg MET must equal kcal/weight)
+- If target_workout_minutes ≠ 60, scale:
+  required_avg_MET = target_kcal_burn / (weight_kg × target_minutes/60)
+
+Your plan's weighted-average MET MUST be within [required_avg_MET × 0.98,
+required_avg_MET × 1.08]. If you cannot reach it safely given the user's
+fitness level and injuries, lower it and flag "target_unrealistic": true.
+
+=========================
+MET REFERENCE (use these; do not invent)
+=========================
+static_stretch_or_slow_walk: 2.0 – 2.5
+dynamic_warmup_or_mobility: 3.0 – 3.5
+light_resistance_or_yoga_flow: 3.5 – 4.5
+bodyweight_strength_moderate: 5.5 – 6.5
+loaded_strength_or_lunges: 6.0 – 7.0
+steady_cardio_jog_cycle: 7.0 – 8.0
+burpees_mountain_climbers_sustained: 8.5 – 9.5
+jump_rope_fast_or_hiit_intervals: 10.0 – 11.5
+sprint_or_all_out_circuit: 11.5 – 12.5
+
+=========================
+STRUCTURAL RULES
+=========================
+- Sum of durationMinutes MUST equal target_workout_minutes (exactly).
+- No single exercise block may exceed 6 minutes. Break long blocks into
+  named circuit rounds (e.g., "Strength Circuit Round 1", "Round 2").
+- Required phases (scale proportionally if target_minutes ≠ 60):
+  * Warm-up: 8–13% of total, MET ≤ 3.5
+  * Main block: 50–60% of total, mix of strength and metabolic circuits
+  * HIIT finisher: 20–28% of total, weighted-avg MET ≥ 9
+  * Cool-down: 8–12% of total, MET ≤ 2.5
+- Respect injuries_or_limits: omit contraindicated movements entirely.
+- Adapt to body_type and primary_goal:
+  * endomorph + fat_loss → higher metabolic density, longer HIIT
+  * ectomorph + muscle_gain → longer strength blocks, shorter HIIT
+  * beginner → cap MET at 9, add 5-sec form cues per exercise
+  * advanced → allow MET 11+ in finisher
+- Respect focus_areas: at least 40% of main-block minutes should train them.
+
+=========================
+WHAT YOU DO NOT DO
+=========================
+- Do NOT output any kcal fields.
+- Do NOT output avgMET (backend computes it).
+- Do NOT do arithmetic in prose or reasoning fields.
+- Do NOT claim to hit a calorie target — the validator decides.
+- Do NOT output text outside the JSON object.
+
+=========================
+OUTPUT SCHEMA (JSON only)
+=========================
 {
   "workoutPlan": {
-    "name": "string",
-    "description": "string",
-    "progressionTip": "string",
+    "name": "<concise, specific to user goal>",
+    "description": "<one sentence, non-numeric>",
+    "progressionTip": "<one actionable sentence for next session>",
     "exercises": [
       {
-        "name": "string",
-        "sets": number,
-        "reps": "string",
-        "durationMinutes": number,
-        "restSeconds": number,
-        "intensity": "low"|"medium"|"high",
-        "category": "cardio"|"strength"|"flexibility"|"sports"
+        "name": "<exercise or circuit name>",
+        "phase": "warmup | main | finisher | cooldown",
+        "durationMinutes": <integer>,
+        "MET": <number from reference table>,
+        "targets": ["<muscle or system>", ...],
+        "form_cue": "<one short coaching cue>"
       }
     ],
-    "estimatedCalories": number,
-    "durationMinutes": number,
-    "reasoning": "1-2 sentences explaining WHY this workout plan"
+    "durationMinutes": <integer, equals sum of exercises[].durationMinutes>,
+    "target_unrealistic": <boolean>,
+    "adaptation_notes": "<one sentence: how this plan is tailored to THIS user>"
   }
 }
-
-Rules: Balanced session (warm-up → main → cool-down), duration close to target. Adjust intensity based on difficulty feedback.`;
+  `;
 
   const userPrompt = [ctx.profileContext, ctx.recentContext, ctx.difficultyNote, `Plan date: ${ctx.targetDate}`].filter(Boolean).join('\n');
   const ai = await callOpenAI(apiKey, system, userPrompt);
@@ -478,22 +566,6 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({})) as { type?: string };
     const type = (['food', 'workout', 'overview'].includes(body.type ?? '') ? body.type : 'full') as
       'food' | 'workout' | 'overview' | 'full';
-
-    // Rate limit: max 3 manual regenerations per day, per section type
-    const existing = await DailyPlan.findOne({ userId, date: today }).lean() as {
-      regenerationCount?: number;
-      regenerationCounts?: { food?: number; workout?: number; overview?: number; full?: number };
-      status?: string;
-    } | null;
-
-    const legacyCount = existing?.regenerationCount ?? 0;
-    const counts = existing?.regenerationCounts ?? {};
-    const bucketCount =
-      (type === 'full' ? (counts.full ?? legacyCount) : (counts[type] ?? 0));
-    if (existing && bucketCount >= 3) {
-      const sectionLabel = type === 'full' ? 'full plan' : `${type} plan`;
-      return errorResponse(`You've regenerated your ${sectionLabel} 3 times today. Try again tomorrow.`, 429);
-    }
 
     await DailyPlan.findOneAndUpdate(
       { userId, date: today },

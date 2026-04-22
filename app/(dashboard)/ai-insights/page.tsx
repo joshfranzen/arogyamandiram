@@ -476,6 +476,7 @@ export default function TodaysPlanPage() {
   };
 
   const hasFeedbackChanges = dislikedFoods.length > 0 || workoutDifficulty !== null || skippedWorkoutReason !== null;
+  const isAnyGenerating = Object.values(generatingMap).some(Boolean);
 
   // Computed values
   const hour = typeof window !== 'undefined' ? new Date().getHours() : 12;
@@ -604,7 +605,7 @@ export default function TodaysPlanPage() {
                 {hasApiKey && (plan?.topInsight || plan?.prediction) && (
                   <button
                     onClick={() => handleGenerateNow('overview')}
-                    disabled={generatingMap.overview}
+                    disabled={isAnyGenerating}
                     className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors disabled:opacity-50"
                   >
                     {generatingMap.overview ? (
@@ -753,7 +754,7 @@ export default function TodaysPlanPage() {
                   {hasApiKey && (
                     <button
                       onClick={() => handleGenerateNow('overview')}
-                      disabled={generatingMap.overview}
+                      disabled={isAnyGenerating}
                       className="mt-2 inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50"
                     >
                       {generatingMap.overview ? (
@@ -798,7 +799,7 @@ export default function TodaysPlanPage() {
               {hasApiKey && (
                 <button
                   onClick={() => handleGenerateNow('food')}
-                  disabled={generatingMap.food}
+                  disabled={isAnyGenerating}
                   className="mt-2 inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50"
                 >
                   {generatingMap.food ? (
@@ -832,7 +833,7 @@ export default function TodaysPlanPage() {
               {hasApiKey && (
                 <button
                   onClick={() => handleGenerateNow('food')}
-                  disabled={generatingMap.food}
+                  disabled={isAnyGenerating}
                   className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors disabled:opacity-50"
                 >
                   {generatingMap.food ? (
@@ -912,7 +913,7 @@ export default function TodaysPlanPage() {
               {hasApiKey && (
                 <button
                   onClick={() => handleGenerateNow('workout')}
-                  disabled={generatingMap.workout}
+                  disabled={isAnyGenerating}
                   className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors disabled:opacity-50"
                 >
                   {generatingMap.workout ? (
@@ -1067,7 +1068,7 @@ export default function TodaysPlanPage() {
               {hasApiKey && (
                 <button
                   onClick={() => handleGenerateNow('workout')}
-                  disabled={generatingMap.workout}
+                  disabled={isAnyGenerating}
                   className="mt-2 inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50"
                 >
                   {generatingMap.workout ? <Loader2 className="h-4 w-4 animate-spin text-black" /> : <Sparkles className="h-4 w-4 text-black" />}

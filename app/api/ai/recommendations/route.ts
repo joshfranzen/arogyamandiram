@@ -139,7 +139,7 @@ export async function POST(req: NextRequest) {
           `Daily targets: ${targets.dailyCalories} kcal, protein ${targets.protein}g, carbs ${targets.carbs}g, fat ${targets.fat}g, water ${targets.dailyWater}ml.`
         );
         base.push(
-          `Extended targets: ideal weight ${targets.idealWeight ?? '—'}kg, workout ${targets.dailyWorkoutMinutes ?? '—'} min/day, burn ${targets.dailyCalorieBurn ?? '—'} kcal/day, sleep ${targets.sleepHours ?? '—'}h.`
+          `Extended targets: ideal weight ${targets.idealWeight ?? '—'}kg, workout ${targets.dailyWorkoutMinutes ?? '—'} min/day, burn ${targets.dailyCalorieBurn ?? '—'} kcal/day, sleep ${targets.sleepHours ?? '—'}h, steps ${(targets as { dailySteps?: number }).dailySteps ?? 8000}/day.`
         );
         base.push(
           `Body composition: type ${profile.bodyType ?? '—'}, body fat ${profile.bodyFat != null ? profile.bodyFat + '%' : '—'}, fitness level ${profile.fitnessLevelDerived ?? profile.fitnessLevelUser ?? '—'}, focus areas: ${profile.fatFocusAreas?.join(', ') ?? '—'}.`
@@ -160,6 +160,10 @@ export async function POST(req: NextRequest) {
       caloriesBurned?: number;
       workouts?: { duration?: number }[];
       sleep?: { duration?: number; quality?: number; bedtime?: string; wakeTime?: string };
+      heartRate?: number;
+      steps?: number;
+      activeCalories?: number;
+      distanceKm?: number;
     };
     const buildLogContext = (logs: LogWithSleep[], label: string) =>
       logs.length > 0
@@ -194,6 +198,11 @@ export async function POST(req: NextRequest) {
                     q: Number(l.sleep.quality) || undefined,
                   };
                 }
+                // Device health metrics
+                if (l.heartRate != null && l.heartRate > 0) row.hr = l.heartRate;
+                if (l.steps != null && l.steps > 0) row.st = l.steps;
+                if (l.activeCalories != null && l.activeCalories > 0) row.ac = l.activeCalories;
+                if (l.distanceKm != null && l.distanceKm > 0) row.dk = Number(l.distanceKm.toFixed(2));
                 return row;
               })(),
             }))

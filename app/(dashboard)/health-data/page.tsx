@@ -1,13 +1,19 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Activity, HeartPulse, Footprints, Flame, MapPin, RotateCcw, Loader2 } from 'lucide-react';
+import {
+  Activity, HeartPulse, Footprints, Flame, MapPin,
+  RotateCcw, Loader2,
+} from 'lucide-react';
 import DashboardPageShell from '@/components/layout/DashboardPageShell';
 import MetricChart from '@/components/ui/MetricChart';
 import StatCard from '@/components/ui/StatCard';
 import { CardSkeleton } from '@/components/ui/Skeleton';
 import { showToast } from '@/components/ui/Toast';
+import { useUser } from '@/hooks/useUser';
+import { useAchievements } from '@/hooks/useAchievements';
 import api from '@/lib/apiClient';
+import type { UserTargets } from '@/types';
 
 interface HealthMetricsEntry {
   date: string;
@@ -17,11 +23,45 @@ interface HealthMetricsEntry {
   distanceKm?:     number;
 }
 
+
+function TargetTile({ icon, label, value, unit }: { icon: React.ReactNode; label: string; value: string; unit: string }) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl bg-white/[0.03] px-4 py-3">
+      <div className="shrink-0">{icon}</div>
+      <div>
+        <p className="text-[10px] text-text-muted">{label}</p>
+        <p className="text-sm font-semibold text-text-primary">
+          {value} <span className="text-[10px] font-normal text-text-muted">{unit}</span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function GoalBar({ value, goal, color }: { value: number; goal: number; color: string }) {
+  const pct = Math.min(100, Math.round((value / goal) * 100));
+  return (
+    <div className="mt-1.5 w-full">
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+        <div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{ width: `${pct}%` }} />
+      </div>
+      <p className="mt-0.5 text-[10px] text-text-muted">{value.toLocaleString()} / {goal.toLocaleString()}</p>
+    </div>
+  );
+}
+
+
 export default function HealthDataPage() {
-  const [history, setHistory]     = useState<HealthMetricsEntry[]>([]);
-  const [today,   setToday]       = useState<HealthMetricsEntry | null>(null);
-  const [loading, setLoading]     = useState(true);
-  const [syncing, setSyncing]     = useState(false);
+  const { user } = useUser();
+  const { achievements } = useAchievements();
+  const targets: Partial<UserTargets> = (user?.targets as Partial<UserTargets>) ?? {};
+  const stepsStreak = achievements?.streaks?.current?.steps ?? 0;
+  const stepsStreakBest = achievements?.streaks?.best?.steps ?? 0;
+
+  const [history, setHistory]   = useState<HealthMetricsEntry[]>([]);
+  const [today,   setToday]     = useState<HealthMetricsEntry | null>(null);
+  const [loading, setLoading]   = useState(true);
+  const [syncing, setSyncing]   = useState(false);
   const [configured, setConfigured] = useState(false);
 
   const fetchMetrics = useCallback(async () => {
@@ -78,6 +118,10 @@ export default function HealthDataPage() {
       .filter((e) => e[field] != null)
       .map((e) => ({ date: e.date, value: e[field] as number }));
 
+  const stepGoal     = targets.dailySteps     ?? 8000;
+  const calBurnGoal  = targets.dailyCalorieBurn ?? 400;
+  const distanceGoal = targets.idealDistance   ?? 5;
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -85,14 +129,14 @@ export default function HealthDataPage() {
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => <CardSkeleton key={i} />)}
         </div>
+        <CardSkeleton className="h-48" />
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-          {[...Array(4)].map((_, i) => <CardSkeleton key={i} className="h-64" />)}
+          {[...Array(4)].map((_, i) => <CardSkeleton key={i} className="h-[250px]" />)}
         </div>
       </div>
     );
   }
 
-  // Only show charts when at least one metric field has real data
   const hasData = history.some(
     (e) => e.heartRate != null || e.steps != null || e.activeCalories != null || e.distanceKm != null
   );
@@ -131,6 +175,8 @@ export default function HealthDataPage() {
       {/* Today's stat cards */}
       <div className="mobile-fade-up mobile-dash-px lg:px-0" style={{ animationDelay: '80ms' }}>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+
+          {/* Heart Rate */}
           <StatCard
             icon={HeartPulse}
             label="Heart Rate"
@@ -138,27 +184,86 @@ export default function HealthDataPage() {
             subtitle="Today"
             iconColor="text-accent-rose"
           />
-          <StatCard
-            icon={Footprints}
-            label="Steps"
-            value={today?.steps != null ? today.steps.toLocaleString() : '—'}
-            subtitle="Today"
-            iconColor="text-accent-emerald"
-          />
-          <StatCard
-            icon={Flame}
-            label="Active Cal"
-            value={today?.activeCalories != null ? `${today.activeCalories} kcal` : '—'}
-            subtitle="Today"
-            iconColor="text-accent-amber"
-          />
-          <StatCard
-            icon={MapPin}
-            label="Distance"
-            value={today?.distanceKm != null ? `${today.distanceKm.toFixed(2)} km` : '—'}
-            subtitle="Today"
-            iconColor="text-accent-cyan"
-          />
+
+          {/* Steps — with goal bar and streak */}
+          <div className="dashboard-unified-card rounded-2xl border p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs font-medium text-text-muted">Steps</p>
+                <p className="mt-1 text-xl font-bold text-text-primary">
+                  {today?.steps != null ? today.steps.toLocaleString() : '—'}
+                </p>
+              </div>
+              <Footprints className="h-5 w-5 text-accent-emerald" />
+            </div>
+            {today?.steps != null && (
+              <GoalBar value={today.steps} goal={stepGoal} color="bg-accent-emerald" />
+            )}
+            {today?.steps == null && (
+              <p className="mt-1.5 text-[10px] text-text-muted">Goal: {stepGoal.toLocaleString()} steps</p>
+            )}
+            {stepsStreak > 0 && (
+              <div className="mt-1.5 flex items-center gap-1">
+                <Footprints className="h-3 w-3 text-accent-emerald" />
+                <p className="text-[10px] font-medium text-accent-emerald">
+                  {stepsStreak}d streak{stepsStreakBest > stepsStreak ? ` · best ${stepsStreakBest}d` : ''}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Active Calories — with goal bar */}
+          <div className="dashboard-unified-card rounded-2xl border p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs font-medium text-text-muted">Active Cal</p>
+                <p className="mt-1 text-xl font-bold text-text-primary">
+                  {today?.activeCalories != null ? `${today.activeCalories} kcal` : '—'}
+                </p>
+              </div>
+              <Flame className="h-5 w-5 text-accent-amber" />
+            </div>
+            {today?.activeCalories != null && (
+              <GoalBar value={today.activeCalories} goal={calBurnGoal} color="bg-accent-amber" />
+            )}
+            {today?.activeCalories == null && (
+              <p className="mt-1.5 text-[10px] text-text-muted">Goal: {calBurnGoal} kcal</p>
+            )}
+          </div>
+
+          {/* Distance — with goal bar */}
+          <div className="dashboard-unified-card rounded-2xl border p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs font-medium text-text-muted">Distance</p>
+                <p className="mt-1 text-xl font-bold text-text-primary">
+                  {today?.distanceKm != null ? `${today.distanceKm.toFixed(2)} km` : '—'}
+                </p>
+              </div>
+              <MapPin className="h-5 w-5 text-accent-cyan" />
+            </div>
+            {today?.distanceKm != null && (
+              <GoalBar value={today.distanceKm} goal={distanceGoal} color="bg-accent-cyan" />
+            )}
+            {today?.distanceKm == null && (
+              <p className="mt-1.5 text-[10px] text-text-muted">Goal: {distanceGoal} km</p>
+            )}
+          </div>
+
+        </div>
+      </div>
+
+
+      {/* Your Targets */}
+      <div className="mobile-fade-up mobile-dash-px lg:px-0" style={{ animationDelay: '120ms' }}>
+        <div className="dashboard-unified-card rounded-2xl border p-5">
+          <p className="mb-4 text-[11px] font-medium uppercase tracking-wider text-text-muted">Your Targets</p>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <TargetTile icon={<Footprints className="h-4 w-4 text-accent-emerald" />} label="Daily Steps" value={(targets.dailySteps ?? 8000).toLocaleString()} unit="steps" />
+            <TargetTile icon={<MapPin className="h-4 w-4 text-accent-cyan" />} label="Distance" value={String(targets.idealDistance ?? 5)} unit="km / day" />
+            <TargetTile icon={<Flame className="h-4 w-4 text-accent-amber" />} label="Active Burn" value={String(targets.dailyCalorieBurn ?? 400)} unit="kcal / day" />
+            <TargetTile icon={<Activity className="h-4 w-4 text-accent-violet" />} label="Workout" value={String(targets.dailyWorkoutMinutes ?? 30)} unit="min / day" />
+          </div>
         </div>
       </div>
 
@@ -216,6 +321,7 @@ export default function HealthDataPage() {
           </div>
         </div>
       )}
+
     </div>
   );
 }

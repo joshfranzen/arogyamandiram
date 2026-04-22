@@ -16,6 +16,7 @@ const EMPTY_STREAKS: UserStreaks = {
     workout: 0,
     sleep: 0,
     weight: 0,
+    steps: 0,
   },
   best: {
     logging: 0,
@@ -25,6 +26,7 @@ const EMPTY_STREAKS: UserStreaks = {
     workout: 0,
     sleep: 0,
     weight: 0,
+    steps: 0,
   },
 };
 
@@ -38,9 +40,10 @@ export function StreakBar({ streaks }: StreakBarProps) {
     { key: 'weight' as const, label: 'Weight' },
     { key: 'workout' as const, label: 'Workouts' },
     { key: 'sleep' as const, label: 'Sleep' },
+    { key: 'steps' as const, label: 'Steps' },
   ];
 
-  const activeItems = items.filter((item) => s.current[item.key] > 0);
+  const activeItems = items.filter((item) => (s.current[item.key] ?? 0) > 0);
 
   return (
     <div className="glass-card flex flex-col gap-3 rounded-2xl p-4 sm:gap-2 sm:p-3">
@@ -61,7 +64,7 @@ export function StreakBar({ streaks }: StreakBarProps) {
               key={item.key}
               className="shrink-0 w-[165px] sm:w-[175px] lg:w-[175px]"
             >
-              <StreakCard label={item.label} current={s.current[item.key]} best={s.best[item.key]} />
+              <StreakCard label={item.label} current={s.current[item.key] ?? 0} best={s.best[item.key] ?? 0} />
             </div>
           ))}
         </div>

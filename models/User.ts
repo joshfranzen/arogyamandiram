@@ -195,6 +195,8 @@ const UserSchema = new Schema<IUserDocument>(
       dailyWorkoutMinutes: { type: Number, default: 30 },
       dailyCalorieBurn: { type: Number, default: 400 },
       sleepHours: { type: Number, default: 8 },
+      dailySteps: { type: Number, default: 8000 },
+      idealDistance: { type: Number, default: 5 },  // km/day
     },
     achievements: {
       badges: {
@@ -223,6 +225,7 @@ const UserSchema = new Schema<IUserDocument>(
           workout: { type: Number, default: 0 },
           sleep: { type: Number, default: 0 },
           weight: { type: Number, default: 0 },
+          steps: { type: Number, default: 0 },
         },
         best: {
           logging: { type: Number, default: 0 },
@@ -232,6 +235,7 @@ const UserSchema = new Schema<IUserDocument>(
           workout: { type: Number, default: 0 },
           sleep: { type: Number, default: 0 },
           weight: { type: Number, default: 0 },
+          steps: { type: Number, default: 0 },
         },
       },
       xpTotal: { type: Number, default: 0, min: 0 },

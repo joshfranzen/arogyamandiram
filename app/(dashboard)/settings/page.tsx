@@ -124,6 +124,8 @@ function SettingsInner() {
   const [protein, setProtein] = useState('');
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
+  const [dailySteps, setDailySteps] = useState('');
+  const [idealDistance, setIdealDistance] = useState('');
 
   // ── Customizations state ───────────────────────────────────────────────────
   const [customizationsSaving, setCustomizationsSaving] = useState(false);
@@ -230,6 +232,8 @@ function SettingsInner() {
       setProtein(t.protein?.toString() || '');
       setCarbs(t.carbs?.toString() || '');
       setFat(t.fat?.toString() || '');
+      setDailySteps((t as { dailySteps?: number }).dailySteps?.toString() || '8000');
+      setIdealDistance((t as { idealDistance?: number }).idealDistance?.toString() || '5');
     }
 
     // Preferences
@@ -400,6 +404,8 @@ function SettingsInner() {
       const res = await api.updateTargets({
         dailyCalories: parseInt(dailyCalories), dailyWater: parseInt(dailyWater),
         protein: parseInt(protein), carbs: parseInt(carbs), fat: parseInt(fat),
+        dailySteps: parseInt(dailySteps) || 8000,
+        idealDistance: parseFloat(idealDistance) || 5,
       });
       if (res.success) { showToast('Targets updated', 'success'); refetch(); }
       else showToast(res.error || 'Failed to save', 'error');
@@ -421,6 +427,8 @@ function SettingsInner() {
           setProtein(String(t.protein ?? ''));
           setCarbs(String(t.carbs ?? ''));
           setFat(String(t.fat ?? ''));
+          if (t.dailySteps) setDailySteps(String(t.dailySteps));
+          if (t.idealDistance) setIdealDistance(String(t.idealDistance));
         }
       } else showToast(res.error || 'Failed to recalculate', 'error');
     } catch { showToast('Failed to recalculate targets', 'error'); }
@@ -1074,6 +1082,8 @@ function SettingsInner() {
                         { label: 'Workout (min/day)', value: String(formulaTargets.dailyWorkoutMinutes) },
                         { label: 'Calorie burn', value: `${formulaTargets.dailyCalorieBurn} kcal` },
                         { label: 'Sleep target', value: `${formulaTargets.sleepHours} h` },
+                        { label: 'Daily steps', value: `${(formulaTargets.dailySteps ?? 8000).toLocaleString()}` },
+                        { label: 'Distance / day', value: `${formulaTargets.idealDistance ?? 5} km` },
                       ].map((r) => (
                         <div key={r.label} className="rounded-xl bg-white/[0.03] p-3">
                           <span className="text-xs text-text-muted">{r.label}</span>
@@ -1107,6 +1117,16 @@ function SettingsInner() {
                   <div className="sm:col-span-2">
                     <label className="text-xs font-medium text-text-muted">Fat (g)</label>
                     <input type="number" value={fat} onChange={(e) => setFat(e.target.value)}
+                      className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-text-muted">Daily Steps</label>
+                    <input type="number" value={dailySteps} onChange={(e) => setDailySteps(e.target.value)}
+                      className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-text-muted">Distance / day (km)</label>
+                    <input type="number" step="0.1" value={idealDistance} onChange={(e) => setIdealDistance(e.target.value)}
                       className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm" />
                   </div>
                 </div>
