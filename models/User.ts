@@ -26,8 +26,9 @@ const UserSchema = new Schema<IUserDocument>(
     },
     email: {
       type: String,
-      required: [true, 'Email is required'],
+      required: false,
       unique: true,
+      sparse: true, // allow multiple guests with no email
       lowercase: true,
       trim: true,
       index: true,
@@ -35,7 +36,7 @@ const UserSchema = new Schema<IUserDocument>(
     },
     password: {
       type: String,
-      required: [true, 'Password is required'],
+      required: false,
       minlength: [8, 'Password must be at least 8 characters'],
       select: false, // Never returned in queries by default
     },
@@ -241,13 +242,21 @@ const UserSchema = new Schema<IUserDocument>(
       xpTotal: { type: Number, default: 0, min: 0 },
     },
     onboardingComplete: { type: Boolean, default: false },
+    isGuest: { type: Boolean, default: false, index: true },
+    guestFingerprint: {
+      type: String,
+      default: undefined,
+      unique: true,
+      sparse: true,
+      select: false,
+    },
   },
   {
     timestamps: true,
     toJSON: {
       transform(_doc, ret: Record<string, unknown>) {
         // Always strip sensitive fields on JSON serialization (omit instead of delete for strict TS)
-        const { password, apiKeys, __v, ...safe } = ret;
+        const { password, apiKeys, __v, guestFingerprint: _gf, ...safe } = ret;
         // Strip email passwords from nested settings
         const settings = safe.settings as Record<string, unknown> | undefined;
         if (settings) {
@@ -267,7 +276,7 @@ const UserSchema = new Schema<IUserDocument>(
 
 // Hash password before save
 UserSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
+  if (!this.isModified('password') || !this.password) return next();
 
   try {
     const salt = await bcrypt.genSalt(12);

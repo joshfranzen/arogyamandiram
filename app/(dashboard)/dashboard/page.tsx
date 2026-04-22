@@ -135,6 +135,15 @@ export default function DashboardPage() {
 
         {/* Bento grid */}
         <div className="bento-grid">
+          {/* Streaks — pinned to top */}
+          <div className="bento-streaks">
+            <StreakCard
+              streaks={achievements?.streaks}
+              displayDayIndex={displayDayIndex}
+              loggingStreak={loggingStreak}
+            />
+          </div>
+
           {/* Ring + 4 stat cards in 2x2 */}
           <div className="bento-ring-stats">
             {/* Calorie ring spans 2 rows */}
@@ -272,14 +281,6 @@ export default function DashboardPage() {
             />
           </div>
 
-          {/* Streaks */}
-          <div className="bento-streaks">
-            <StreakCard
-              streaks={achievements?.streaks}
-              displayDayIndex={displayDayIndex}
-              loggingStreak={loggingStreak}
-            />
-          </div>
         </div>
       </div>
 
@@ -349,6 +350,15 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Active Streaks – top of feed */}
+        <div className={cn('mobile-fade-up mobile-dash-px')} style={{ animationDelay: '60ms' }}>
+          <StreakCard
+            streaks={achievements?.streaks}
+            displayDayIndex={displayDayIndex}
+            loggingStreak={loggingStreak}
+          />
         </div>
 
         {/* Calorie ring card */}
@@ -514,14 +524,6 @@ export default function DashboardPage() {
           <RecentBadges earnedBadges={earnedBadges} />
         </div>
 
-        {/* Active Streaks – same StreakCard as desktop */}
-        <div className={cn('mobile-fade-up mobile-dash-px')} style={{ animationDelay: '320ms' }}>
-          <StreakCard
-            streaks={achievements?.streaks}
-            displayDayIndex={displayDayIndex}
-            loggingStreak={loggingStreak}
-          />
-        </div>
       </div>
     </div>
   );
@@ -747,9 +749,9 @@ function StreakCard({
   const daysToSeven = Math.max(1, 7 - loggingStreak);
 
   return (
-    <div className="streak-card card-glow flex items-center gap-6">
-      {/* Left: label + hint */}
-      <div className="shrink-0 w-[220px]">
+    <div className="streak-card card-glow flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
+      {/* Label + hint — full width on mobile, fixed-width on desktop */}
+      <div className="sm:shrink-0 sm:w-[220px]">
         <p className="text-[11px] font-medium uppercase tracking-wider text-text-muted mb-1">
           Active Streaks
         </p>
@@ -760,14 +762,14 @@ function StreakCard({
         </p>
       </div>
 
-      {/* Middle: streak items or empty state */}
-      <div className="flex-1 min-w-0">
+      {/* Streak items or empty state — fixed height so card never changes size */}
+      <div className="flex-1 min-w-0 h-16 sm:h-14 flex items-center overflow-hidden">
         {activeItems.length === 0 ? (
           <p className="text-sm text-text-muted/60 italic">Log today to start a streak.</p>
         ) : (
-          <div className="flex gap-3 overflow-x-auto hide-scrollbar">
+          <div className="flex gap-3 overflow-x-auto hide-scrollbar w-full h-full items-center">
             {activeItems.map((item) => (
-              <div key={item.key} className="w-[160px] shrink-0">
+              <div key={item.key} className="w-[140px] sm:w-[160px] shrink-0 h-full">
                 <AchievementStreakCard
                   label={item.label}
                   current={s.current[item.key]}
@@ -779,8 +781,8 @@ function StreakCard({
         )}
       </div>
 
-      {/* Right: day dots */}
-      <div className="shrink-0 flex gap-1.5">
+      {/* Day dots — full-width row on mobile, shrunk column on desktop */}
+      <div className="flex gap-1.5 sm:shrink-0">
         {DAY_LABELS.map((lbl, i) => (
           <div key={i} className={`sdot ${i === displayDayIndex ? 'sdot-today' : ''}`}>
             {lbl}

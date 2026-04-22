@@ -24,19 +24,6 @@ interface HealthMetricsEntry {
 }
 
 
-function TargetTile({ icon, label, value, unit }: { icon: React.ReactNode; label: string; value: string; unit: string }) {
-  return (
-    <div className="flex items-center gap-3 rounded-xl bg-white/[0.03] px-4 py-3">
-      <div className="shrink-0">{icon}</div>
-      <div>
-        <p className="text-[10px] text-text-muted">{label}</p>
-        <p className="text-sm font-semibold text-text-primary">
-          {value} <span className="text-[10px] font-normal text-text-muted">{unit}</span>
-        </p>
-      </div>
-    </div>
-  );
-}
 
 function GoalBar({ value, goal, color }: { value: number; goal: number; color: string }) {
   const pct = Math.min(100, Math.round((value / goal) * 100));
@@ -254,18 +241,6 @@ export default function HealthDataPage() {
       </div>
 
 
-      {/* Your Targets */}
-      <div className="mobile-fade-up mobile-dash-px lg:px-0" style={{ animationDelay: '120ms' }}>
-        <div className="dashboard-unified-card rounded-2xl border p-5">
-          <p className="mb-4 text-[11px] font-medium uppercase tracking-wider text-text-muted">Your Targets</p>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <TargetTile icon={<Footprints className="h-4 w-4 text-accent-emerald" />} label="Daily Steps" value={(targets.dailySteps ?? 8000).toLocaleString()} unit="steps" />
-            <TargetTile icon={<MapPin className="h-4 w-4 text-accent-cyan" />} label="Distance" value={String(targets.idealDistance ?? 5)} unit="km / day" />
-            <TargetTile icon={<Flame className="h-4 w-4 text-accent-amber" />} label="Active Burn" value={String(targets.dailyCalorieBurn ?? 400)} unit="kcal / day" />
-            <TargetTile icon={<Activity className="h-4 w-4 text-accent-violet" />} label="Workout" value={String(targets.dailyWorkoutMinutes ?? 30)} unit="min / day" />
-          </div>
-        </div>
-      </div>
 
       {/* 7-day trend charts */}
       {hasData ? (

@@ -194,6 +194,7 @@ body {
     grid-template-rows: 1fr;
     gap: 12px;
     grid-column: 1 / -1;
+    grid-row: 2;
     transition: grid-template-columns 300ms ease;
   }
   @media (min-width: 1024px) and (max-width: 1279px) {
@@ -706,6 +707,7 @@ body {
   }
   .bento-streaks {
     grid-column: 1 / -1;
+    grid-row: 1;
   }
   .streak-card {
     @apply rounded-2xl px-6 py-4;
@@ -717,7 +719,7 @@ body {
     @apply font-heading text-2xl font-semibold tracking-tight text-text-primary;
   }
   .sdot {
-    @apply flex h-9 w-9 flex-1 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.04] text-[11px] font-semibold text-text-muted;
+    @apply flex w-9 h-9 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.04] text-[11px] font-semibold text-text-muted;
   }
   .sdot-today {
     border-color: rgba(16, 185, 129, 0.6);

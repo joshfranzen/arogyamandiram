@@ -1,8 +1,8 @@
 "use client";
 import { useState, useEffect, useRef, MutableRefObject } from "react";
 import Link from "next/link";
-import { StreakCard as AchievementStreakCard } from "@/components/achievements/StreakCard";
 import { BadgeCard } from "@/components/achievements/BadgeCard";
+import GuestStartButton from "@/components/landing/GuestStartButton";
 import type { UserBadge } from "@/types";
 
 type Line = { t: string; r?: string; b?: boolean; c?: string };
@@ -131,16 +131,12 @@ a{color:inherit;text-decoration:none}
 /* Features */
 .lp-ft-sec{padding:100px 0}
 .lp-ft-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--br);border:1px solid var(--br);border-radius:16px;overflow:hidden}
-.lp-ft-cell{background:var(--s1);padding:28px 24px;transition:background .3s;position:relative}
-.lp-ft-cell:hover{background:var(--s2)}
-.lp-ft-cell::after{content:'';position:absolute;top:0;left:20%;right:20%;height:1px;background:var(--g);opacity:0;transition:opacity .3s,left .3s,right .3s}
-.lp-ft-cell:hover::after{opacity:.4;left:10%;right:10%}
+.lp-ft-cell{background:var(--s1);padding:28px 24px;position:relative}
 
 /* AI terminals */
 .lp-ai-sec{padding:80px 0 100px;border-top:1px solid var(--br)}
 .lp-ai-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-.lp-term{background:#070907;border:1px solid rgba(255,255,255,0.04);border-radius:14px;overflow:hidden;transition:border-color .3s}
-.lp-term:hover{border-color:rgba(255,255,255,0.08)}
+.lp-term{background:#070907;border:1px solid rgba(255,255,255,0.04);border-radius:14px;overflow:hidden}
 .lp-term-bar{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;align-items:center;gap:6px}
 .lp-term-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,0.06)}
 .lp-term-lbl{margin-left:auto;display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600}
@@ -150,8 +146,7 @@ a{color:inherit;text-decoration:none}
 /* Steps */
 .lp-sp-sec{padding:80px 0 100px;border-top:1px solid var(--br)}
 .lp-sp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-.lp-sp{background:var(--s1);border:1px solid var(--br);border-radius:14px;padding:32px 24px 24px;position:relative;transition:border-color .3s}
-.lp-sp:hover{border-color:rgba(255,255,255,0.1)}
+.lp-sp{background:var(--s1);border:1px solid var(--br);border-radius:14px;padding:32px 24px 24px;position:relative}
 
 /* CTA */
 .lp-cta-sec{padding:80px 28px 100px;text-align:center;border-top:1px solid var(--br);position:relative;overflow:hidden}
@@ -166,21 +161,72 @@ a{color:inherit;text-decoration:none}
 .lp-foot{border-top:1px solid var(--br);padding:24px;text-align:center;font-size:12px;color:var(--t3)}
 .lp-foot a{color:var(--g-dim)}
 
-/* ── iPhone 16 Pro mockup (393×852pt → 260×564px) ── */
+/* ── iPhone 16 Pro mockup ── */
 .mk-phone-wrap{display:none;justify-content:center;align-items:center}
-.mk-phone{width:260px;background:linear-gradient(160deg,#3a3a3c 0%,#2c2c2e 40%,#1c1c1e 100%);border-radius:46px;padding:3px;box-shadow:0 0 0 1px rgba(255,255,255,0.13),0 0 0 2px rgba(0,0,0,0.9),0 32px 64px rgba(0,0,0,0.8),0 0 40px rgba(20,220,180,0.05),inset 0 1px 0 rgba(255,255,255,0.1);position:relative}
-.mk-phone-btn-pwr{position:absolute;right:-3px;top:110px;width:3px;height:58px;background:linear-gradient(180deg,#3a3a3c,#2c2c2e);border-radius:0 2px 2px 0}
-.mk-phone-btn-v1{position:absolute;left:-3px;top:92px;width:3px;height:26px;background:linear-gradient(180deg,#3a3a3c,#2c2c2e);border-radius:2px 0 0 2px}
-.mk-phone-btn-v2{position:absolute;left:-3px;top:130px;width:3px;height:50px;background:linear-gradient(180deg,#3a3a3c,#2c2c2e);border-radius:2px 0 0 2px}
-.mk-phone-btn-mute{position:absolute;left:-3px;top:70px;width:3px;height:18px;background:linear-gradient(180deg,#3a3a3c,#2c2c2e);border-radius:2px 0 0 2px}
-/* screen: 254×558px = 393:852 ratio */
-.mk-phone-screen{background:#060806;border-radius:44px;overflow:hidden;width:254px;height:558px;display:flex;flex-direction:column}
-/* status bar */
-.mk-phone-status{display:flex;justify-content:space-between;align-items:center;padding:12px 20px 4px;position:relative;z-index:3}
-.mk-phone-time{font-family:'Outfit',system-ui,sans-serif;font-weight:600;font-size:12px;color:#E8E6E2;letter-spacing:-0.01em}
-.mk-phone-di{position:absolute;left:50%;transform:translateX(-50%);top:9px;width:92px;height:28px;background:#000;border-radius:18px;z-index:4;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;gap:6px;box-shadow:0 0 0 1px #1a1a1a}
-.mk-phone-di-cam{width:10px;height:10px;border-radius:50%;background:#161616;border:1.5px solid #222}
-.mk-phone-di-dot{width:7px;height:7px;border-radius:50%;background:#14dcb4;opacity:0.25}
+
+/* Outer titanium frame */
+.mk-phone{
+  width:268px;
+  position:relative;
+  border-radius:54px;
+  padding:5px;
+  background:linear-gradient(145deg,#636366 0%,#48484a 15%,#2c2c2e 40%,#1c1c1e 60%,#3a3a3c 80%,#545456 100%);
+  box-shadow:
+    0 0 0 0.5px rgba(255,255,255,0.18),
+    inset 0 0 0 1px rgba(0,0,0,0.7),
+    0 50px 100px rgba(0,0,0,0.95),
+    0 25px 50px rgba(0,0,0,0.7),
+    0 0 0 5px #111,
+    0 0 0 5.5px rgba(255,255,255,0.08),
+    0 0 80px rgba(20,220,180,0.04);
+}
+
+/* Inner black bezel ring */
+.mk-phone::before{
+  content:'';position:absolute;inset:5px;border-radius:49px;
+  background:#0a0a0a;z-index:0;
+}
+
+/* Screen */
+.mk-phone-screen{
+  position:relative;z-index:1;
+  background:#090909;border-radius:46px;
+  overflow:hidden;width:258px;height:560px;
+}
+
+/* Side buttons */
+.mk-phone-btn-pwr{position:absolute;right:-7px;top:130px;width:4px;height:62px;
+  background:linear-gradient(180deg,#545456,#3a3a3c,#2c2c2e,#3a3a3c);
+  border-radius:0 2.5px 2.5px 0;
+  box-shadow:inset -1px 0 0 rgba(255,255,255,0.08)}
+
+/* Action button (replaces mute, iPhone 15 Pro+) */
+.mk-phone-btn-mute{position:absolute;left:-7px;top:78px;width:4px;height:30px;
+  background:linear-gradient(180deg,#545456,#3a3a3c,#2c2c2e);
+  border-radius:2.5px 0 0 2.5px;
+  box-shadow:inset 1px 0 0 rgba(255,255,255,0.08)}
+
+/* Volume buttons */
+.mk-phone-btn-v1{position:absolute;left:-7px;top:124px;width:4px;height:32px;
+  background:linear-gradient(180deg,#545456,#3a3a3c,#2c2c2e);
+  border-radius:2.5px 0 0 2.5px;
+  box-shadow:inset 1px 0 0 rgba(255,255,255,0.08)}
+.mk-phone-btn-v2{position:absolute;left:-7px;top:168px;width:4px;height:32px;
+  background:linear-gradient(180deg,#545456,#3a3a3c,#2c2c2e);
+  border-radius:2.5px 0 0 2.5px;
+  box-shadow:inset 1px 0 0 rgba(255,255,255,0.08)}
+
+/* Dynamic island */
+.mk-phone-di{
+  position:absolute;left:50%;transform:translateX(-50%);
+  top:12px;width:100px;height:30px;
+  background:#000;border-radius:20px;z-index:10;
+  display:flex;align-items:center;justify-content:flex-end;
+  padding-right:9px;gap:5px;
+  box-shadow:0 0 0 1px #1c1c1e,0 2px 8px rgba(0,0,0,0.8)
+}
+.mk-phone-di-cam{width:11px;height:11px;border-radius:50%;background:#0d0d0d;border:1.5px solid #2a2a2a;box-shadow:inset 0 0 3px rgba(0,0,0,0.9)}
+.mk-phone-di-dot{width:6px;height:6px;border-radius:50%;background:#14dcb4;opacity:0.2}
 .mk-phone-si{display:flex;align-items:center;gap:4px}
 /* body */
 .mk-phone-body{padding:16px 10px 0;display:flex;flex-direction:column;gap:7px;flex:1;min-height:0;overflow:hidden}
@@ -305,20 +351,25 @@ a{color:inherit;text-decoration:none}
 .mk-outer{width:100%;position:relative;z-index:1}
 .mk-outer::before{display:none}
 .mk-inner{position:relative;z-index:1;display:flex;background:#0a0c0b;overflow:hidden}
-.mk-sb{width:54px;background:#0e1210;border-right:1px solid rgba(255,255,255,0.06);display:flex;flex-direction:column;align-items:center;padding:14px 0 10px;gap:4px;flex-shrink:0}
-.mk-sb-logo{font-family:'Outfit',system-ui,sans-serif;font-weight:800;font-size:11px;color:#1EDD8B;letter-spacing:-0.03em;margin-bottom:10px;line-height:1;display:flex;align-items:center;gap:1px}
-.mk-sb-dot{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center}
-.mk-sb-dot.act{background:rgba(30,221,139,0.12)}
-.mk-sb-dot svg{width:14px;height:14px;stroke-width:1.6}
-.mk-main{flex:1;padding:16px 18px 14px;min-width:0;overflow:hidden;background:#0c100e}
-.mk-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.mk-greet{font-size:16px;font-weight:600;color:#E8E6E2;letter-spacing:-0.02em}
-.mk-greet-sub{font-size:10px;color:#5C5A53;margin-top:2px}
-.mk-xp-pill{display:flex;align-items:center;gap:6px;background:#10140F;border:1px solid rgba(255,255,255,0.05);border-radius:20px;padding:5px 10px 5px 8px;font-size:9px;color:#9B9990}
-.mk-xp-bar{width:52px;height:4px;background:#1E241F;border-radius:2px;overflow:hidden}
+.mk-sb{width:170px;background:#0e1210;border-right:1px solid rgba(255,255,255,0.06);display:flex;flex-direction:column;align-items:flex-start;padding:16px 0 10px;gap:1px;flex-shrink:0}
+.mk-sb-logo{padding:0 14px 14px;display:flex;flex-direction:column;gap:2px}
+.mk-sb-logo-name{font-family:'Outfit',system-ui,sans-serif;font-weight:800;font-size:11px;color:#1EDD8B;letter-spacing:-0.01em;line-height:1}
+.mk-sb-logo-sub{font-size:7px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#3a4040}
+.mk-sb-dot{width:100%;height:26px;border-radius:0;display:flex;align-items:center;padding:0 14px;gap:8px;cursor:default}
+.mk-sb-dot.act{background:rgba(30,221,139,0.1)}
+.mk-sb-dot svg{width:13px;height:13px;stroke-width:1.6;flex-shrink:0}
+.mk-sb-lbl{font-family:'Outfit',system-ui,sans-serif;font-size:10px;font-weight:500;color:#5C5A53}
+.mk-sb-dot.act .mk-sb-lbl{color:#1EDD8B}
+.mk-main{flex:1;padding:16px 20px 14px;min-width:0;overflow:hidden;background:#0c100e}
+.mk-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px}
+.mk-greet{font-family:'Outfit',system-ui,sans-serif;font-size:26px;font-weight:800;color:#e5e5e5;letter-spacing:-0.01em;line-height:1.1}
+.mk-greet-sub{font-size:9.5px;color:#5C5A53;margin-top:4px}
+.mk-xp-pill{display:flex;align-items:center;gap:6px;background:#10140F;border:1px solid rgba(255,255,255,0.05);border-radius:20px;padding:5px 10px 5px 8px;font-size:9px;color:#9B9990;flex-shrink:0}
+.mk-xp-bar{width:80px;height:4px;background:#1E241F;border-radius:2px;overflow:hidden}
 .mk-xp-fill{height:100%;background:#1EDD8B;border-radius:2px;width:51%}
-.mk-bento-top{display:grid;grid-template-columns:180px 1fr;gap:10px;margin-bottom:10px}
-.mk-ring-card{background:#111712;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.mk-bento-top{display:grid;grid-template-columns:180px 1fr 180px;gap:10px;margin-bottom:10px}
+.mk-water-card{background:#111712;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:16px 12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+.mk-ring-card{background:#111712;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
 .mk-ring-wrap{position:relative;width:100px;height:100px}
 .mk-ring-wrap svg{width:100%;height:100%}
 .mk-ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
@@ -329,13 +380,13 @@ a{color:inherit;text-decoration:none}
 .mk-badges-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .mk-badges-title{font-size:9px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#5C5A53}
 .mk-badges-link{font-size:9px;color:#1EDD8B;font-weight:500}
-.mk-badges-scroll{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
-.mk-badges-scroll::-webkit-scrollbar{height:4px}
+.mk-badges-scroll{display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;padding-bottom:2px;-webkit-overflow-scrolling:touch}
+.mk-badges-scroll::-webkit-scrollbar{height:3px}
 .mk-badges-scroll::-webkit-scrollbar-track{background:rgba(255,255,255,0.03);border-radius:3px}
 .mk-badges-scroll::-webkit-scrollbar-thumb{background:rgba(30,221,139,0.32);border-radius:3px}
-.mk-badge-slot{min-width:0}
+.mk-badge-slot{flex:0 0 106px;min-width:106px}
 .mk-badge-slot .badge-card-wrapper{padding:0}
-.mk-badge-slot .portrait-card{height:auto;min-height:140px;border-radius:9px;overflow:visible}
+.mk-badge-slot .portrait-card{height:auto;min-height:180px;border-radius:9px;overflow:visible}
 .mk-badge-slot .deck-card{border-width:1px}
 .mk-badge-slot .w-full.items-stretch{gap:2px;padding:2px 2px 0}
 .mk-badge-slot .deck-banner{font-size:7px;padding:2px 3px;letter-spacing:0;border-radius:3px}
@@ -343,11 +394,11 @@ a{color:inherit;text-decoration:none}
 .mk-badge-slot .tracking-wider{font-size:8px;letter-spacing:.02em}
 .mk-badge-slot .deck-type-footer{font-size:7.5px;padding:2px 0}
 .mk-badge-slot .line-clamp-2{font-size:8px;line-height:1.2}
-.mk-badge-slot .h-20.w-20{height:2.2rem;width:2.2rem;border-radius:8px;background:transparent;border:none;box-shadow:none}
-.mk-badge-slot .h-20.w-20 > div{border-radius:7px;border-color:rgba(255,255,255,0.14);box-shadow:none}
-.mk-badge-slot .h-12.w-12{height:1.9rem;width:1.9rem}
-.mk-badge-slot .h-14.w-14{height:2.1rem;width:2.1rem}
-.mk-badge-slot .h-8.w-8{height:1.1rem;width:1.1rem}
+.mk-badge-slot .h-20.w-20{height:2.8rem;width:2.8rem;border-radius:10px;background:transparent;border:none;box-shadow:none}
+.mk-badge-slot .h-20.w-20 > div{border-radius:9px;border-color:rgba(255,255,255,0.14);box-shadow:none}
+.mk-badge-slot .h-12.w-12{height:2.2rem;width:2.2rem}
+.mk-badge-slot .h-14.w-14{height:2.5rem;width:2.5rem}
+.mk-badge-slot .h-8.w-8{height:1.3rem;width:1.3rem}
 .mk-macros-card{background:#111712;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:10px 14px;margin-bottom:10px}
 .mk-macros-title{font-size:9px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#5C5A53;margin-bottom:8px}
 .mk-macros-row{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
@@ -357,14 +408,14 @@ a{color:inherit;text-decoration:none}
 .mk-macro-val{font-size:10px;font-weight:600;color:#E8E6E2;white-space:nowrap}
 .mk-macro-bar{height:3px;width:100%;background:#1E241F;border-radius:2px;overflow:hidden}
 .mk-macro-fill{height:100%;border-radius:2px}
-.mk-stats-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:10px}
-.mk-stat-card{background:#111712;border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:10px;display:flex;align-items:center;gap:8px}
-.mk-stat-icon{width:18px;height:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.mk-stat-icon svg{width:14px;height:14px;stroke-width:1.6}
-.mk-stat-val{font-size:13px;font-weight:700;color:#E8E6E2;font-family:'Outfit',system-ui,sans-serif}
-.mk-stat-label{font-size:8px;color:#5C5A53;margin-top:1px}
-.mk-stat-sub{font-size:7px;color:#4f5a53;margin-top:1px}
-.mk-bottom-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mk-stats-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:10px;grid-template-rows:auto auto}
+.mk-stat-card{background:#111712;border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px}
+.mk-stat-icon{width:22px;height:22px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.mk-stat-icon svg{width:16px;height:16px;stroke-width:1.6}
+.mk-stat-val{font-size:17px;font-weight:800;font-family:'Outfit',system-ui,sans-serif;line-height:1}
+.mk-stat-label{font-size:9px;color:#9B9990;margin-top:2px}
+.mk-stat-sub{font-size:7.5px;color:#4f5a53;margin-top:1px}
+.mk-bottom-row{display:grid;grid-template-columns:1fr;gap:10px}
 .mk-streak-card{background:#111712;border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:10px 12px}
 .mk-streak-title{font-size:9px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#5C5A53;margin-bottom:6px}
 .mk-streak-scroll{display:flex;gap:6px;overflow:hidden;margin-bottom:8px}
@@ -378,7 +429,7 @@ a{color:inherit;text-decoration:none}
 .mk-ai-card{background:rgba(30,221,139,0.06);border:1px solid rgba(30,221,139,0.12);border-radius:12px;padding:10px 12px;display:flex;gap:7px;align-items:flex-start}
 .mk-ai-card p{font-size:10px;color:#9B9990;line-height:1.5;margin:0}
 @media(max-width:768px){
-  .mk-bento-top{grid-template-columns:1fr!important}
+  .mk-bento-top{grid-template-columns:1fr!important;grid-template-rows:auto auto auto!important}
   .mk-stats-grid{grid-template-columns:1fr 1fr!important}
   .mk-sb{display:none!important}
 }
@@ -414,7 +465,7 @@ a{color:inherit;text-decoration:none}
             </p>
 
             <div className={`${rv(hv, "lp-d3")} lp-ctas`} style={{ display: "flex", gap: 12, marginTop: 44, position: "relative", zIndex: 1 }}>
-              <Link href="/register" className="lp-btn-p">Get started free {Ic.arrow}</Link>
+              <GuestStartButton className="lp-btn-p">Get started free {Ic.arrow}</GuestStartButton>
               <Link href="/login" className="lp-btn-g">Sign in</Link>
             </div>
 
@@ -462,29 +513,39 @@ a{color:inherit;text-decoration:none}
               </div>
 
               <div className="mk-outer">
+              {/* Real preview page embedded as iframe */}
+              <iframe
+                src="/preview"
+                style={{ width: "100%", height: 590, border: "none", display: "block", pointerEvents: "none", overflow: "hidden" }}
+                title="Dashboard preview"
+              />
+              {/* DEAD CODE BELOW — kept for mobile phone mockup reference only, hidden */}
+              <div style={{ display: "none" }}>
               <div className="mk-inner">
 
                 {/* Sidebar */}
                 <div className="mk-sb">
-                  <div className="mk-sb-logo">AM</div>
-                  <div className="mk-sb-dot act">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="#1EDD8B" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /><path d="M9 22V12h6v10" /></svg>
+                  <div className="mk-sb-logo">
+                    <div className="mk-sb-logo-name">AROGYAMANDIRAM</div>
+                    <div className="mk-sb-logo-sub">Health &amp; Wellness</div>
                   </div>
-                  <div className="mk-sb-dot">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="#5C5A53" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" /></svg>
-                  </div>
-                  <div className="mk-sb-dot">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="#5C5A53" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22a7 7 0 007-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 007 7z" /></svg>
-                  </div>
-                  <div className="mk-sb-dot">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="#5C5A53" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 002-2V2" /><path d="M7 2v20" /><path d="M21 15V2a5 5 0 00-5 5v6c0 1.1.9 2 2 2h3z" /><path d="M21 15v7" /></svg>
-                  </div>
-                  <div className="mk-sb-dot">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="#5C5A53" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>
-                  </div>
-                  <div className="mk-sb-dot">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="#5C5A53" strokeLinecap="round" strokeLinejoin="round"><path d="M8 21h8M12 17v4M7 4h10M4 8l8 9 8-9" /></svg>
-                  </div>
+                  {[
+                    { label: "Home", active: true, d: ["M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z","M9 22V12h6v10"] },
+                    { label: "Sleep", d: ["M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"] },
+                    { label: "Water", d: ["M12 22a7 7 0 007-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 007 7z"] },
+                    { label: "Food", d: ["M3 2v7c0 1.1.9 2 2 2h4a2 2 0 002-2V2","M7 2v20","M21 15V2a5 5 0 00-5 5v6c0 1.1.9 2 2 2h3z","M21 15v7"] },
+                    { label: "Workout", d: ["M22 12h-4l-3 9L9 3l-3 9H2"] },
+                    { label: "Health Data", d: ["M4.5 12.5l3 3 5-7M20 7l-8.5 9L9 14"] },
+                    { label: "Weight", d: ["M8 21h8M12 17v4M7 4h10M4 8l8 9 8-9"] },
+                    { label: "Achievements", d: ["M12 15a3 3 0 100-6 3 3 0 000 6z","M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"] },
+                  ].map(({ label, active, d }) => (
+                    <div key={label} className={`mk-sb-dot${active ? " act" : ""}`}>
+                      <svg fill="none" viewBox="0 0 24 24" stroke={active ? "#1EDD8B" : "#5C5A53"} strokeLinecap="round" strokeLinejoin="round">
+                        {d.map((p, i) => <path key={i} d={p} />)}
+                      </svg>
+                      <span className="mk-sb-lbl">{label}</span>
+                    </div>
+                  ))}
                 </div>
 
                 {/* Main content */}
@@ -493,13 +554,13 @@ a{color:inherit;text-decoration:none}
                   {/* Header */}
                   <div className="mk-hdr">
                     <div>
-                      <div className="mk-greet">Good Evening, K 👋</div>
-                      <div className="mk-greet-sub">Mar 13, 2026 · Let&apos;s make today count.</div>
+                      <div className="mk-greet">GOOD EVENING, K 👋</div>
+                      <div className="mk-greet-sub">Build momentum one healthy choice at a time.</div>
                     </div>
                     <div className="mk-xp-pill">
-                      <span style={{ fontWeight: 600, color: "#1EDD8B" }}>LV 4</span>
-                      <div className="mk-xp-bar"><div className="mk-xp-fill" /></div>
-                      <span>203 / 400 XP</span>
+                      <span style={{ fontWeight: 700, color: "#1EDD8B" }}>LV 5</span>
+                      <div className="mk-xp-bar"><div className="mk-xp-fill" style={{ width: "52%" }} /></div>
+                      <span>413 / 800 XP</span>
                     </div>
                   </div>
 
@@ -538,6 +599,35 @@ a{color:inherit;text-decoration:none}
                         ))}
                       </div>
                     </div>
+
+                    {/* Water card */}
+                    <div className="mk-water-card">
+                      <svg width="54" height="130" viewBox="0 0 54 130" style={{ display: "block" }}>
+                        <defs>
+                          <clipPath id="mkglassclip">
+                            <path d="M6 10 Q6 4 13 4 L41 4 Q48 4 48 10 L48 110 Q48 126 27 126 Q6 126 6 110 Z" />
+                          </clipPath>
+                          <linearGradient id="mkwatergrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="rgba(6,182,212,0.18)" />
+                            <stop offset="100%" stopColor="rgba(6,182,212,0.06)" />
+                          </linearGradient>
+                        </defs>
+                        {/* Glass body */}
+                        <path d="M6 10 Q6 4 13 4 L41 4 Q48 4 48 10 L48 110 Q48 126 27 126 Q6 126 6 110 Z"
+                          fill="rgba(6,182,212,0.04)" stroke="rgba(6,182,212,0.22)" strokeWidth="1.5" />
+                        {/* Tick lines */}
+                        <line x1="6" y1="44" x2="14" y2="44" stroke="rgba(6,182,212,0.18)" strokeWidth="1" />
+                        <line x1="6" y1="70" x2="14" y2="70" stroke="rgba(6,182,212,0.18)" strokeWidth="1" />
+                        <line x1="6" y1="96" x2="14" y2="96" stroke="rgba(6,182,212,0.18)" strokeWidth="1" />
+                        {/* 0% label */}
+                        <text x="27" y="68" fill="rgba(6,182,212,0.55)" fontSize="11" fontWeight="700" textAnchor="middle" fontFamily="Outfit,system-ui,sans-serif">0%</text>
+                        <text x="27" y="82" fill="rgba(6,182,212,0.3)" fontSize="8" textAnchor="middle" fontFamily="Outfit,system-ui,sans-serif">hydrated</text>
+                      </svg>
+                      <div className="mk-ring-sub" style={{ textAlign: "center" }}>
+                        <span style={{ color: "#22d3ee", fontWeight: 600, fontSize: 10 }}>2.8 L remaining</span><br />
+                        <span style={{ color: "#5C5A53", fontSize: 9 }}>of 2.8 L goal</span>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Macros */}
@@ -568,13 +658,17 @@ a{color:inherit;text-decoration:none}
                     </div>
                   </div>
 
-                  {/* Stat cards */}
+                  {/* Stat cards — 8 cards in 4×2 */}
                   <div className="mk-stats-grid">
                     {[
-                      { paths: ["M12 22a7 7 0 007-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 007 7z"], color: "#1EDD8B", val: "680 ml", label: "Water", sub: "2.5 L target" },
+                      { paths: ["M12 22a7 7 0 007-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 007 7z"], color: "#22d3ee", val: "0 ML", label: "Water", sub: "2.5 L target" },
                       { paths: ["M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 002.5 2.5z"], color: "#EF4444", val: "0", label: "Burned", sub: "0 workouts" },
-                      { paths: ["M3 2v7c0 1.1.9 2 2 2h4a2 2 0 002-2V2","M7 2v20","M21 15V2a5 5 0 00-5 5v6c0 1.1.9 2 2 2h3z","M21 15v7"], color: "#f5a623", val: "2", label: "Meals", sub: "644 kcal" },
-                      { paths: ["M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"], color: "#8B5CF6", val: "—", label: "Sleep", sub: "8h target" },
+                      { paths: ["M3 2v7c0 1.1.9 2 2 2h4a2 2 0 002-2V2","M7 2v20","M21 15V2a5 5 0 00-5 5v6c0 1.1.9 2 2 2h3z","M21 15v7"], color: "#f5a623", val: "0", label: "Meals", sub: "0 kcal" },
+                      { paths: ["M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"], color: "#8B5CF6", val: "7.6H", label: "Sleep", sub: "3/5 quality" },
+                      { paths: ["M19 13c0 4.97-4.03 9-9 9S1 17.97 1 13c0-3.1 1.58-5.84 4-7.5M12 6V2M12 6l-3 3M12 6l3 3"], color: "#1EDD8B", val: "3,701", label: "Steps", sub: "of 8,000 goal" },
+                      { paths: ["M22 12h-4l-3 9L9 3l-3 9H2"], color: "#EF4444", val: "65", label: "Heart Rate", sub: "bpm" },
+                      { paths: ["M3 3l18 18M10.5 10.677A2 2 0 0112 10c1.1 0 2 .9 2 2 0 .537-.21 1.022-.553 1.382"], color: "#f5a623", val: "298", label: "Active Cal", sub: "kcal burned" },
+                      { paths: ["M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z","M12 11.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"], color: "#22d3ee", val: "2.5", label: "Distance", sub: "of 6.2 km goal" },
                     ].map((s) => (
                       <div key={s.label} className="mk-stat-card">
                         <div className="mk-stat-icon">
@@ -583,7 +677,7 @@ a{color:inherit;text-decoration:none}
                           </svg>
                         </div>
                         <div>
-                          <div className="mk-stat-val">{s.val}</div>
+                          <div className="mk-stat-val" style={{ color: s.color }}>{s.val}</div>
                           <div className="mk-stat-label">{s.label}</div>
                           <div className="mk-stat-sub">{s.sub}</div>
                         </div>
@@ -591,194 +685,66 @@ a{color:inherit;text-decoration:none}
                     ))}
                   </div>
 
-                  {/* Bottom: Streaks + AI */}
+                  {/* Bottom: Active Streaks — full width */}
                   <div className="mk-bottom-row">
-                    <div className="mk-streak-card">
-                      <div className="mk-streak-title">Active streaks</div>
-                      <div className="mk-streak-scroll">
-                        <div className="mk-streak-slot">
-                          <AchievementStreakCard label="Active days" current={1} best={10} />
-                        </div>
-                        <div className="mk-streak-slot">
-                          <AchievementStreakCard label="Weight" current={1} best={5} />
+                    <div className="mk-streak-card" style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                      {/* Left label */}
+                      <div style={{ flexShrink: 0, width: 140 }}>
+                        <div className="mk-streak-title">Active Streaks</div>
+                        <div className="mk-streak-note" style={{ marginBottom: 0 }}>
+                          7 days to your first 7-day badge.
                         </div>
                       </div>
-                      <div className="mk-streak-note">
-                        Just 7 active days from your first 7-day badge.
+                      {/* Center content */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 10, color: "#5C5A53", fontStyle: "italic" }}>
+                          Log today to start a streak.
+                        </div>
                       </div>
-                      <div className="mk-streak-dots">
+                      {/* Right: day dots */}
+                      <div className="mk-streak-dots" style={{ width: "auto", flexShrink: 0, display: "flex", gap: 5 }}>
                         {["M","T","W","T","F","S","S"].map((d, i) => (
-                          <div key={i} className={`mk-sdot${i === 3 ? " today" : ""}`}>{d}</div>
+                          <div key={i} className={`mk-sdot${i === 1 ? " today" : ""}`} style={{ width: 26, height: 26, flex: "none" }}>{d}</div>
                         ))}
-                      </div>
-                    </div>
-
-                    <div className="mk-ai-card">
-                      <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="#1EDD8B" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
-                        <path d="M12 3l1.9 5.8a2 2 0 001.3 1.3L21 12l-5.8 1.9a2 2 0 00-1.3 1.3L12 21l-1.9-5.8a2 2 0 00-1.3-1.3L3 12l5.8-1.9a2 2 0 001.3-1.3L12 3z" />
-                      </svg>
-                      <div>
-                        <div style={{ fontSize: 9, fontWeight: 600, color: "#1EDD8B", letterSpacing: "0.05em", textTransform: "uppercase" as const, marginBottom: 4 }}>
-                          AI Insight
-                        </div>
-                        <p>Carb intake is solid at 81% of target. Consider adding a protein-rich snack — you&apos;re only at 15% of your protein goal today.</p>
                       </div>
                     </div>
                   </div>
 
                 </div>
               </div>
+              </div>{/* /dead code */}
             </div>{/* /mk-outer */}
             </div>{/* /mk-browser */}
 
             {/* ── iPhone 16 Pro mockup (mobile only) ── */}
             <div className="mk-phone-wrap">
               <div className="mk-phone">
+                {/* Buttons */}
                 <div className="mk-phone-btn-mute" />
                 <div className="mk-phone-btn-v1" />
                 <div className="mk-phone-btn-v2" />
                 <div className="mk-phone-btn-pwr" />
 
+                {/* Screen glare highlight */}
+                <div style={{
+                  position: 'absolute', top: 5, left: 5, right: 5, height: '45%',
+                  borderRadius: '46px 46px 60% 60% / 46px 46px 30px 30px',
+                  background: 'linear-gradient(170deg, rgba(255,255,255,0.045) 0%, transparent 60%)',
+                  pointerEvents: 'none', zIndex: 2,
+                }} />
+
+                {/* Dynamic island */}
+                <div className="mk-phone-di">
+                  <div className="mk-phone-di-dot" />
+                  <div className="mk-phone-di-cam" />
+                </div>
+
                 <div className="mk-phone-screen">
-                  {/* Status bar */}
-                  <div className="mk-phone-status">
-                    <span className="mk-phone-time">9:41</span>
-                    <div className="mk-phone-di">
-                      <div className="mk-phone-di-dot" />
-                      <div className="mk-phone-di-cam" />
-                    </div>
-                    <div className="mk-phone-si">
-                      <svg width="13" height="10" viewBox="0 0 16 12" fill="none"><rect x="0" y="8" width="3" height="4" rx="0.5" fill="#E8E6E2"/><rect x="4.5" y="5" width="3" height="7" rx="0.5" fill="#E8E6E2"/><rect x="9" y="2" width="3" height="10" rx="0.5" fill="#E8E6E2"/><rect x="13.5" y="0" width="3" height="12" rx="0.5" fill="#E8E6E2" opacity="0.3"/></svg>
-                      <svg width="13" height="10" viewBox="0 0 20 14" fill="none"><path d="M10 11.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3z" fill="#E8E6E2"/><path d="M4.5 7.5C6.2 5.8 8 5 10 5s3.8.8 5.5 2.5" stroke="#E8E6E2" strokeWidth="1.8" strokeLinecap="round"/><path d="M1 4C3.8 1.3 6.7 0 10 0s6.2 1.3 9 4" stroke="#E8E6E2" strokeWidth="1.8" strokeLinecap="round" opacity="0.4"/></svg>
-                      <svg width="19" height="10" viewBox="0 0 24 12" fill="none"><rect x="0.5" y="0.5" width="20" height="11" rx="3" stroke="#E8E6E2" strokeOpacity="0.4"/><rect x="2" y="2" width="15" height="8" rx="2" fill="#E8E6E2"/><path d="M21.5 4v4" stroke="#E8E6E2" strokeOpacity="0.35" strokeWidth="2" strokeLinecap="round"/></svg>
-                    </div>
-                  </div>
-
-                  <div className="mk-phone-body">
-
-                    {/* Header card */}
-                    <div className="mk-ph-hdr">
-                      <div className="mk-ph-hdr-row">
-                        <div className="mk-ph-greet-block">
-                          <div className="mk-ph-greet">Good Evening, K 👋</div>
-                          <div className="mk-ph-badge-row">
-                            <div className="mk-ph-badge-dot" />
-                            <span className="mk-ph-badge-text">Arogyamandiram</span>
-                          </div>
-                          <div className="mk-ph-date">Friday, March 13, 2026</div>
-                        </div>
-                        <div className="mk-ph-avatar">K</div>
-                      </div>
-                      <div className="mk-ph-divider" />
-                      <div className="mk-ph-xp-row">
-                        <span className="mk-ph-xp-hint">Getting started</span>
-                        <span className="mk-ph-xp-val">203 / 400 XP</span>
-                      </div>
-                      <div className="mk-ph-xp-track"><div className="mk-ph-xp-fill" /></div>
-                    </div>
-
-                    {/* Calorie card */}
-                    <div className="mk-ph-cal">
-                      <div className="mk-ph-cal-row">
-                        <div>
-                          <div className="mk-ph-cal-label">Today&apos;s Calories</div>
-                          <div className="mk-ph-cal-num">1,327</div>
-                          <div className="mk-ph-cal-unit">kcal consumed</div>
-                          <div className="mk-ph-cal-rem">
-                            <div className="mk-ph-cal-rem-dot" />
-                            <span className="mk-ph-cal-rem-val">1,221</span>
-                            <span className="mk-ph-cal-rem-text">kcal remaining</span>
-                          </div>
-                          <div className="mk-ph-cal-goal">of 2,548 kcal goal</div>
-                        </div>
-                        <div className="mk-ph-ring">
-                          <svg viewBox="0 0 140 140">
-                            <circle cx="70" cy="70" r="56" fill="none" stroke="#1a1f2a" strokeWidth="12"/>
-                            <circle cx="70" cy="70" r="56" fill="none" stroke="url(#phcgrad)" strokeWidth="12"
-                              strokeLinecap="round" strokeDasharray="186 352" transform="rotate(-90 70 70)"/>
-                            <defs><linearGradient id="phcgrad" x1="0" y1="0" x2="1" y2="1">
-                              <stop offset="0%" stopColor="#14dcb4"/><stop offset="100%" stopColor="#00aaff"/>
-                            </linearGradient></defs>
-                          </svg>
-                          <div className="mk-ph-ring-center">
-                            <span className="mk-ph-ring-pct">52%</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mk-ph-macros">
-                        {[
-                          { l: "Protein", v: "28 / 191g", w: "15%", c: "linear-gradient(90deg,#8b5cf6,#4c1d95)" },
-                          { l: "Carbs",   v: "206 / 255g", w: "81%", c: "linear-gradient(90deg,#e8a800,#ffc94a)" },
-                          { l: "Fat",     v: "43 / 85g",   w: "51%", c: "linear-gradient(90deg,#d93a55,#ff4f6b)" },
-                          { l: "Sugar",   v: "25 / 50g",   w: "50%", c: "linear-gradient(90deg,#f5a623,#e89510)" },
-                          { l: "Sodium",  v: "800 / 2300mg", w: "35%", c: "linear-gradient(90deg,#3aabff,#2a8bd9)" },
-                        ].map((m) => (
-                          <div key={m.l} className="mk-ph-macro">
-                            <div className="mk-ph-macro-hd"><span>{m.l}</span><span>{m.v}</span></div>
-                            <div className="mk-ph-macro-track">
-                              <div className="mk-ph-macro-bar" style={{ width: m.w, background: m.c }} />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Stats 2×2 */}
-                    <div className="mk-ph-stats">
-                      {[
-                        { paths: ["M12 22a7 7 0 007-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 007 7z"], color: "#00e5a0", bg: "rgba(0,229,160,0.1)", val: "1.6 L", label: "Water", sub: "of 2.5 L target" },
-                        { paths: ["M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 002.5 2.5z"], color: "#ff5c7c", bg: "rgba(255,92,124,0.1)", val: "0", label: "Burned", sub: "0 workouts" },
-                        { paths: ["M3 2v7c0 1.1.9 2 2 2h4a2 2 0 002-2V2","M7 2v20","M21 15V2a5 5 0 00-5 5v6c0 1.1.9 2 2 2h3z","M21 15v7"], color: "#f5a623", bg: "rgba(245,166,35,0.1)", val: "9", label: "Meals", sub: "1,327 kcal logged" },
-                        { paths: ["M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"], color: "#8b78ff", bg: "rgba(139,120,255,0.1)", val: "—", label: "Sleep", sub: "of 8h target" },
-                      ].map((s) => (
-                        <div key={s.label} className="mk-ph-stat">
-                          <div className="mk-ph-stat-icon" style={{ background: s.bg }}>
-                            <svg fill="none" viewBox="0 0 24 24" stroke={s.color} strokeLinecap="round" strokeLinejoin="round">
-                              {s.paths.map((d, i) => <path key={i} d={d} />)}
-                            </svg>
-                          </div>
-                          <div className="mk-ph-stat-val" style={{ color: s.color }}>{s.val}</div>
-                          <div className="mk-ph-stat-label">{s.label}</div>
-                          <div className="mk-ph-stat-sub">{s.sub}</div>
-                        </div>
-                      ))}
-                    </div>
-
-                  </div>
-
-                  {/* Bottom nav bar */}
-                  <div className="mk-ph-nav">
-                    {/* Dashboard – active */}
-                    <div className="mk-ph-nav-item active">
-                      <svg fill="none" viewBox="0 0 24 24" stroke="#14dcb4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
-                      </svg>
-                    </div>
-                    {/* Sleep */}
-                    <div className="mk-ph-nav-item">
-                      <svg fill="none" viewBox="0 0 24 24" stroke="#a1a1aa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
-                      </svg>
-                    </div>
-                    {/* Water */}
-                    <div className="mk-ph-nav-item">
-                      <svg fill="none" viewBox="0 0 24 24" stroke="#a1a1aa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 22a7 7 0 007-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 007 7z"/>
-                      </svg>
-                    </div>
-                    {/* Food */}
-                    <div className="mk-ph-nav-item">
-                      <svg fill="none" viewBox="0 0 24 24" stroke="#a1a1aa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 002-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 00-5 5v6c0 1.1.9 2 2 2h3z"/><path d="M21 15v7"/>
-                      </svg>
-                    </div>
-                    {/* More */}
-                    <div className="mk-ph-nav-item">
-                      <svg fill="none" viewBox="0 0 24 24" stroke="#a1a1aa" strokeWidth="2.5" strokeLinecap="round">
-                        <circle cx="5" cy="12" r="1" fill="#a1a1aa"/><circle cx="12" cy="12" r="1" fill="#a1a1aa"/><circle cx="19" cy="12" r="1" fill="#a1a1aa"/>
-                      </svg>
-                    </div>
-                  </div>
+                  <iframe
+                    src="/preview-mobile"
+                    style={{ width: '100%', height: '100%', border: 'none', display: 'block', pointerEvents: 'none', overflow: 'hidden' }}
+                    title="Mobile dashboard preview"
+                  />
                 </div>
               </div>
             </div>

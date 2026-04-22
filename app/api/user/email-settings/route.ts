@@ -215,7 +215,7 @@ export async function PUT(req: NextRequest) {
       ?? [])
       .map((email) => String(email).trim().toLowerCase())
       .filter((email) => email.includes('@'));
-    const sendTo = recipientEmails.length ? recipientEmails.join(', ') : String(user.email);
+    const sendTo = recipientEmails.length ? recipientEmails.join(', ') : (user.email ? String(user.email) : '');
 
     const smtpHost = smtpRaw.host as string | undefined;
     const smtpUser = smtpRaw.user as string | undefined;

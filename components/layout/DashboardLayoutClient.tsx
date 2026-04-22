@@ -11,6 +11,7 @@ import MobileNav from '@/components/layout/MobileNav';
 import OrchestratorSidebar from '@/components/layout/OrchestratorSidebar';
 import OrchestratorToggleButton from '@/components/layout/OrchestratorToggleButton';
 import DashboardTour from '@/components/tour/DashboardTour';
+import GuestUpgradeBanner from '@/components/layout/GuestUpgradeBanner';
 import api from '@/lib/apiClient';
 import { cn } from '@/lib/utils';
 
@@ -20,6 +21,7 @@ function DashboardLayoutInner({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
   const [showTour, setShowTour] = useState(false);
+  const [isGuest, setIsGuest] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isXl, setIsXl] = useState(false);
   const { isOpen: rightOpen, sidebarWidth, setSidebarWidth, closeSidebar } = useOrchestratorSidebar();
@@ -63,10 +65,12 @@ function DashboardLayoutInner({ children }: { children: ReactNode }) {
           if (res.success && res.data) {
             const user = res.data as {
               onboardingComplete?: boolean;
+              isGuest?: boolean;
               settings?: {
                 dashboardTourVersion?: number;
               };
             };
+            if (user.isGuest) setIsGuest(true);
 
             if (!user.onboardingComplete) {
               router.push('/onboarding');
@@ -150,6 +154,7 @@ function DashboardLayoutInner({ children }: { children: ReactNode }) {
             className="w-full px-4 pt-3 pb-0 sm:px-6 sm:pt-8 sm:pb-4 lg:px-6 lg:pt-8"
             style={{ paddingTop: 'calc(var(--sat, env(safe-area-inset-top, 0px)) + 0.75rem)' }}
           >
+            <GuestUpgradeBanner isGuest={isGuest} />
             {showTour && <DashboardTour onClose={() => setShowTour(false)} />}
             {children}
           </div>

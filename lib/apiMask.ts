@@ -16,6 +16,7 @@ const SENSITIVE_FIELDS = [
   '__v',
   'apiKeys.openai',
   'apiKeys.fdcApiKey',
+  'guestFingerprint',
 ];
 
 // Internal fields to strip from responses
@@ -98,7 +99,8 @@ export function maskUser(user: IUser | Record<string, unknown>): SafeUser {
   return {
     id: String(u._id),
     username: u.username as string | undefined,
-    email: u.email as string,
+    email: u.email as string | undefined,
+    isGuest: Boolean(u.isGuest),
     profile: profile as unknown as SafeUser['profile'],
     settings: settings as unknown as SafeUser['settings'],
     targets: targets as unknown as SafeUser['targets'],

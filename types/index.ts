@@ -236,8 +236,10 @@ export interface UserAchievements {
 export interface IUser {
   _id: Types.ObjectId;
   username?: string;
-  email: string;
-  password: string;
+  email?: string;
+  password?: string;
+  isGuest?: boolean;
+  guestFingerprint?: string;
   profile: UserProfile;
   apiKeys: UserApiKeys;
   settings: UserSettings;
@@ -392,7 +394,8 @@ export interface ApiResponse<T = unknown> {
 export interface SafeUser {
   id: string;
   username?: string;
-  email: string;
+  email?: string;
+  isGuest?: boolean;
   profile: UserProfile;
   settings: UserSettings;
   targets: UserTargets;
