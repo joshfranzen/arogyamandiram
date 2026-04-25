@@ -334,6 +334,7 @@ OUTPUT SCHEMA (JSON only)
     "exercises": [
       {
         "name": "<exercise or circuit name>",
+        "steps": ["<3-5 beginner-friendly how-to steps, each a plain sentence>"],
         "phase": "warmup | main | finisher | cooldown",
         "durationMinutes": <integer>,
         "MET": <number from reference table>,
@@ -441,6 +442,7 @@ IMPORTANT: Always respond with this exact JSON structure:
     "exercises": [
       {
         "name": "string",
+        "steps": ["3-5 short bullet steps: how to do this exercise, written for beginners. Each step is one plain sentence. No markdown."],
         "sets": number,
         "reps": "string",
         "durationMinutes": number,

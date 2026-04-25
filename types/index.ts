@@ -245,6 +245,7 @@ export interface IUser {
   settings: UserSettings;
   targets: UserTargets;
   achievements?: UserAchievements;
+  achievementsUpdatedAt?: Date;
   onboardingComplete: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -430,6 +431,7 @@ export interface AiWorkoutPlan {
   reasoning?: string;
   exercises: {
     name: string;
+    steps?: string[];
     sets: number;
     reps: string;
     durationMinutes?: number;

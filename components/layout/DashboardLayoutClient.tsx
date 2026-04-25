@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { CURRENT_DASHBOARD_TOUR_VERSION } from '@/lib/constants';
 import { DebugLogsProvider } from '@/contexts/DebugLogsContext';
 import { OrchestratorSidebarProvider, useOrchestratorSidebar } from '@/contexts/OrchestratorSidebarContext';
+import { UserProvider, useUserContext } from '@/contexts/UserContext';
 import Sidebar from '@/components/layout/Sidebar';
 import MobileNav from '@/components/layout/MobileNav';
 import OrchestratorSidebar from '@/components/layout/OrchestratorSidebar';
@@ -17,9 +18,9 @@ import { cn } from '@/lib/utils';
 
 function DashboardLayoutInner({ children }: { children: ReactNode }) {
   const { data: session, status } = useSession();
+  const { user, loading: userLoading } = useUserContext();
   const router = useRouter();
   const pathname = usePathname();
-  const [checkingOnboarding, setCheckingOnboarding] = useState(true);
   const [showTour, setShowTour] = useState(false);
   const [isGuest, setIsGuest] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -56,49 +57,36 @@ function DashboardLayoutInner({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login');
-      return;
-    }
-    if (status === 'authenticated') {
-      api
-        .getUser()
-        .then((res) => {
-          if (res.success && res.data) {
-            const user = res.data as {
-              onboardingComplete?: boolean;
-              isGuest?: boolean;
-              settings?: {
-                dashboardTourVersion?: number;
-              };
-            };
-            if (user.isGuest) setIsGuest(true);
-
-            if (!user.onboardingComplete) {
-              router.push('/onboarding');
-              return;
-            }
-
-            const storedVersion = user.settings?.dashboardTourVersion ?? 0;
-            const envVersion = CURRENT_DASHBOARD_TOUR_VERSION;
-
-            if (typeof window !== 'undefined') {
-              const seenKey = 'dashboardTourSeenVersion';
-              const alreadySeenSession =
-                window.sessionStorage.getItem(seenKey) === String(envVersion);
-
-              if (storedVersion >= envVersion || alreadySeenSession) {
-                setShowTour(false);
-              } else {
-                window.sessionStorage.setItem(seenKey, String(envVersion));
-                void api.updateSettings({ dashboardTourVersion: envVersion });
-                setShowTour(true);
-              }
-            }
-          }
-          setCheckingOnboarding(false);
-        })
-        .catch(() => setCheckingOnboarding(false));
     }
   }, [status, router]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    if (user.isGuest) setIsGuest(true);
+
+    if (!user.onboardingComplete) {
+      router.push('/onboarding');
+      return;
+    }
+
+    const storedVersion = user.settings?.dashboardTourVersion ?? 0;
+    const envVersion = CURRENT_DASHBOARD_TOUR_VERSION;
+
+    if (typeof window !== 'undefined') {
+      const seenKey = 'dashboardTourSeenVersion';
+      const alreadySeenSession =
+        window.sessionStorage.getItem(seenKey) === String(envVersion);
+
+      if (storedVersion >= envVersion || alreadySeenSession) {
+        setShowTour(false);
+      } else {
+        window.sessionStorage.setItem(seenKey, String(envVersion));
+        void api.updateSettings({ dashboardTourVersion: envVersion });
+        setShowTour(true);
+      }
+    }
+  }, [user, router]);
 
   // Ensure each dashboard page starts scrolled to top (especially on mobile)
   useEffect(() => {
@@ -114,7 +102,7 @@ function DashboardLayoutInner({ children }: { children: ReactNode }) {
     closeSidebar();
   }, [pathname, closeSidebar]);
 
-  if (status === 'loading' || checkingOnboarding) {
+  if (status === 'loading' || userLoading) {
     return (
       <div
         className="fixed inset-0 flex items-center justify-center"
@@ -170,7 +158,9 @@ export default function DashboardLayoutClient({ children }: { children: ReactNod
   return (
     <DebugLogsProvider>
       <OrchestratorSidebarProvider>
-        <DashboardLayoutInner>{children}</DashboardLayoutInner>
+        <UserProvider>
+          <DashboardLayoutInner>{children}</DashboardLayoutInner>
+        </UserProvider>
       </OrchestratorSidebarProvider>
     </DebugLogsProvider>
   );

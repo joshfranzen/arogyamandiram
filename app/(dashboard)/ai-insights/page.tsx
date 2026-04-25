@@ -960,9 +960,27 @@ export default function TodaysPlanPage() {
                   <div className="flex items-start gap-3">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-text-primary">{ex.name}</p>
-                      <p className="mt-1 text-[11px] text-emerald-300">
+                      {ex.steps && ex.steps.length > 0 && (
+                        <ul className="mt-1.5 space-y-0.5 list-none pl-0">
+                          {ex.steps.map((step, si) => (
+                            <li key={si} className="flex items-start gap-1.5 text-[11px] text-text-muted leading-relaxed">
+                              <span className="mt-0.5 shrink-0 text-emerald-500">•</span>
+                              <span>{step}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <p className="mt-2 text-[11px] text-emerald-300">
                         {aiTargetText}
                       </p>
+                      <a
+                        href={`https://www.google.com/search?q=${encodeURIComponent(ex.name + ' exercise how to')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-flex items-center gap-1 text-[10px] text-zinc-500 hover:text-emerald-400 transition-colors underline underline-offset-2"
+                      >
+                        Search &ldquo;{ex.name}&rdquo; on Google
+                      </a>
                     </div>
                     <div className="flex shrink-0 min-w-[92px] flex-col items-end gap-2">
                       {ex.intensity && (

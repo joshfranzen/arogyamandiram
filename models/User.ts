@@ -241,6 +241,7 @@ const UserSchema = new Schema<IUserDocument>(
       },
       xpTotal: { type: Number, default: 0, min: 0 },
     },
+    achievementsUpdatedAt: { type: Date },
     onboardingComplete: { type: Boolean, default: false },
     isGuest: { type: Boolean, default: false, index: true },
     guestFingerprint: {
