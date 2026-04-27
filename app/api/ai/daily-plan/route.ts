@@ -241,113 +241,86 @@ Rules: Suggest 4-6 foods across meal types. Match the user's goals, preferences,
 }
 
 async function generateWorkoutPlan(ctx: Awaited<ReturnType<typeof buildUserContext>>, apiKey: string) {
-  const system = `
-  You are an elite performance-based fitness coach AI. Your job is to design
-a safe, scientifically grounded, personalized workout STRUCTURE for one user.
+  const system = `You are an elite performance-based fitness coach AI for Arogyamandiram. Generate ONLY a workout plan.
 
-You do NOT compute calories. A downstream validator computes kcal from the
-(MET, durationMinutes, weight) you provide. Your only responsibilities are:
-  1. Choose exercises appropriate to the user's profile and goals.
-  2. Assign each exercise a MET value from the reference table.
-  3. Assign each exercise a durationMinutes value.
-  4. Ensure the plan's weighted-average MET meets the required threshold.
-
-=========================
-USER CONTEXT (dynamic — from backend)
-=========================
-- age: {{age}}
-- gender: {{gender}}
-- weight_kg: {{weight_kg}}
-- height_cm: {{height_cm}}
-- body_fat_pct: {{body_fat_pct}}
-- body_type: {{body_type}}              // ectomorph | mesomorph | endomorph
-- fitness_level: {{fitness_level}}      // beginner | intermediate | advanced
-- primary_goal: {{primary_goal}}        // fat_loss | maintain | muscle_gain | endurance
-- focus_areas: {{focus_areas}}          // e.g. ["belly","hips","chest"]
-- equipment: {{equipment}}              // e.g. ["bodyweight","dumbbells","jump_rope"]
-- injuries_or_limits: {{injuries}}      // e.g. ["knee_sensitive"] or []
-- target_workout_minutes: {{target_minutes}}
-- target_kcal_burn: {{target_kcal}}
-- recent_activity_summary: {{recent_activity}}   // last 7 days avg HR, steps, sleep
-
-=========================
-DERIVED TARGETS (compute mentally, don't output arithmetic)
-=========================
-- required_avg_MET = target_kcal_burn / weight_kg
-  (because MET × weight × 1h = kcal, so for a 1h session avg MET must equal kcal/weight)
-- If target_workout_minutes ≠ 60, scale:
-  required_avg_MET = target_kcal_burn / (weight_kg × target_minutes/60)
-
-Your plan's weighted-average MET MUST be within [required_avg_MET × 0.98,
-required_avg_MET × 1.08]. If you cannot reach it safely given the user's
-fitness level and injuries, lower it and flag "target_unrealistic": true.
-
-=========================
-MET REFERENCE (use these; do not invent)
-=========================
-static_stretch_or_slow_walk: 2.0 – 2.5
-dynamic_warmup_or_mobility: 3.0 – 3.5
-light_resistance_or_yoga_flow: 3.5 – 4.5
-bodyweight_strength_moderate: 5.5 – 6.5
-loaded_strength_or_lunges: 6.0 – 7.0
-steady_cardio_jog_cycle: 7.0 – 8.0
-burpees_mountain_climbers_sustained: 8.5 – 9.5
-jump_rope_fast_or_hiit_intervals: 10.0 – 11.5
-sprint_or_all_out_circuit: 11.5 – 12.5
-
-=========================
-STRUCTURAL RULES
-=========================
-- Sum of durationMinutes MUST equal target_workout_minutes (exactly).
-- No single exercise block may exceed 6 minutes. Break long blocks into
-  named circuit rounds (e.g., "Strength Circuit Round 1", "Round 2").
-- Required phases (scale proportionally if target_minutes ≠ 60):
-  * Warm-up: 8–13% of total, MET ≤ 3.5
-  * Main block: 50–60% of total, mix of strength and metabolic circuits
-  * HIIT finisher: 20–28% of total, weighted-avg MET ≥ 9
-  * Cool-down: 8–12% of total, MET ≤ 2.5
-- Respect injuries_or_limits: omit contraindicated movements entirely.
-- Adapt to body_type and primary_goal:
-  * endomorph + fat_loss → higher metabolic density, longer HIIT
-  * ectomorph + muscle_gain → longer strength blocks, shorter HIIT
-  * beginner → cap MET at 9, add 5-sec form cues per exercise
-  * advanced → allow MET 11+ in finisher
-- Respect focus_areas: at least 40% of main-block minutes should train them.
-
-=========================
-WHAT YOU DO NOT DO
-=========================
-- Do NOT output any kcal fields.
-- Do NOT output avgMET (backend computes it).
-- Do NOT do arithmetic in prose or reasoning fields.
-- Do NOT claim to hit a calorie target — the validator decides.
-- Do NOT output text outside the JSON object.
-
-=========================
-OUTPUT SCHEMA (JSON only)
-=========================
+Respond with this exact JSON:
 {
   "workoutPlan": {
-    "name": "<concise, specific to user goal>",
-    "description": "<one sentence, non-numeric>",
-    "progressionTip": "<one actionable sentence for next session>",
+    "name": "string — concise name specific to the user's goal",
+    "description": "string — one sentence describing the session",
+    "progressionTip": "string — specific next-session change (e.g. 'reduce rest by 10s' or 'add 1 set to squats')",
+    "reasoning": "string — 1-2 sentences explaining why this plan suits this user",
     "exercises": [
       {
-        "name": "<exercise or circuit name>",
-        "steps": ["<3-5 beginner-friendly how-to steps, each a plain sentence>"],
-        "phase": "warmup | main | finisher | cooldown",
-        "durationMinutes": <integer>,
-        "MET": <number from reference table>,
-        "targets": ["<muscle or system>", ...],
-        "form_cue": "<one short coaching cue>"
+        "name": "string — clear exercise name (e.g. Bodyweight Squats, Push-Ups, Plank)",
+        "steps": ["3-5 short plain-English steps explaining how to do this exercise for a beginner"],
+        "sets": number,
+        "reps": "string (e.g. '10-15' or '30 seconds')",
+        "durationMinutes": number,
+        "restSeconds": number,
+        "intensity": "low" | "medium" | "high",
+        "category": "cardio" | "strength" | "flexibility"
       }
     ],
-    "durationMinutes": <integer, equals sum of exercises[].durationMinutes>,
-    "target_unrealistic": <boolean>,
-    "adaptation_notes": "<one sentence: how this plan is tailored to THIS user>"
+    "estimatedCalories": number,
+    "durationMinutes": number
   }
 }
-  `;
+
+ORDER RULE (STRICT — array must follow this exact sequence):
+- exercises[0] = warm-up: category MUST be "cardio", intensity MUST be "low"
+- exercises[1] and [2] = cardio: active intervals (Jumping Jacks, Mountain Climbers, High Knees) — never passive walking
+- exercises[3], [4], and [5] = strength: ALL THREE must be compound strength exercises BEFORE the core exercise
+- second-to-last exercise = core: category MUST be "strength" — place this ONLY after all strength exercises are done
+- last exercise = cool-down: category MUST be "flexibility"
+Total: 6-8 exercises.
+
+STRENGTH ENFORCEMENT (CRITICAL):
+- exercises[3], [4], [5] MUST ALL be strength category — minimum 3 strength exercises BEFORE core
+- Plank and similar core moves do NOT count as strength — they are the dedicated core slot (second-to-last only)
+- Never place core exercises inside the strength block
+
+CATEGORY RULE:
+- Allowed values: "cardio" | "strength" | "flexibility" only
+- Core exercises use "strength" category — never create a "core" category
+- Warm-up uses "cardio" — never "flexibility"
+
+PROGRESSION QUALITY (REQUIRED):
+- Progression tip MUST improve overall session stimulus, not just one exercise
+- Good examples: "reduce rest to 30s across all exercises", "increase cardio intervals to 45s each", "add 1 set to both squat and push-up"
+- Bad example: "Add 1 set to Push-Ups" (too narrow — rejected)
+
+INTENSITY RULES:
+- beginners: at least 2 exercises must be "medium"; remainder "low" or "medium" — never all-low
+- intermediate: mix of "medium" and "high"
+- advanced: majority "high"
+- Adjust one level easier if yesterday's workout was too_hard; one level harder if too_easy
+
+ADAPTATION (MANDATORY):
+- You MUST use the provided difficultyNote to adjust intensity
+- If no difficulty data is available → default to moderate progression (keep current level, add 1 set)
+
+CALORIE LOGIC (CRITICAL):
+- Maintain continuous activity density — no long idle blocks
+- Rest periods MUST NOT exceed 45 seconds per exercise
+- Ensure the combined intensity distribution supports burning ~300 kcal over the session duration
+
+DURATION RULE (STRICT):
+- Total durationMinutes MUST be within ±2 minutes of the user's daily workout minutes target
+- No single exercise > 6 minutes
+
+FAT LOSS PRIORITY:
+- If user body fat > 22%, bias toward fat-loss recomposition even if goal is "maintain"
+- Prioritize exercises that keep heart rate elevated and engage the core throughout
+
+EXERCISE RULES:
+- Each exercise MUST have a "steps" array of 3-5 plain sentences a complete beginner can follow
+- Name exercises clearly (e.g. "Bodyweight Squats", not "Squat Circuit Round 1")
+- Prefer compound movements (squats, lunges, push-ups, rows) over isolation
+
+PROGRESSION TIP (required):
+- Must name a concrete change: reduce rest by Xs, add 1 set to [exercise], increase tempo, or try a harder variant
+- Never generic ("increase reps" is not acceptable)`;
 
   const userPrompt = [ctx.profileContext, ctx.recentContext, ctx.difficultyNote, `Plan date: ${ctx.targetDate}`].filter(Boolean).join('\n');
   const ai = await callOpenAI(apiKey, system, userPrompt);
@@ -358,6 +331,135 @@ OUTPUT SCHEMA (JSON only)
       userPrompt,
     },
   };
+}
+
+// ─── Workout validator ────────────────────────────────────────────────────────
+
+const BANNED_EXERCISE_NAMES = ['walking', 'circuit', 'routine', 'workout'];
+const ALLOWED_CATEGORIES = ['cardio', 'strength', 'flexibility'];
+
+type WorkoutValidationResult = { isValid: boolean; errors: string[] };
+
+function validateWorkoutPlan(
+  plan: Record<string, unknown>,
+  targetMinutes: number
+): WorkoutValidationResult {
+  const errors: string[] = [];
+  const wp = (plan?.workoutPlan ?? plan) as Record<string, unknown> | null;
+  if (!wp) return { isValid: false, errors: ['Missing workoutPlan'] };
+
+  const ex = wp.exercises as Record<string, unknown>[] | undefined;
+  if (!Array.isArray(ex) || ex.length < 6 || ex.length > 8) {
+    errors.push(`Exercise count must be 6–8 (got ${Array.isArray(ex) ? ex.length : 'none'})`);
+  }
+
+  if (Array.isArray(ex) && ex.length >= 2) {
+    type Ex = { category?: string; intensity?: string; restSeconds?: number; durationMinutes?: number; name?: string };
+
+    // Warm-up: must be cardio + low intensity
+    if ((ex[0] as Ex)?.category !== 'cardio') {
+      errors.push('exercises[0] warm-up must use category "cardio" (not "flexibility")');
+    }
+    if ((ex[0] as Ex)?.intensity !== 'low') {
+      errors.push('exercises[0] warm-up must have intensity "low"');
+    }
+    // Cool-down last
+    if ((ex[ex.length - 1] as Ex)?.category !== 'flexibility') {
+      errors.push('Last exercise must be cool-down (category: flexibility)');
+    }
+    // Core second-to-last
+    if ((ex[ex.length - 2] as Ex)?.category !== 'strength') {
+      errors.push('Second-to-last exercise must be core (category: strength)');
+    }
+    // exercises[3], [4], [5] must all be strength (if array is long enough)
+    if (ex.length >= 6) {
+      [3, 4, 5].forEach((idx) => {
+        if (idx < ex.length - 2 && (ex[idx] as Ex)?.category !== 'strength') {
+          errors.push(`exercises[${idx}] must be strength (got "${(ex[idx] as Ex)?.category}")`);
+        }
+      });
+    }
+
+    // Category validity
+    ex.forEach((e, i) => {
+      const cat = (e as Ex).category;
+      if (!ALLOWED_CATEGORIES.includes(cat ?? '')) {
+        errors.push(`Invalid category "${cat}" at index ${i} — must be cardio|strength|flexibility`);
+      }
+    });
+
+    // Cardio count (warm-up doesn't count — it's cardio but low)
+    const cardioCount = ex.slice(1).filter((e) => (e as Ex).category === 'cardio').length;
+    if (cardioCount < 2) errors.push(`Need ≥2 cardio exercises after warm-up (got ${cardioCount})`);
+
+    // Strength count: minimum 3 strength exercises before core slot
+    const strengthBeforeCore = ex.slice(0, ex.length - 2).filter((e) => (e as Ex).category === 'strength').length;
+    if (strengthBeforeCore < 3) errors.push(`Need ≥3 strength exercises before core slot (got ${strengthBeforeCore})`);
+
+    // Intensity: at least 2 medium
+    const mediumCount = ex.filter((e) => (e as { intensity?: string }).intensity === 'medium').length;
+    if (mediumCount < 2) errors.push(`Need ≥2 medium-intensity exercises (got ${mediumCount})`);
+
+    // Rest cap
+    ex.forEach((e, i) => {
+      const rest = Number((e as { restSeconds?: number }).restSeconds ?? 0);
+      if (rest > 45) errors.push(`Rest too long at index ${i}: ${rest}s (max 45s)`);
+    });
+
+    // Per-exercise duration cap
+    ex.forEach((e, i) => {
+      const dur = Number((e as { durationMinutes?: number }).durationMinutes ?? 0);
+      if (dur > 6) errors.push(`Exercise ${i} duration ${dur}min exceeds 6-minute cap`);
+    });
+
+    // Metabolic density: rest-to-work ratio
+    const totalWork = ex.reduce((s, e) => s + Number((e as { durationMinutes?: number }).durationMinutes ?? 0), 0);
+    const totalRest = ex.reduce((s, e) => s + Number((e as { restSeconds?: number }).restSeconds ?? 0) / 60, 0);
+    if (totalWork > 0 && totalRest / totalWork > 0.3) {
+      errors.push(`Rest-to-work ratio too high (${(totalRest / totalWork * 100).toFixed(0)}% — max 30%)`);
+    }
+
+    // Banned vague exercise names
+    ex.forEach((e, i) => {
+      const name = String((e as { name?: string }).name ?? '').toLowerCase();
+      const banned = BANNED_EXERCISE_NAMES.find((b) => name.includes(b));
+      if (banned) errors.push(`Exercise ${i} name contains banned term "${banned}"`);
+    });
+  }
+
+  // Total duration
+  const duration = Number((wp as { durationMinutes?: number }).durationMinutes ?? 0);
+  if (Math.abs(duration - targetMinutes) > 2) {
+    errors.push(`Duration ${duration}min not within ±2 min of target ${targetMinutes}min`);
+  }
+
+  return { isValid: errors.length === 0, errors };
+}
+
+// ─── Validated workout generator (auto-retry up to 3×) ───────────────────────
+
+async function generateWorkoutPlanWithValidation(
+  ctx: Awaited<ReturnType<typeof buildUserContext>>,
+  apiKey: string
+): Promise<ReturnType<typeof generateWorkoutPlan>> {
+  const targetMinutes = (ctx.targets as { dailyWorkoutMinutes?: number }).dailyWorkoutMinutes ?? 30;
+  let lastErrors: string[] = [];
+  const mutCtx = { ...ctx };
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const result = await generateWorkoutPlan(mutCtx, apiKey);
+    const validation = validateWorkoutPlan(result.parsed as Record<string, unknown>, targetMinutes);
+    if (validation.isValid) return result;
+
+    lastErrors = validation.errors;
+    // Inject validation feedback into next attempt via difficultyNote
+    mutCtx.difficultyNote = [
+      mutCtx.difficultyNote,
+      `\nPREVIOUS PLAN REJECTED — fix ALL of these before responding:\n${validation.errors.map((e) => `- ${e}`).join('\n')}`,
+    ].filter(Boolean).join('\n');
+  }
+
+  throw new Error(`Workout plan failed validation after 3 attempts: ${lastErrors.join('; ')}`);
 }
 
 async function generateOverview(ctx: Awaited<ReturnType<typeof buildUserContext>>, apiKey: string) {
@@ -436,24 +538,24 @@ IMPORTANT: Always respond with this exact JSON structure:
     "reasoning": "1-2 sentences explaining WHY this food plan — reference yesterday's gaps"
   },
   "workoutPlan": {
-    "name": "string",
-    "description": "string",
-    "progressionTip": "string",
+    "name": "string — concise name specific to the user's goal",
+    "description": "string — one sentence describing the session",
+    "progressionTip": "string — specific next-session change (e.g. 'reduce rest by 10s' or 'add 1 set to squats')",
+    "reasoning": "string — 1-2 sentences explaining why this plan suits this user",
     "exercises": [
       {
-        "name": "string",
-        "steps": ["3-5 short bullet steps: how to do this exercise, written for beginners. Each step is one plain sentence. No markdown."],
+        "name": "string — clear exercise name (e.g. Bodyweight Squats, Push-Ups, Plank)",
+        "steps": ["3-5 short plain-English steps explaining how to do this exercise for a beginner"],
         "sets": number,
-        "reps": "string",
+        "reps": "string (e.g. '10-15' or '30 seconds')",
         "durationMinutes": number,
         "restSeconds": number,
         "intensity": "low"|"medium"|"high",
-        "category": "cardio"|"strength"|"flexibility"|"sports"
+        "category": "cardio"|"strength"|"flexibility"
       }
     ],
     "estimatedCalories": number,
-    "durationMinutes": number,
-    "reasoning": "1-2 sentences explaining WHY this workout plan"
+    "durationMinutes": number
   },
   "prediction": {
     "weeklyWeightChangeKg": number,
@@ -463,12 +565,38 @@ IMPORTANT: Always respond with this exact JSON structure:
 }
 
 Rules:
-- Food plan: 4-6 suggestions across multiple meal types
-- Workout: balanced session (warm-up → main → cool-down), duration close to target
-- If protein gap > 20g: prioritize high-protein foods
-- Avoid user's disliked foods
-- Adjust workout intensity based on yesterday's difficulty feedback
-- Be specific and actionable`;
+- Food plan: 4-6 suggestions across multiple meal types; prioritize high-protein foods if protein gap > 20g; avoid disliked foods
+
+ORDER RULE (STRICT — array must follow this exact sequence):
+- exercises[0] = warm-up: category "cardio", intensity "low"
+- exercises[1] and [2] = cardio: active intervals (Jumping Jacks, Mountain Climbers, High Knees — never walking)
+- exercises[3], [4], [5] = strength: ALL THREE must be compound strength moves BEFORE core
+- second-to-last = core: category "strength" — ONLY after all strength exercises are done
+- last = cool-down: category "flexibility"
+Total: 6-8 exercises, no single exercise > 6 min
+
+STRENGTH ENFORCEMENT (CRITICAL): exercises[3][4][5] must ALL be "strength"; plank/core moves belong only in the core slot (second-to-last), never in the strength block
+
+CATEGORY RULE: only "cardio" | "strength" | "flexibility" — never "core"; warm-up = "cardio" not "flexibility"
+
+PROGRESSION QUALITY: tip must improve overall session stimulus (e.g. "reduce rest to 30s across all exercises") — not just one exercise
+
+INTENSITY RULES:
+- beginners: ≥2 exercises = "medium"; never all-low
+- intermediate: mix "medium"/"high"; advanced: majority "high"
+- MANDATORY: use difficultyNote to adjust intensity (too_hard → one level easier; too_easy → one level harder; no data → moderate progression)
+
+CALORIE LOGIC (CRITICAL):
+- Maintain continuous activity density; rest MUST NOT exceed 45s per exercise
+- Intensity distribution must support ~300 kcal burn over the session
+
+DURATION RULE (STRICT): total durationMinutes must be within ±2 minutes of the user's daily workout minutes target
+
+FAT LOSS PRIORITY: if body fat > 22%, bias toward fat-loss recomposition even if goal is "maintain"; prioritize heart-rate-elevating, core-engaging movements
+
+- Each exercise MUST have a "steps" array of 3-5 plain beginner-friendly sentences
+- Name exercises clearly (e.g. "Bodyweight Squats"); prefer compound movements
+- Progression tip must be specific (e.g. "reduce rest by 10s", "add 1 set to lunges") — never generic`;
 
   const userPrompt = [
     ctx.profileContext, ctx.recentContext, ctx.yesterdayContext,
@@ -478,8 +606,29 @@ Rules:
 
   const ai = await callOpenAI(apiKey, systemPrompt, userPrompt);
 
+  // Validate workout section; if invalid patch it with the focused generator (avoids re-running food)
+  const targetMinutes = (ctx.targets as { dailyWorkoutMinutes?: number }).dailyWorkoutMinutes ?? 30;
+  const workoutValidation = validateWorkoutPlan(
+    { workoutPlan: (ai.parsed as { workoutPlan?: unknown }).workoutPlan },
+    targetMinutes
+  );
+
+  let parsed = ai.parsed;
+  if (!workoutValidation.isValid) {
+    console.warn('[Daily Plan] Full-plan workout validation failed — patching via focused generator:', workoutValidation.errors);
+    try {
+      const patched = await generateWorkoutPlanWithValidation(ctx, apiKey);
+      parsed = {
+        ...ai.parsed,
+        workoutPlan: (patched.parsed as { workoutPlan?: unknown }).workoutPlan,
+      };
+    } catch (patchErr) {
+      console.error('[Daily Plan] Patch also failed — keeping original:', patchErr);
+    }
+  }
+
   return {
-    parsed: ai.parsed,
+    parsed,
     generationContext: ctx.generationContext,
     fitnessLevelDerived: ctx.fitnessLevel,
     predictionData: ctx.predictionData,
@@ -613,7 +762,7 @@ export async function POST(req: NextRequest) {
         };
 
       } else if (type === 'workout') {
-        const result = await generateWorkoutPlan(ctx, apiKey);
+        const result = await generateWorkoutPlanWithValidation(ctx, apiKey);
         const workoutResult = result.parsed as {
           workoutPlan?: Record<string, unknown>;
         };

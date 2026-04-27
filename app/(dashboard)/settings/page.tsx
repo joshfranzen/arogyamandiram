@@ -81,6 +81,53 @@ const bodyFatGuides = [
   { label: 'Higher', range: '25-30%', value: 27, clue: 'Visible belly fat, chest and waist look fuller.' },
 ] as const;
 
+// ─── Fat area tag input ────────────────────────────────────────────────────────
+
+function FatAreaInput({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
+  const [draft, setDraft] = useState('');
+
+  function add() {
+    const trimmed = draft.trim().toLowerCase();
+    if (trimmed && !value.includes(trimmed)) onChange([...value, trimmed]);
+    setDraft('');
+  }
+
+  return (
+    <div className="mt-4 space-y-3">
+      {/* Existing areas as bullet points */}
+      {value.length > 0 && (
+        <ul className="space-y-1.5">
+          {value.map((area) => (
+            <li key={area} className="flex items-center gap-2 rounded-lg bg-zinc-900/60 px-3 py-2">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+              <span className="flex-1 text-sm capitalize text-zinc-200">{area}</span>
+              <button type="button" onClick={() => onChange(value.filter((a) => a !== area))}
+                className="text-zinc-600 hover:text-zinc-300 transition-colors">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {/* Input row */}
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
+          placeholder="e.g. belly, arms, lower back…"
+          className="flex-1 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+        />
+        <button type="button" onClick={add}
+          className="flex items-center gap-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 px-3 py-2 text-sm text-emerald-400 hover:bg-emerald-500/20 transition-colors">
+          <Plus className="h-3.5 w-3.5" /> Add
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Inner component (uses useSearchParams) ───────────────────────────────────
 
 function SettingsInner() {
@@ -1003,24 +1050,9 @@ function SettingsInner() {
 
             {/* Fat focus areas */}
             <div className="glass-card rounded-2xl p-6">
-              <h2 className="text-base font-semibold text-text-primary">Fat Loss Focus Areas</h2>
-              <p className="mt-1 text-xs text-text-muted">Where do you want to focus fat loss? Select up to 3.</p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {(['belly', 'hips', 'thighs', 'arms', 'chest', 'overall'] as const).map((area) => {
-                  const selected = fatFocusAreas.includes(area);
-                  const disabled = !selected && fatFocusAreas.length >= 3;
-                  return (
-                    <button key={area} type="button" disabled={disabled}
-                      onClick={() => setFatFocusAreas((prev) => selected ? prev.filter((a) => a !== area) : [...prev, area])}
-                      className={cn('rounded-full border px-4 py-2 text-sm capitalize transition-all',
-                        selected ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
-                          : disabled ? 'cursor-not-allowed border-zinc-800 text-zinc-600 opacity-40'
-                            : 'border-zinc-700 text-zinc-400 hover:border-zinc-500')}>
-                      {area}
-                    </button>
-                  );
-                })}
-              </div>
+              <h2 className="text-base font-semibold text-text-primary">Where do you carry more fat?</h2>
+              <p className="mt-1 text-xs text-text-muted">Type an area and press Enter — used to personalise your workout target zones.</p>
+              <FatAreaInput value={fatFocusAreas} onChange={setFatFocusAreas} />
             </div>
 
             {/* Fitness Level */}

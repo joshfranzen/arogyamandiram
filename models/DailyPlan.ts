@@ -38,6 +38,7 @@ export interface IDailyPlanDocument extends Document {
     progressionTip?: string;
     exercises: {
       name: string;
+      steps?: string[];
       sets: number;
       reps: string;
       durationMinutes?: number;
@@ -103,6 +104,7 @@ const MealSuggestionSchema = new Schema(
 const ExerciseSchema = new Schema(
   {
     name: { type: String, required: true },
+    steps: { type: [String], default: undefined },
     sets: { type: Number, default: 1 },
     reps: { type: String, default: '1' },
     durationMinutes: { type: Number },

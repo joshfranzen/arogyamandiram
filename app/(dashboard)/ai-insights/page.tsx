@@ -970,11 +970,11 @@ export default function TodaysPlanPage() {
                           ))}
                         </ul>
                       )}
-                      <p className="mt-2 text-[11px] text-emerald-300">
+                      <p className="mt-2 text-[11px] text-zinc-500">
                         {aiTargetText}
                       </p>
                       <a
-                        href={`https://www.google.com/search?q=${encodeURIComponent(ex.name + ' exercise how to')}`}
+                        href={`https://www.google.com/search?q=${encodeURIComponent('how to perform ' + ex.name)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="mt-1 inline-flex items-center gap-1 text-[10px] text-zinc-500 hover:text-emerald-400 transition-colors underline underline-offset-2"
@@ -982,27 +982,27 @@ export default function TodaysPlanPage() {
                         Search &ldquo;{ex.name}&rdquo; on Google
                       </a>
                     </div>
-                    <div className="flex shrink-0 min-w-[92px] flex-col items-end gap-2">
+                    <div className="flex shrink-0 flex-col items-end gap-2">
                       {ex.intensity && (
-                        <span className={cn('rounded-full px-2 py-0.5 text-[10px] capitalize font-medium', INTENSITY_BADGE[ex.intensity] ?? INTENSITY_BADGE.medium)}>
+                        <span className={cn('rounded-full px-2 py-0.5 text-[10px] capitalize font-medium whitespace-nowrap', INTENSITY_BADGE[ex.intensity] ?? INTENSITY_BADGE.medium)}>
                           {ex.intensity}
                         </span>
                       )}
-                    <button
-                      type="button"
-                      onClick={() => handleAddWorkoutExercise(ex, i)}
-                      disabled={exerciseDraft?.saving}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-50"
-                    >
-                      {exerciseDraft?.saving ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Plus className="h-3.5 w-3.5" />
-                      )}
-                      {exerciseDraft?.saving ? 'Adding...' : '+ Add'}
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAddWorkoutExercise(ex, i)}
+                        disabled={exerciseDraft?.saving}
+                        className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-emerald-500 px-2.5 py-1.5 text-xs font-semibold text-black whitespace-nowrap hover:bg-emerald-400 disabled:opacity-50"
+                      >
+                        {exerciseDraft?.saving ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Plus className="h-3 w-3" />
+                        )}
+                        {exerciseDraft?.saving ? 'Adding…' : 'Add'}
+                      </button>
                       {exerciseDraft?.saved && (
-                        <span className="text-[11px] font-medium text-emerald-400">added ✓</span>
+                        <span className="text-[11px] font-medium text-emerald-400 whitespace-nowrap">added ✓</span>
                       )}
                     </div>
                   </div>

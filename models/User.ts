@@ -62,7 +62,7 @@ const UserSchema = new Schema<IUserDocument>(
       // Body composition — used to personalize AI workout + nutrition plans
       bodyType: { type: String, enum: ['ectomorph', 'mesomorph', 'endomorph'] },
       bodyFat: { type: Number, min: 1, max: 60 },           // body fat percentage
-      fatFocusAreas: { type: [String], default: [] },        // max 3: belly/hips/thighs/arms/chest/overall
+      fatFocusAreas: { type: [String], default: [] },
       fitnessLevelDerived: { type: String, enum: ['beginner', 'intermediate', 'advanced'] }, // auto from logs
       fitnessLevelUser: { type: String, enum: ['beginner', 'intermediate', 'advanced'] },    // optional override
       timezone: { type: String, default: '' },
