@@ -1209,7 +1209,7 @@ function SettingsInner() {
                   <p className="text-sm font-semibold text-text-primary">Where these keys are used</p>
                   <div className="mt-4 space-y-2">
                     {[
-                      { icon: Sparkles, label: 'Insights', desc: 'Daily plan, insights, recommendations', href: '/ai-insights', color: 'text-accent-violet' },
+                      { icon: Sparkles, label: "Today's Plan", desc: 'Daily plan, insights, recommendations', href: '/todays-plan', color: 'text-accent-violet' },
                       { icon: Utensils, label: 'Food', desc: 'AI meal ideas + USDA food search', href: '/food', color: 'text-accent-emerald' },
                       { icon: Dumbbell, label: 'Workout', desc: 'AI workout plan generation', href: '/workout', color: 'text-accent-rose' },
                     ].map((item) => (

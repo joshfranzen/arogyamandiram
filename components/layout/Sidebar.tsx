@@ -26,7 +26,7 @@ import { cn } from '@/lib/utils';
 import { useState } from 'react';
 
 const mainNavItems = [
-  { href: '/dashboard', icon: LayoutGrid, label: 'Home' },
+  { href: '/home', icon: LayoutGrid, label: 'Home' },
   { href: '/sleep', icon: Moon, label: 'Sleep' },
   { href: '/water', icon: Droplets, label: 'Water' },
   { href: '/food', icon: Utensils, label: 'Food' },
@@ -34,7 +34,7 @@ const mainNavItems = [
   { href: '/health-data', icon: Activity, label: 'Health Data' },
   { href: '/weight', icon: Scale, label: 'Weight' },
   { href: '/achievements', icon: Star, label: 'Achievements' },
-  { href: '/ai-insights', icon: CalendarDays, label: "Today's Plan" },
+  { href: '/todays-plan', icon: CalendarDays, label: "Today's Plan" },
   { href: '/todos', icon: CheckSquare, label: 'Todos' },
 ];
 
@@ -103,7 +103,7 @@ export default function Sidebar({ collapsed: controlledCollapsed, onCollapsedCha
       <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-0 py-0">
         {mainNavItems.map((item) => {
           const isActive =
-            pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'));
+            pathname === item.href || (item.href !== '/home' && pathname.startsWith(item.href + '/'));
           return (
             <Link
               key={item.href}

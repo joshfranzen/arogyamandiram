@@ -23,7 +23,7 @@ import { useState } from 'react';
 import { signOut } from 'next-auth/react';
 
 const mobileNav = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/home', icon: LayoutDashboard, label: 'Home' },
   { href: '/sleep', icon: Moon, label: 'Sleep' },
   { href: '/water', icon: Droplets, label: 'Water' },
   { href: '/food', icon: Utensils, label: 'Food' },
@@ -34,7 +34,7 @@ const moreNav = [
   { href: '/health-data', icon: Activity, label: 'Health Data' },
   { href: '/weight', icon: Scale, label: 'Weight' },
   { href: '/achievements', icon: Star, label: 'Achievements' },
-  { href: '/ai-insights', icon: CalendarDays, label: "Today's Plan" },
+  { href: '/todays-plan', icon: CalendarDays, label: "Today's Plan" },
   { href: '/todos', icon: CheckSquare, label: 'Todos' },
   { href: '/settings', icon: Settings, label: 'Settings' },
 ];

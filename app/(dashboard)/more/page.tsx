@@ -36,7 +36,7 @@ const moreItems: { href: string; icon: LucideIcon; label: string; theme: MoreIte
   { href: '/weight', icon: Scale, label: 'Weight', theme: 'weight' },
   { href: '/sleep', icon: Moon, label: 'Sleep', theme: 'sleep' },
   { href: '/achievements', icon: Trophy, label: 'Achievements', theme: 'achievements' },
-  { href: '/ai-insights', icon: Sparkles, label: 'Insights', theme: 'insights' },
+  { href: '/todays-plan', icon: Sparkles, label: "Today's Plan", theme: 'insights' },
   { href: '/api-keys', icon: Key, label: 'API Keys', theme: 'apiKeys' },
   { href: '/targets', icon: Target, label: 'Targets', theme: 'targets' },
   { href: '/preferences', icon: Bell, label: 'Preferences', theme: 'preferences' },

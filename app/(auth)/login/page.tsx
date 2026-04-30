@@ -16,7 +16,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (status === 'authenticated' && session) router.replace('/dashboard');
+    if (status === 'authenticated' && session) router.replace('/home');
   }, [session, status, router]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -35,7 +35,7 @@ export default function LoginPage() {
         showToast(res.error, 'error');
       } else {
         showToast('Welcome back!', 'success');
-        router.push('/dashboard');
+        router.push('/home');
         router.refresh();
       }
     } catch {

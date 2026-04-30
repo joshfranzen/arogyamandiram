@@ -24,7 +24,7 @@ const MOCK_BADGES: UserBadge[] = [
 ];
 
 const NAV_ITEMS = [
-  { href: '/dashboard',    icon: LayoutGrid,    label: 'Home',         active: true },
+  { href: '/home',    icon: LayoutGrid,    label: 'Home',         active: true },
   { href: '/sleep',        icon: Moon,          label: 'Sleep' },
   { href: '/water',        icon: Droplets,      label: 'Water' },
   { href: '/food',         icon: Utensils,      label: 'Food' },
