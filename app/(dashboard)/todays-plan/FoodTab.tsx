@@ -106,6 +106,7 @@ export default function FoodTab() {
   }, [load]);
 
   const handleGenerate = async () => {
+    const hadPlan = (foodPlan?.suggestions?.length ?? 0) > 0;
     setGenerating(true);
     try {
       const res = await fetch('/api/ai/daily-plan/food', {
@@ -116,7 +117,7 @@ export default function FoodTab() {
       const json = await res.json() as { success: boolean; error?: string };
       if (json.success) {
         await load();
-        showToast('Food plan regenerated!', 'success');
+        showToast(hadPlan ? 'Food plan regenerated!' : 'Food plan generated!', 'success');
       } else {
         const msg = json.error ?? 'Failed to generate food plan';
         showToast(msg.toLowerCase().includes('api key') ? 'Add your OpenAI key in Settings.' : msg, 'error');
@@ -155,15 +156,16 @@ export default function FoodTab() {
     }
     return MEAL_ORDER.filter((t) => groups.has(t)).map((t) => ({ type: t, meals: groups.get(t)! }));
   })();
+  const hasFoodPlanContent = mealGroups.length > 0;
 
   if (loading) return null;
 
-  if (!foodPlan) {
+  if (!hasFoodPlanContent) {
     return (
       <div className="dashboard-unified-card rounded-2xl border p-5">
         <div className="flex flex-col items-center gap-3 py-10 text-center">
           <CalendarDays className="h-12 w-12 text-zinc-600" />
-          <p className="text-sm font-medium text-zinc-300">Your plan is being prepared</p>
+          <p className="text-sm font-medium text-zinc-300">No food plan generated yet</p>
           <p className="text-xs text-zinc-500">Plans are auto-generated at midnight from your daily logs.</p>
           {hasApiKey && (
             <button onClick={handleGenerate} disabled={generating}

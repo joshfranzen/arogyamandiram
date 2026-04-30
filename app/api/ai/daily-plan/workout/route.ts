@@ -6,6 +6,7 @@ import { createOpenAiJson } from '@/lib/openaiJson';
 import { maskedResponse, errorResponse } from '@/lib/apiMask';
 import { getAuthUserId, isUserId } from '@/lib/session';
 import { getToday } from '@/lib/utils';
+import { writeDebugLog } from '@/lib/debugLogWriter';
 import { buildWorkoutPrompt, type WorkoutRequestBody, normalizeWorkoutPlan } from '../shared';
 
 export const dynamic = 'force-dynamic';
@@ -80,6 +81,27 @@ Keep it realistic, beginner-friendly when unclear, and aligned to the user's det
       { $set: { workoutPlan, status: 'ready', generatedAt: new Date() } },
       { new: true, upsert: true }
     ).lean();
+
+    await writeDebugLog({
+      userId,
+      page: 'today-plan',
+      agent: 'workout',
+      payload: {
+        userRequest: {
+          requestedAt: new Date().toISOString(),
+          action: 'generate',
+          date: today,
+          body,
+        },
+        systemPrompt,
+        userPrompt,
+        parsedResult: { workoutPlan },
+        metadata: {
+          status: 'success',
+          model: 'gpt-4o-mini',
+        },
+      },
+    });
 
     return maskedResponse({ workoutPlan: (plan as { workoutPlan?: unknown } | null)?.workoutPlan ?? null });
   } catch (err) {

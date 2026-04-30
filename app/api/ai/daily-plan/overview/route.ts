@@ -7,6 +7,7 @@ import { createOpenAiJson } from '@/lib/openaiJson';
 import { maskedResponse, errorResponse } from '@/lib/apiMask';
 import { getAuthUserId, isUserId } from '@/lib/session';
 import { getToday, getYesterday } from '@/lib/utils';
+import { writeDebugLog } from '@/lib/debugLogWriter';
 import { buildOverviewPrompt, type OverviewRequestBody, normalizeOverview } from '../shared';
 
 export const dynamic = 'force-dynamic';
@@ -106,6 +107,27 @@ Keep it short and realistic.`;
       },
       { upsert: true }
     );
+
+    await writeDebugLog({
+      userId,
+      page: 'today-plan',
+      agent: 'overview',
+      payload: {
+        userRequest: {
+          requestedAt: new Date().toISOString(),
+          action: 'generate',
+          date: today,
+          body,
+        },
+        systemPrompt,
+        userPrompt,
+        parsedResult: overview,
+        metadata: {
+          status: 'success',
+          model: 'gpt-4o-mini',
+        },
+      },
+    });
 
     return maskedResponse(overview);
   } catch (err) {

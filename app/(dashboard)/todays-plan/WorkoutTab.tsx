@@ -5,7 +5,6 @@ import {
   Sparkles, Loader2, Dumbbell, Lightbulb, Plus, CheckCircle2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useUser } from '@/hooks/useUser';
 import { showToast } from '@/components/ui/Toast';
 import api from '@/lib/apiClient';
 import type { DailyPlanData } from '@/types';
@@ -62,9 +61,6 @@ function getTargetText(exercise: WorkoutExercise): string {
 // ─── WorkoutTab ───────────────────────────────────────────────────────────────
 
 export default function WorkoutTab() {
-  const { user } = useUser();
-  const hasApiKey = user?.hasOpenAiKey;
-
   const [workoutPlan, setWorkoutPlan] = useState<WorkoutPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -124,6 +120,7 @@ export default function WorkoutTab() {
   }, [workoutPlan?.exercises]);
 
   const handleGenerate = async () => {
+    const hadPlan = (workoutPlan?.exercises?.length ?? 0) > 0;
     setGenerating(true);
     try {
       const res = await fetch('/api/ai/daily-plan/workout', {
@@ -134,7 +131,7 @@ export default function WorkoutTab() {
       const json = await res.json() as { success: boolean; error?: string };
       if (json.success) {
         await load();
-        showToast('Workout plan regenerated!', 'success');
+        showToast(hadPlan ? 'Workout plan regenerated!' : 'Workout plan generated!', 'success');
       } else {
         const msg = json.error ?? 'Failed to generate workout plan';
         showToast(msg.toLowerCase().includes('api key') ? 'Add your OpenAI key in Settings.' : msg, 'error');
@@ -196,23 +193,22 @@ export default function WorkoutTab() {
   };
 
   const hasFeedbackChanges = workoutDifficulty !== null || skippedWorkoutReason !== null;
+  const hasWorkoutPlanContent = (workoutPlan?.exercises?.length ?? 0) > 0;
 
   if (loading) return null;
 
-  if (!workoutPlan) {
+  if (!hasWorkoutPlanContent) {
     return (
       <div className="dashboard-unified-card rounded-2xl border p-5">
         <div className="flex flex-col items-center gap-3 py-10 text-center">
           <Dumbbell className="h-12 w-12 text-zinc-600" />
-          <p className="text-sm font-medium text-zinc-300">Your workout plan is being prepared</p>
+          <p className="text-sm font-medium text-zinc-300">No workout plan generated yet</p>
           <p className="text-xs text-zinc-500">Plans auto-generate at midnight from your daily logs.</p>
-          {hasApiKey && (
-            <button onClick={handleGenerate} disabled={generating}
-              className="mt-2 inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50">
-              {generating ? <Loader2 className="h-4 w-4 animate-spin text-black" /> : <Sparkles className="h-4 w-4 text-black" />}
-              {generating ? 'Generating…' : 'Generate Workout'}
-            </button>
-          )}
+          <button onClick={handleGenerate} disabled={generating}
+            className="mt-2 inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50">
+            {generating ? <Loader2 className="h-4 w-4 animate-spin text-black" /> : <Sparkles className="h-4 w-4 text-black" />}
+            {generating ? 'Generating…' : 'Generate Workout'}
+          </button>
         </div>
       </div>
     );
@@ -226,13 +222,11 @@ export default function WorkoutTab() {
           <Dumbbell className="h-4 w-4 text-emerald-400" />
           <h2 className="text-base font-semibold text-text-primary">Today&apos;s Workout Plan</h2>
         </div>
-        {hasApiKey && (
-          <button onClick={handleGenerate} disabled={generating}
-            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors disabled:opacity-50">
-            {generating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-            {generating ? 'Generating…' : 'Regenerate'}
-          </button>
-        )}
+        <button onClick={handleGenerate} disabled={generating}
+          className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors disabled:opacity-50">
+          {generating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+          {generating ? 'Generating…' : 'Regenerate'}
+        </button>
       </div>
 
       {/* AI reasoning */}

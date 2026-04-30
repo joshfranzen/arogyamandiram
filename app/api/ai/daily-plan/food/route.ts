@@ -6,6 +6,7 @@ import { createOpenAiJson } from '@/lib/openaiJson';
 import { maskedResponse, errorResponse } from '@/lib/apiMask';
 import { getAuthUserId, isUserId } from '@/lib/session';
 import { getToday } from '@/lib/utils';
+import { writeDebugLog } from '@/lib/debugLogWriter';
 import { buildFoodPrompt, type FoodRequestBody, normalizeFoodPlan } from '../shared';
 
 export const dynamic = 'force-dynamic';
@@ -79,6 +80,27 @@ Keep suggestions realistic and easy to follow.`;
       },
       { new: true, upsert: true }
     ).lean();
+
+    await writeDebugLog({
+      userId,
+      page: 'today-plan',
+      agent: 'food',
+      payload: {
+        userRequest: {
+          requestedAt: new Date().toISOString(),
+          action: 'generate',
+          date: today,
+          body,
+        },
+        systemPrompt,
+        userPrompt,
+        parsedResult: { foodPlan },
+        metadata: {
+          status: 'success',
+          model: 'gpt-4o-mini',
+        },
+      },
+    });
 
     return maskedResponse({ foodPlan });
   } catch (err) {
