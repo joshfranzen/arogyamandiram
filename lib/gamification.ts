@@ -11,8 +11,6 @@ import type {
   UserTargets,
 } from '@/types';
 
-export interface StreakSummary extends UserStreaks {}
-
 export interface AchievementsResult {
   achievements: UserAchievements;
   newlyEarnedBadges: UserBadge[];

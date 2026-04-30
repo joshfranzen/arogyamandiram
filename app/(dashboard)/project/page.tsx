@@ -100,8 +100,8 @@ export default function ProjectPage() {
                   { href: '/home', label: 'Home' },
                   { href: '/todays-plan', label: "Today's Plan" },
                   { href: '/achievements', label: 'Achievements' },
-                  { href: '/api-keys', label: 'API Keys' },
-                  { href: '/targets', label: 'Targets' },
+                  { href: '/settings?tab=api-keys', label: 'API Keys' },
+                  { href: '/settings?tab=targets', label: 'Targets' },
                   { href: '/settings', label: 'Settings' },
                 ].map((item) => (
                   <Link

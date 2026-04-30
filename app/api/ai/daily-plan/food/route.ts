@@ -2,64 +2,13 @@ import { NextRequest } from 'next/server';
 import connectDB from '@/lib/db';
 import DailyPlan from '@/models/DailyPlan';
 import { resolveOpenAIKey } from '@/lib/openaiKey';
+import { createOpenAiJson } from '@/lib/openaiJson';
 import { maskedResponse, errorResponse } from '@/lib/apiMask';
 import { getAuthUserId, isUserId } from '@/lib/session';
 import { getToday } from '@/lib/utils';
+import { buildFoodPrompt, type FoodRequestBody, normalizeFoodPlan } from '../shared';
 
 export const dynamic = 'force-dynamic';
-
-type FoodRequestBody = {
-  lastWeekFoodDetails?: string;
-  goal?: string;
-  dietaryPreference?: string;
-};
-
-async function callOpenAI(
-  apiKey: string,
-  systemPrompt: string,
-  userPrompt: string
-): Promise<Record<string, unknown>> {
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.7,
-      max_tokens: 1500,
-      response_format: { type: 'json_object' },
-    }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error((err.error?.message as string) || `OpenAI API error: ${res.status}`);
-  }
-
-  const data = await res.json();
-  const rawText: string = data?.choices?.[0]?.message?.content;
-  if (!rawText?.trim()) throw new Error('OpenAI returned an empty response.');
-  return JSON.parse(rawText) as Record<string, unknown>;
-}
-
-function buildFoodPrompt(body: FoodRequestBody, date: string): string {
-  const details = body.lastWeekFoodDetails?.trim() || 'No previous food details provided.';
-  const goal = body.goal?.trim() || 'Eat balanced meals for health';
-  const dietaryPreference = body.dietaryPreference?.trim() || 'No specific preference';
-
-  return [
-    `Plan date: ${date}`,
-    `Goal: ${goal}`,
-    `Dietary preference: ${dietaryPreference}`,
-    `Last week food details from user: ${details}`,
-  ].join('\n');
-}
 
 export async function GET() {
   try {
@@ -96,6 +45,10 @@ Return JSON only with this shape:
       {
         "name": "string",
         "description": "string",
+        "calories": number,
+        "protein": number,
+        "carbs": number,
+        "fat": number,
         "mealType": "breakfast" | "lunch" | "dinner" | "snack"
       }
     ],
@@ -104,16 +57,22 @@ Return JSON only with this shape:
 }
 Keep suggestions realistic and easy to follow.`;
     const userPrompt = buildFoodPrompt(body, today);
-    const ai = await callOpenAI(apiKey, systemPrompt, userPrompt) as {
+    const ai = await createOpenAiJson<{
       foodPlan?: { suggestions?: unknown[]; reasoning?: string };
-    };
+    }>({
+      apiKey,
+      systemPrompt,
+      userPrompt,
+      maxTokens: 1500,
+    });
+    const foodPlan = normalizeFoodPlan(ai.foodPlan ?? ai);
 
     await DailyPlan.findOneAndUpdate(
       { userId, date: today },
       {
         $set: {
-          'foodPlan.suggestions': ai.foodPlan?.suggestions ?? [],
-          'foodPlan.reasoning': ai.foodPlan?.reasoning ?? null,
+          'foodPlan.suggestions': foodPlan.suggestions,
+          'foodPlan.reasoning': foodPlan.reasoning ?? null,
           status: 'ready',
           generatedAt: new Date(),
         },
@@ -121,7 +80,7 @@ Keep suggestions realistic and easy to follow.`;
       { new: true, upsert: true }
     ).lean();
 
-    return maskedResponse({ foodPlan: ai.foodPlan ?? null });
+    return maskedResponse({ foodPlan });
   } catch (err) {
     console.error('[Food Plan POST]:', err);
     const msg = err instanceof Error ? err.message : 'Failed to generate food plan';

@@ -1,8 +1,8 @@
 ---
 name: active-context
 type: context
-last_updated: 2026-04-15
-updated_by: codex-gpt-5
+last_updated: 2026-04-30
+updated_by: codex-5.3
 staleness_days: 3
 ---
 
@@ -29,6 +29,7 @@ Recent changes since the last broad memory refresh:
 - **Health data sync source clarity + automation**: Added `lastSyncSource` (`auto`/`manual`) tracking, surfaced sync type in Settings, and introduced cron-based interval sync
 - **Settings customizations + water quick-add cleanup**: Added Settings → `Customizations` for the four water quick-add amounts and simplified `/water`
 - **Repo-shape reality check (2026-04-15)**: Memory refreshed against the live codebase. Important corrections: Next.js is now 15.x, food fallback is USDA FoodData Central rather than Edamam, dashboard protection currently happens in `DashboardLayoutClient` plus API session helpers, and the repo no longer has a root `middleware.ts`
+- **Daily-plan architecture cleanup (2026-04-30)**: Removed unused regeneration counters from schema/types, deleted dead utility exports, and refactored duplicated OpenAI JSON request/parsing logic into `lib/openaiJson.ts` plus `app/api/ai/daily-plan/shared.ts` with normalized plan outputs for more stable UI contracts
 
 ## Active Focus Areas
 

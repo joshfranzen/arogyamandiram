@@ -3,67 +3,13 @@ import connectDB from '@/lib/db';
 import DailyLog from '@/models/DailyLog';
 import DailyPlan from '@/models/DailyPlan';
 import { resolveOpenAIKey } from '@/lib/openaiKey';
+import { createOpenAiJson } from '@/lib/openaiJson';
 import { maskedResponse, errorResponse } from '@/lib/apiMask';
 import { getAuthUserId, isUserId } from '@/lib/session';
 import { getToday, getYesterday } from '@/lib/utils';
+import { buildOverviewPrompt, type OverviewRequestBody, normalizeOverview } from '../shared';
 
 export const dynamic = 'force-dynamic';
-
-type OverviewRequestBody = {
-  lastWeekSummary?: string;
-  goal?: string;
-  currentWeightKg?: number;
-};
-
-async function callOpenAI(
-  apiKey: string,
-  systemPrompt: string,
-  userPrompt: string
-): Promise<Record<string, unknown>> {
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.7,
-      max_tokens: 1000,
-      response_format: { type: 'json_object' },
-    }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error((err.error?.message as string) || `OpenAI API error: ${res.status}`);
-  }
-
-  const data = await res.json();
-  const rawText: string = data?.choices?.[0]?.message?.content;
-  if (!rawText?.trim()) throw new Error('OpenAI returned an empty response.');
-  return JSON.parse(rawText) as Record<string, unknown>;
-}
-
-function buildOverviewPrompt(body: OverviewRequestBody, date: string): string {
-  const summary = body.lastWeekSummary?.trim() || 'No weekly summary provided.';
-  const goal = body.goal?.trim() || 'General health improvement';
-  const weight = Number(body.currentWeightKg);
-  const weightLine = Number.isFinite(weight) && weight > 0
-    ? `Current weight kg: ${weight}`
-    : 'Current weight kg: not provided';
-
-  return [
-    `Plan date: ${date}`,
-    `Goal: ${goal}`,
-    weightLine,
-    `Last week summary from user: ${summary}`,
-  ].join('\n');
-}
 
 export async function GET() {
   try {
@@ -137,17 +83,23 @@ Return JSON only with this shape:
 }
 Keep it short and realistic.`;
     const userPrompt = buildOverviewPrompt(body, today);
-    const ai = await callOpenAI(apiKey, systemPrompt, userPrompt) as {
+    const ai = await createOpenAiJson<{
       topInsight?: string;
       prediction?: { weeklyWeightChangeKg?: number; projectedWeightKg?: number; basis?: string };
-    };
+    }>({
+      apiKey,
+      systemPrompt,
+      userPrompt,
+      maxTokens: 1000,
+    });
+    const overview = normalizeOverview(ai);
 
     await DailyPlan.findOneAndUpdate(
       { userId, date: today },
       {
         $set: {
-          topInsight: ai.topInsight ?? null,
-          prediction: ai.prediction ?? null,
+          topInsight: overview.topInsight,
+          prediction: overview.prediction,
           status: 'ready',
           generatedAt: new Date(),
         },
@@ -155,7 +107,7 @@ Keep it short and realistic.`;
       { upsert: true }
     );
 
-    return maskedResponse({ topInsight: ai.topInsight ?? null, prediction: ai.prediction ?? null });
+    return maskedResponse(overview);
   } catch (err) {
     console.error('[Overview POST]:', err);
     const msg = err instanceof Error ? err.message : 'Failed to generate overview';

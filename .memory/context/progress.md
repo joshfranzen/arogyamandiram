@@ -1,8 +1,8 @@
 ---
 name: progress
 type: context
-last_updated: 2026-04-15
-updated_by: codex-gpt-5
+last_updated: 2026-04-30
+updated_by: codex-5.3
 staleness_days: 3
 ---
 
@@ -44,6 +44,7 @@ staleness_days: 3
 - [x] Health data sync provenance + automation — sync source (`manual` vs `auto`) and cron-based interval sync
 - [x] Water customizations flow — Settings edits the 4 water quick-add button amounts and the Water tracker uses those values directly
 - [x] Daily todo templates and completions (`app/api/todos*`, settings tab, `DailyLog.todoCompletions`)
+- [x] Daily-plan codebase hardening and de-duplication — centralized OpenAI JSON client (`lib/openaiJson.ts`), shared prompt/normalization helpers (`app/api/ai/daily-plan/shared.ts`), dead field/function removal, and lighter API route implementations
 
 ## In Progress
 

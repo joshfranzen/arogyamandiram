@@ -63,11 +63,3 @@ export function decrypt(encryptedText: string): string {
   return decrypted;
 }
 
-/**
- * Check if a string looks like an encrypted value
- */
-export function isEncrypted(value: string): boolean {
-  if (!value) return false;
-  const parts = value.split(':');
-  return parts.length === 3 && parts[0].length === IV_LENGTH * 2;
-}

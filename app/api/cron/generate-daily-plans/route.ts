@@ -11,6 +11,7 @@ import User from '@/models/User';
 import DailyLog from '@/models/DailyLog';
 import DailyPlan from '@/models/DailyPlan';
 import { decrypt } from '@/lib/encryption';
+import { createOpenAiJson } from '@/lib/openaiJson';
 import { maskedResponse, errorResponse } from '@/lib/apiMask';
 import { getToday, getAgeFromDateOfBirth } from '@/lib/utils';
 import { getLatestLoggedWeight } from '@/lib/latestWeight';
@@ -26,39 +27,6 @@ function validateCronSecret(req: NextRequest): boolean {
     req.headers.get('x-cron-secret') ??
     req.headers.get('authorization')?.replace('Bearer ', '');
   return Boolean(process.env.CRON_SECRET && secret === process.env.CRON_SECRET);
-}
-
-// ─── OpenAI call ─────────────────────────────────────────────────────────────
-
-async function callOpenAI(
-  apiKey: string,
-  systemPrompt: string,
-  userPrompt: string
-): Promise<Record<string, unknown>> {
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.7,
-      max_tokens: 2500,
-      response_format: { type: 'json_object' },
-    }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error((err.error?.message as string) || `OpenAI API error: ${res.status}`);
-  }
-
-  const data = await res.json();
-  const rawText: string = data?.choices?.[0]?.message?.content;
-  if (!rawText?.trim()) throw new Error('OpenAI returned an empty response.');
-  return JSON.parse(rawText) as Record<string, unknown>;
 }
 
 // ─── Generate plan for one user ──────────────────────────────────────────────
@@ -189,12 +157,17 @@ Rules: 4-6 food suggestions across multiple meal types, avoid disliked foods, ad
     `Plan date: ${tomorrowDate}`,
   ].filter(Boolean).join('\n');
 
-  const parsed = await callOpenAI(apiKey, systemPrompt, userPrompt) as {
+  const parsed = await createOpenAiJson<{
     topInsight?: string;
     foodPlan?: { suggestions?: unknown[]; reasoning?: string };
     workoutPlan?: Record<string, unknown>;
     prediction?: { weeklyWeightChangeKg?: number; projectedWeightKg?: number; basis?: string };
-  };
+  }>({
+    apiKey,
+    systemPrompt,
+    userPrompt,
+    maxTokens: 2500,
+  });
 
   // Build prediction with fallback math
   const prediction = parsed.prediction ?? {

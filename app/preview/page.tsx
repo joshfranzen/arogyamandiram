@@ -32,7 +32,7 @@ const NAV_ITEMS = [
   { href: '/health-data',  icon: Activity,      label: 'Health Data' },
   { href: '/weight',       icon: Scale,         label: 'Weight' },
   { href: '/achievements', icon: Star,          label: 'Achievements' },
-  { href: '/ai-insights',  icon: CalendarDays,  label: "Today's Plan" },
+  { href: '/todays-plan',  icon: CalendarDays,  label: "Today's Plan" },
   { href: '/todos',        icon: CheckSquare,   label: 'Todos' },
   { href: '/debug',        icon: Bug,           label: 'Debugger' },
 ];

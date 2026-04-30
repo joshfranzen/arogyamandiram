@@ -2,68 +2,13 @@ import { NextRequest } from 'next/server';
 import connectDB from '@/lib/db';
 import DailyPlan from '@/models/DailyPlan';
 import { resolveOpenAIKey } from '@/lib/openaiKey';
+import { createOpenAiJson } from '@/lib/openaiJson';
 import { maskedResponse, errorResponse } from '@/lib/apiMask';
 import { getAuthUserId, isUserId } from '@/lib/session';
 import { getToday } from '@/lib/utils';
+import { buildWorkoutPrompt, type WorkoutRequestBody, normalizeWorkoutPlan } from '../shared';
 
 export const dynamic = 'force-dynamic';
-
-async function callOpenAI(
-  apiKey: string,
-  systemPrompt: string,
-  userPrompt: string
-): Promise<Record<string, unknown>> {
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.7,
-      max_tokens: 1500,
-      response_format: { type: 'json_object' },
-    }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error((err.error?.message as string) || `OpenAI API error: ${res.status}`);
-  }
-
-  const data = await res.json();
-  const rawText: string = data?.choices?.[0]?.message?.content;
-  if (!rawText?.trim()) throw new Error('OpenAI returned an empty response.');
-  return JSON.parse(rawText) as Record<string, unknown>;
-}
-
-type WorkoutRequestBody = {
-  lastWeekDetails?: string;
-  goal?: string;
-  fitnessLevel?: string;
-  todayAvailableMinutes?: number;
-};
-
-function buildWorkoutPrompt(body: WorkoutRequestBody, date: string): string {
-  const details = body.lastWeekDetails?.trim() || 'No previous workout details provided.';
-  const goal = body.goal?.trim() || 'General fitness and consistency';
-  const fitnessLevel = body.fitnessLevel?.trim() || 'beginner';
-  const minutes = Number(body.todayAvailableMinutes);
-  const durationTarget = Number.isFinite(minutes) && minutes > 0 ? Math.round(minutes) : 30;
-
-  return [
-    `Plan date: ${date}`,
-    `Goal: ${goal}`,
-    `Fitness level: ${fitnessLevel}`,
-    `Today workout target minutes: ${durationTarget}`,
-    `Last week details from user: ${details}`,
-  ].join('\n');
-}
 
 export async function GET() {
   try {
@@ -108,17 +53,27 @@ Return JSON only with this shape:
         "sets": number,
         "reps": "string",
         "durationMinutes": number,
+        "restSeconds": number,
+        "category": "cardio" | "strength" | "flexibility" | "sports" | "other",
         "intensity": "low" | "medium" | "high"
       }
     ],
+    "estimatedCalories": number,
+    "progressionTip": "string",
+    "reasoning": "string",
     "durationMinutes": number,
-    "focus": "string"
+    "description": "string"
   }
 }
 Keep it realistic, beginner-friendly when unclear, and aligned to the user's details.`;
     const userPrompt = buildWorkoutPrompt(body, today);
-    const ai = await callOpenAI(apiKey, systemPrompt, userPrompt) as { workoutPlan?: Record<string, unknown> };
-    const workoutPlan = ai.workoutPlan ?? ai;
+    const ai = await createOpenAiJson<{ workoutPlan?: Record<string, unknown> }>({
+      apiKey,
+      systemPrompt,
+      userPrompt,
+      maxTokens: 1500,
+    });
+    const workoutPlan = normalizeWorkoutPlan(ai.workoutPlan ?? ai);
 
     const plan = await DailyPlan.findOneAndUpdate(
       { userId, date: today },
