@@ -2,8 +2,11 @@
 // POST → generates / regenerates workout plan with validation (max 3/day)
 
 import { NextRequest } from 'next/server';
+import { promises as fsp } from 'fs';
+import path from 'path';
 import connectDB from '@/lib/db';
 import DailyPlan from '@/models/DailyPlan';
+import User from '@/models/User';
 import { resolveOpenAIKey } from '@/lib/openaiKey';
 import { maskedResponse, errorResponse } from '@/lib/apiMask';
 import { getAuthUserId, isUserId } from '@/lib/session';
@@ -34,6 +37,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  void req;
   try {
     const userId = await getAuthUserId();
     if (!isUserId(userId)) return userId;
@@ -60,14 +64,30 @@ export async function POST(req: NextRequest) {
       { new: true, upsert: true }
     ).lean();
 
-    const body = await req.json().catch(() => ({})) as { debug?: boolean };
-    const debugLog = body.debug ? {
-      aiRequest: result.request,
-      aiResponse: { parsed, rawResponse: result.rawText },
-      metadata: { model: 'gpt-4o-mini', usage: result.usage, timestamp: new Date().toISOString() },
-    } : null;
+    if (process.env.NEXT_PUBLIC_DEBUG_MODE === 'true') {
+      try {
+        const user = await User.findById(userId).select('username').lean();
+        const userLogId = ((user as { username?: string } | null)?.username?.trim()) || userId;
+        const dir = path.join(process.cwd(), '.debug-logs', userLogId, 'today-plan', 'workout');
+        await fsp.mkdir(dir, { recursive: true });
+        const now = new Date();
+        const ts = now.toISOString().replace(/[:.]/g, '-').slice(0, 24);
+        const id = `${ts}-${Math.random().toString(36).slice(2, 6)}`;
+        await fsp.writeFile(
+          path.join(dir, `${id}.json`),
+          JSON.stringify({
+            aiRequest: result.request,
+            aiResponse: { parsed, rawResponse: result.rawText },
+            metadata: { model: 'gpt-4o-mini', usage: result.usage, timestamp: now.toISOString(), username: userLogId },
+          }, null, 2),
+          'utf-8'
+        );
+      } catch (logErr) {
+        console.error('[Workout Plan debug log]:', logErr);
+      }
+    }
 
-    return maskedResponse({ workoutPlan: (plan as { workoutPlan?: unknown } | null)?.workoutPlan ?? null, debugLog });
+    return maskedResponse({ workoutPlan: (plan as { workoutPlan?: unknown } | null)?.workoutPlan ?? null });
   } catch (err) {
     console.error('[Workout Plan POST]:', err);
     const msg = err instanceof Error ? err.message : 'Failed to generate workout plan';
