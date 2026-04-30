@@ -475,12 +475,6 @@ export interface DailyPlanData {
     recentWorkoutsPerWeek?: number;
     avgWorkoutDurationMin?: number;
   };
-  regenerationCounts?: {
-    food?: number;
-    workout?: number;
-    overview?: number;
-    full?: number;
-  };
   yesterdayFeedback?: {
     workoutDifficulty?: 'too_easy' | 'just_right' | 'too_hard';
   };

@@ -1,21 +1,69 @@
-// GET  → returns today's overview (topInsight, prediction) + live log + yesterday feedback
-// POST → generates / regenerates overview
-
 import { NextRequest } from 'next/server';
-import { promises as fsp } from 'fs';
-import path from 'path';
 import connectDB from '@/lib/db';
 import DailyLog from '@/models/DailyLog';
 import DailyPlan from '@/models/DailyPlan';
-import User from '@/models/User';
 import { resolveOpenAIKey } from '@/lib/openaiKey';
 import { maskedResponse, errorResponse } from '@/lib/apiMask';
 import { getAuthUserId, isUserId } from '@/lib/session';
 import { getToday, getYesterday } from '@/lib/utils';
-import { buildUserContext } from '../context';
-import { generateOverview } from '../overview';
 
 export const dynamic = 'force-dynamic';
+
+type OverviewRequestBody = {
+  lastWeekSummary?: string;
+  goal?: string;
+  currentWeightKg?: number;
+};
+
+async function callOpenAI(
+  apiKey: string,
+  systemPrompt: string,
+  userPrompt: string
+): Promise<Record<string, unknown>> {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 1000,
+      response_format: { type: 'json_object' },
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err.error?.message as string) || `OpenAI API error: ${res.status}`);
+  }
+
+  const data = await res.json();
+  const rawText: string = data?.choices?.[0]?.message?.content;
+  if (!rawText?.trim()) throw new Error('OpenAI returned an empty response.');
+  return JSON.parse(rawText) as Record<string, unknown>;
+}
+
+function buildOverviewPrompt(body: OverviewRequestBody, date: string): string {
+  const summary = body.lastWeekSummary?.trim() || 'No weekly summary provided.';
+  const goal = body.goal?.trim() || 'General health improvement';
+  const weight = Number(body.currentWeightKg);
+  const weightLine = Number.isFinite(weight) && weight > 0
+    ? `Current weight kg: ${weight}`
+    : 'Current weight kg: not provided';
+
+  return [
+    `Plan date: ${date}`,
+    `Goal: ${goal}`,
+    weightLine,
+    `Last week summary from user: ${summary}`,
+  ].join('\n');
+}
 
 export async function GET() {
   try {
@@ -67,26 +115,29 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  void req;
   try {
     const userId = await getAuthUserId();
     if (!isUserId(userId)) return userId;
 
+    const body = await req.json().catch(() => ({})) as OverviewRequestBody;
     const apiKey = await resolveOpenAIKey(userId);
     if (!apiKey) return errorResponse('OpenAI API key required. Add your key in Settings to generate plans.', 403);
 
     await connectDB();
     const today = getToday();
-
-    await DailyPlan.findOneAndUpdate(
-      { userId, date: today },
-      { $inc: { 'regenerationCounts.overview': 1 } },
-      { upsert: true }
-    );
-
-    const ctx = await buildUserContext(userId, today);
-    const result = await generateOverview(ctx, apiKey);
-    const parsed = result.parsed as {
+    const systemPrompt = `You are a practical health coach. Generate a simple daily overview for TODAY.
+Return JSON only with this shape:
+{
+  "topInsight": "string",
+  "prediction": {
+    "weeklyWeightChangeKg": number,
+    "projectedWeightKg": number,
+    "basis": "string"
+  }
+}
+Keep it short and realistic.`;
+    const userPrompt = buildOverviewPrompt(body, today);
+    const ai = await callOpenAI(apiKey, systemPrompt, userPrompt) as {
       topInsight?: string;
       prediction?: { weeklyWeightChangeKg?: number; projectedWeightKg?: number; basis?: string };
     };
@@ -95,8 +146,8 @@ export async function POST(req: NextRequest) {
       { userId, date: today },
       {
         $set: {
-          topInsight: parsed.topInsight ?? null,
-          prediction: parsed.prediction ?? null,
+          topInsight: ai.topInsight ?? null,
+          prediction: ai.prediction ?? null,
           status: 'ready',
           generatedAt: new Date(),
         },
@@ -104,30 +155,7 @@ export async function POST(req: NextRequest) {
       { upsert: true }
     );
 
-    if (process.env.NEXT_PUBLIC_DEBUG_MODE === 'true') {
-      try {
-        const user = await User.findById(userId).select('username').lean();
-        const userLogId = ((user as { username?: string } | null)?.username?.trim()) || userId;
-        const dir = path.join(process.cwd(), '.debug-logs', userLogId, 'today-plan', 'overview');
-        await fsp.mkdir(dir, { recursive: true });
-        const now = new Date();
-        const ts = now.toISOString().replace(/[:.]/g, '-').slice(0, 24);
-        const id = `${ts}-${Math.random().toString(36).slice(2, 6)}`;
-        await fsp.writeFile(
-          path.join(dir, `${id}.json`),
-          JSON.stringify({
-            aiRequest: result.request,
-            aiResponse: { parsed, rawResponse: result.rawText },
-            metadata: { model: 'gpt-4o-mini', usage: result.usage, timestamp: now.toISOString(), username: userLogId },
-          }, null, 2),
-          'utf-8'
-        );
-      } catch (logErr) {
-        console.error('[Overview debug log]:', logErr);
-      }
-    }
-
-    return maskedResponse({ topInsight: parsed.topInsight ?? null, prediction: parsed.prediction ?? null });
+    return maskedResponse({ topInsight: ai.topInsight ?? null, prediction: ai.prediction ?? null });
   } catch (err) {
     console.error('[Overview POST]:', err);
     const msg = err instanceof Error ? err.message : 'Failed to generate overview';

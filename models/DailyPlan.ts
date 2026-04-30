@@ -76,14 +76,6 @@ export interface IDailyPlanDocument extends Document {
     avgWorkoutDurationMin?: number;
   };
 
-  // Rate limiting: track how many manual regenerations today
-  regenerationCount?: number;
-  regenerationCounts?: {
-    food?: number;
-    workout?: number;
-    overview?: number;
-    full?: number;
-  };
 }
 
 const MealSuggestionSchema = new Schema(
@@ -173,13 +165,6 @@ const DailyPlanSchema = new Schema<IDailyPlanDocument>(
       avgWorkoutDurationMin: { type: Number },
     },
 
-    regenerationCount: { type: Number, default: 0 },
-    regenerationCounts: {
-      food: { type: Number, default: 0 },
-      workout: { type: Number, default: 0 },
-      overview: { type: Number, default: 0 },
-      full: { type: Number, default: 0 },
-    },
   },
   {
     timestamps: true,

@@ -218,7 +218,6 @@ Rules: 4-6 food suggestions across multiple meal types, avoid disliked foods, ad
         prediction,
         fitnessLevelDerived: fitnessLevel,
         generationContext,
-        regenerationCount: 0,
       },
     },
     { upsert: true }

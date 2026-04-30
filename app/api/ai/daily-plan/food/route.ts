@@ -1,20 +1,65 @@
-// GET  → returns today's stored food plan
-// POST → generates / regenerates food plan (max 3/day)
-
 import { NextRequest } from 'next/server';
-import { promises as fsp } from 'fs';
-import path from 'path';
 import connectDB from '@/lib/db';
 import DailyPlan from '@/models/DailyPlan';
-import User from '@/models/User';
 import { resolveOpenAIKey } from '@/lib/openaiKey';
 import { maskedResponse, errorResponse } from '@/lib/apiMask';
 import { getAuthUserId, isUserId } from '@/lib/session';
 import { getToday } from '@/lib/utils';
-import { buildUserContext } from '../context';
-import { generateFoodPlan } from '../food';
 
 export const dynamic = 'force-dynamic';
+
+type FoodRequestBody = {
+  lastWeekFoodDetails?: string;
+  goal?: string;
+  dietaryPreference?: string;
+};
+
+async function callOpenAI(
+  apiKey: string,
+  systemPrompt: string,
+  userPrompt: string
+): Promise<Record<string, unknown>> {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 1500,
+      response_format: { type: 'json_object' },
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err.error?.message as string) || `OpenAI API error: ${res.status}`);
+  }
+
+  const data = await res.json();
+  const rawText: string = data?.choices?.[0]?.message?.content;
+  if (!rawText?.trim()) throw new Error('OpenAI returned an empty response.');
+  return JSON.parse(rawText) as Record<string, unknown>;
+}
+
+function buildFoodPrompt(body: FoodRequestBody, date: string): string {
+  const details = body.lastWeekFoodDetails?.trim() || 'No previous food details provided.';
+  const goal = body.goal?.trim() || 'Eat balanced meals for health';
+  const dietaryPreference = body.dietaryPreference?.trim() || 'No specific preference';
+
+  return [
+    `Plan date: ${date}`,
+    `Goal: ${goal}`,
+    `Dietary preference: ${dietaryPreference}`,
+    `Last week food details from user: ${details}`,
+  ].join('\n');
+}
 
 export async function GET() {
   try {
@@ -33,33 +78,42 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  void req;
   try {
     const userId = await getAuthUserId();
     if (!isUserId(userId)) return userId;
 
+    const body = await req.json().catch(() => ({})) as FoodRequestBody;
     const apiKey = await resolveOpenAIKey(userId);
     if (!apiKey) return errorResponse('OpenAI API key required. Add your key in Settings to generate plans.', 403);
 
     await connectDB();
     const today = getToday();
+    const systemPrompt = `You are a practical nutrition coach. Create a simple food plan for TODAY based on the user's last-week food details.
+Return JSON only with this shape:
+{
+  "foodPlan": {
+    "suggestions": [
+      {
+        "name": "string",
+        "description": "string",
+        "mealType": "breakfast" | "lunch" | "dinner" | "snack"
+      }
+    ],
+    "reasoning": "string"
+  }
+}
+Keep suggestions realistic and easy to follow.`;
+    const userPrompt = buildFoodPrompt(body, today);
+    const ai = await callOpenAI(apiKey, systemPrompt, userPrompt) as {
+      foodPlan?: { suggestions?: unknown[]; reasoning?: string };
+    };
 
     await DailyPlan.findOneAndUpdate(
       { userId, date: today },
-      { $inc: { 'regenerationCounts.food': 1 } },
-      { upsert: true }
-    );
-
-    const ctx = await buildUserContext(userId, today);
-    const result = await generateFoodPlan(ctx, apiKey);
-    const parsed = result.parsed as { foodPlan?: { suggestions?: unknown[]; reasoning?: string } };
-
-    const plan = await DailyPlan.findOneAndUpdate(
-      { userId, date: today },
       {
         $set: {
-          'foodPlan.suggestions': parsed.foodPlan?.suggestions ?? [],
-          'foodPlan.reasoning': parsed.foodPlan?.reasoning ?? null,
+          'foodPlan.suggestions': ai.foodPlan?.suggestions ?? [],
+          'foodPlan.reasoning': ai.foodPlan?.reasoning ?? null,
           status: 'ready',
           generatedAt: new Date(),
         },
@@ -67,30 +121,7 @@ export async function POST(req: NextRequest) {
       { new: true, upsert: true }
     ).lean();
 
-    if (process.env.NEXT_PUBLIC_DEBUG_MODE === 'true') {
-      try {
-        const user = await User.findById(userId).select('username').lean();
-        const userLogId = ((user as { username?: string } | null)?.username?.trim()) || userId;
-        const dir = path.join(process.cwd(), '.debug-logs', userLogId, 'today-plan', 'food');
-        await fsp.mkdir(dir, { recursive: true });
-        const now = new Date();
-        const ts = now.toISOString().replace(/[:.]/g, '-').slice(0, 24);
-        const id = `${ts}-${Math.random().toString(36).slice(2, 6)}`;
-        await fsp.writeFile(
-          path.join(dir, `${id}.json`),
-          JSON.stringify({
-            aiRequest: result.request,
-            aiResponse: { parsed, rawResponse: result.rawText },
-            metadata: { model: 'gpt-4o-mini', usage: result.usage, timestamp: now.toISOString(), username: userLogId },
-          }, null, 2),
-          'utf-8'
-        );
-      } catch (logErr) {
-        console.error('[Food Plan debug log]:', logErr);
-      }
-    }
-
-    return maskedResponse({ foodPlan: (plan as { foodPlan?: unknown } | null)?.foodPlan ?? null });
+    return maskedResponse({ foodPlan: ai.foodPlan ?? null });
   } catch (err) {
     console.error('[Food Plan POST]:', err);
     const msg = err instanceof Error ? err.message : 'Failed to generate food plan';

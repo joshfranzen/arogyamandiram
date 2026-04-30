@@ -15,11 +15,6 @@ export function formatNumber(num: number): string {
   return num.toLocaleString('en-IN');
 }
 
-/** Format calories: 1234 -> "1,234 kcal" */
-export function formatCalories(cal: number): string {
-  return `${formatNumber(Math.round(cal))} kcal`;
-}
-
 /** Format water: 1500 -> "1.5 L" or "1500 ml" */
 export function formatWater(ml: number): string {
   if (ml >= 1000) {
@@ -103,23 +98,6 @@ export function getGreeting(): string {
   if (hour < 12) return 'Good Morning';
   if (hour < 17) return 'Good Afternoon';
   return 'Good Evening';
-}
-
-/** Validate email format */
-export function isValidEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-/** Debounce function for search inputs */
-export function debounce<T extends (...args: unknown[]) => void>(
-  fn: T,
-  delay: number
-): (...args: Parameters<T>) => void {
-  let timer: NodeJS.Timeout;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), delay);
-  };
 }
 
 type MealForRecalc = {
