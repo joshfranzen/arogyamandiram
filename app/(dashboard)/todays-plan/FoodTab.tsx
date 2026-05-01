@@ -1,15 +1,16 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   Sparkles, Loader2, CalendarDays, Flame,
-  Lightbulb, Shield, ChevronDown, ChevronUp, X, CheckCircle2,
+  Lightbulb, ChevronDown, ChevronUp, X, CheckCircle2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/hooks/useUser';
 import { showToast } from '@/components/ui/Toast';
 import api from '@/lib/apiClient';
 import type { AiMealSuggestion } from '@/types';
+import { usePlanAutoRefresh } from './usePlanAutoRefresh';
 
 const MEAL_ORDER = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 
@@ -90,20 +91,7 @@ export default function FoodTab() {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
-
-  useEffect(() => {
-    const onFocus = () => { void load(); };
-    const onVisibility = () => { if (document.visibilityState === 'visible') void load(); };
-    window.addEventListener('focus', onFocus);
-    window.addEventListener('orchestrator:log-updated', onFocus);
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => {
-      window.removeEventListener('focus', onFocus);
-      window.removeEventListener('orchestrator:log-updated', onFocus);
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-  }, [load]);
+  usePlanAutoRefresh(load);
 
   const handleGenerate = async () => {
     const hadPlan = (foodPlan?.suggestions?.length ?? 0) > 0;
@@ -145,8 +133,9 @@ export default function FoodTab() {
     finally { setFeedbackSaving(false); }
   };
 
+  const currentFoodPlan = foodPlan;
   const mealGroups = (() => {
-    const suggestions = foodPlan?.suggestions ?? [];
+    const suggestions = currentFoodPlan?.suggestions ?? [];
     const groups = new Map<string, AiMealSuggestion[]>();
     for (const meal of suggestions) {
       const type = meal.mealType || 'snack';
@@ -160,7 +149,7 @@ export default function FoodTab() {
 
   if (loading) return null;
 
-  if (!hasFoodPlanContent) {
+  if (!currentFoodPlan || !hasFoodPlanContent) {
     return (
       <div className="dashboard-unified-card rounded-2xl border p-5">
         <div className="flex flex-col items-center gap-3 py-10 text-center">
@@ -180,12 +169,15 @@ export default function FoodTab() {
   }
 
   return (
-    <div className="dashboard-unified-card rounded-2xl border p-5 sm:p-6">
-      <p className="mb-4 flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-xs text-zinc-400">
-        <Shield className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
-        Only anonymized metrics are sent to OpenAI — never your name or email.
-      </p>
+    <div className="space-y-4">
+      {currentFoodPlan.reasoning && (
+        <div className="flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2.5">
+          <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
+          <p className="text-xs text-amber-200">{currentFoodPlan.reasoning}</p>
+        </div>
+      )}
 
+      <div className="dashboard-unified-card rounded-2xl border p-5 sm:p-6">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Flame className="h-4 w-4 text-orange-400" />
@@ -199,13 +191,6 @@ export default function FoodTab() {
           </button>
         )}
       </div>
-
-      {foodPlan.reasoning && (
-        <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2.5">
-          <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
-          <p className="text-xs text-amber-200">{foodPlan.reasoning}</p>
-        </div>
-      )}
 
       <div className="space-y-5">
         {mealGroups.map(({ type, meals }) => (
@@ -232,6 +217,7 @@ export default function FoodTab() {
           </button>
         </div>
       )}
+      </div>
     </div>
   );
 }
