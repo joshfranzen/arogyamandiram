@@ -101,7 +101,7 @@ export default function OnboardingPage() {
 
       if (res.success) {
         showToast('Welcome to Arogyamandiram!', 'success');
-        router.push('/dashboard');
+        router.push('/home');
       } else {
         showToast(res.error || 'Something went wrong', 'error');
       }

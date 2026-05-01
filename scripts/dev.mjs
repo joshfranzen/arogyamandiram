@@ -62,7 +62,7 @@ function shutdown(code = 0) {
 process.on('SIGINT', () => shutdown(130));
 process.on('SIGTERM', () => shutdown(143));
 
-start('next', 'next', ['dev'], {
+start('next', 'next', ['dev', '--turbo'], {
   DOTENV_CONFIG_PATH: '.env.local',
   NODE_OPTIONS: '--require dotenv/config',
 });

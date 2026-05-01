@@ -12,7 +12,7 @@ const steps = [
   {
     id: 'dashboard',
     title: 'Your health command center',
-    body: 'Welcome! Your Dashboard shows a bento-style overview — calorie ring, today\'s macros, water intake, sleep quality, workout burns, streak counter, and recent badges. Everything at a glance, the moment you open the app.',
+    body: 'Welcome! Your Home shows a bento-style overview — calorie ring, today\'s macros, water intake, sleep quality, workout burns, streak counter, and recent badges. Everything at a glance, the moment you open the app.',
   },
   {
     id: 'sleep',
@@ -77,25 +77,25 @@ const steps = [
   {
     id: 'closing',
     title: 'You are all set — start logging',
-    body: "You've toured the full platform. Start today by logging a meal, your morning water, and last night's sleep. Small daily habits compound into big results. Your dashboard is ready.",
+    body: "You've toured the full platform. Start today by logging a meal, your morning water, and last night's sleep. Small daily habits compound into big results. Your home is ready.",
   },
 ];
 
 const stepRoutes: Record<number, string> = {
-  0: '/dashboard',
+  0: '/home',
   1: '/sleep',
   2: '/water',
   3: '/food',
   4: '/workout',
   5: '/weight',
   6: '/achievements',
-  7: '/ai-insights',
-  8: '/api-keys',
-  9: '/targets',
-  10: '/preferences',
+  7: '/todays-plan',
+  8: '/settings?tab=api-keys',
+  9: '/settings?tab=targets',
+  10: '/settings?tab=notifications',
   11: '/project',
   12: '/settings',
-  13: '/dashboard',
+  13: '/home',
 };
 
 export default function DashboardTour({ onClose }: DashboardTourProps) {
@@ -121,7 +121,7 @@ export default function DashboardTour({ onClose }: DashboardTourProps) {
 
   // Navigate to the page for the current step when stepIndex changes
   useEffect(() => {
-    const targetPath = stepRoutes[stepIndex] ?? '/dashboard';
+    const targetPath = stepRoutes[stepIndex] ?? '/home';
     if (pathname && targetPath !== pathname) {
       router.push(targetPath);
     }

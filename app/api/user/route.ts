@@ -41,8 +41,10 @@ export async function GET() {
 
     if (!user) return errorResponse('User not found', 404);
 
-    const latestWeight = await getLatestLoggedWeight(String(userId));
-    const derivedActivityLevel = await deriveActivityLevel(userId);
+    const [latestWeight, derivedActivityLevel] = await Promise.all([
+      getLatestLoggedWeight(String(userId)),
+      deriveActivityLevel(userId),
+    ]);
     const userWithDerivedProfile = {
       ...user,
       profile: {

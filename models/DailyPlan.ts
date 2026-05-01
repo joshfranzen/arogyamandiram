@@ -38,6 +38,7 @@ export interface IDailyPlanDocument extends Document {
     progressionTip?: string;
     exercises: {
       name: string;
+      steps?: string[];
       sets: number;
       reps: string;
       durationMinutes?: number;
@@ -75,14 +76,6 @@ export interface IDailyPlanDocument extends Document {
     avgWorkoutDurationMin?: number;
   };
 
-  // Rate limiting: track how many manual regenerations today
-  regenerationCount?: number;
-  regenerationCounts?: {
-    food?: number;
-    workout?: number;
-    overview?: number;
-    full?: number;
-  };
 }
 
 const MealSuggestionSchema = new Schema(
@@ -103,6 +96,7 @@ const MealSuggestionSchema = new Schema(
 const ExerciseSchema = new Schema(
   {
     name: { type: String, required: true },
+    steps: { type: [String], default: undefined },
     sets: { type: Number, default: 1 },
     reps: { type: String, default: '1' },
     durationMinutes: { type: Number },
@@ -171,13 +165,6 @@ const DailyPlanSchema = new Schema<IDailyPlanDocument>(
       avgWorkoutDurationMin: { type: Number },
     },
 
-    regenerationCount: { type: Number, default: 0 },
-    regenerationCounts: {
-      food: { type: Number, default: 0 },
-      workout: { type: Number, default: 0 },
-      overview: { type: Number, default: 0 },
-      full: { type: Number, default: 0 },
-    },
   },
   {
     timestamps: true,

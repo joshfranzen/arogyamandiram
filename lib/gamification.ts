@@ -11,8 +11,6 @@ import type {
   UserTargets,
 } from '@/types';
 
-export interface StreakSummary extends UserStreaks {}
-
 export interface AchievementsResult {
   achievements: UserAchievements;
   newlyEarnedBadges: UserBadge[];
@@ -151,6 +149,7 @@ export async function calculateStreaks(
       $lte: formatISO(today, { representation: 'date' }),
     },
   })
+    .select('date totalCalories waterIntake sleep.duration sleep.bedtime sleep.wakeTime caloriesBurned workouts._id weight steps')
     .sort({ date: 1 })
     .lean<IDailyLog[]>();
 
@@ -350,6 +349,7 @@ async function getLogsForBadges(userId: string, daysBack: number = 3650): Promis
       $lte: formatISO(today, { representation: 'date' }),
     },
   })
+    .select('date totalCalories waterIntake waterEntries._id sleep.duration sleep.bedtime sleep.wakeTime caloriesBurned workouts._id weight meals.time steps xpAwarded')
     .sort({ date: 1 })
     .lean<IDailyLog[]>();
 }
@@ -790,7 +790,10 @@ export async function calculateAchievements(
     xpTotal,
   };
 
-  await User.findByIdAndUpdate(userId, { achievements: mergedAchievements }).exec();
+  void User.findByIdAndUpdate(userId, {
+    achievements: mergedAchievements,
+    achievementsUpdatedAt: new Date(),
+  }).exec();
 
   return {
     achievements: mergedAchievements,

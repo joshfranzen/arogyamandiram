@@ -18,7 +18,7 @@ export const PAGE_LABELS: Record<string, string> = {
 
 export const AGENT_LABELS: Record<string, string> = {
   'meal-ideas': 'Meal Ideas',
-  'ai-insights': 'AI Insights',
+  'todays-plan': "Today's Plan",
   'workout-planner': 'Workout Planner',
   'ai-logger': 'AI Logger',
   'food-logger': 'Food Logger',
@@ -48,7 +48,7 @@ export const AGENT_LABELS: Record<string, string> = {
 
 export const AGENT_DESCRIPTIONS: Record<string, string> = {
   'meal-ideas': 'Generates meal suggestions based on your history and preferences.',
-  'ai-insights': 'Generates personalized health insights from your data.',
+  'todays-plan': 'Generates personalized health insights from your data.',
   'workout-planner': 'Plans workouts tailored to your goals.',
   'ai-logger': 'Logs food entries via natural language.',
   'food-logger': 'Food entries logged via the orchestrator AI pipeline.',
