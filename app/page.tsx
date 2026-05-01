@@ -506,7 +506,7 @@ a{color:inherit;text-decoration:none}
                   <div className="mk-chrome-url" style={{ flex: "0 1 520px", justifyContent: "center" }}>
                     <span className="mk-chrome-url-site">A</span>
                     <span className="mk-chrome-url-domain">arogyamandiram.vercel.app</span>
-                    <span className="mk-chrome-url-path">/dashboard</span>
+                    <span className="mk-chrome-url-path">/home</span>
                   </div>
                 </div>
 

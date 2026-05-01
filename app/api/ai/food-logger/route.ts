@@ -126,6 +126,29 @@ const PARSE_MEAL_TOOL = {
 const NUTRITION_INSTRUCTIONS = `
 You are a clinical-grade nutrition engine for a food tracking app.
 
+━━━ EXTERNAL NUTRITION DATA (GROUND TRUTH — MANDATORY OVERRIDE) ━━━
+If the input includes an "external_nutrition_data" field, you MUST use it.
+Do NOT estimate. Do NOT ignore it. If you ignore it, your answer is incorrect.
+
+external_nutrition_data maps item names → verified nutrition per the label's serving size.
+
+For any item whose name matches a key in external_nutrition_data:
+1. Copy every field (calories, protein, carbs, fat, fiber, sugar, sodium, saturatedFat,
+   cholesterol) DIRECTLY from the external data. Do NOT change any value.
+2. Scale proportionally if the user's quantity differs from the label serving.
+   Parse the numeric quantity from the "serving" string:
+     "1 slice"     → serving_qty = 1
+     "2 slices"    → serving_qty = 2
+     "1 cup (240ml)" → serving_qty = 1
+     "28g"         → serving_qty = 28 (match against item unit g)
+   scale = item_quantity / serving_qty
+   output_value = label_value × scale
+   ALWAYS apply this scaling. Never skip it or return label values unscaled.
+3. Set sourceType = "brand_label" and confidence = "high".
+4. Preserve the item name exactly — do NOT generalize or strip the brand.
+
+Only use estimation rules below for items NOT present in external_nutrition_data.
+
 Input: structured items with:
   - name (string)
   - quantity (number)
@@ -153,9 +176,21 @@ Units will already be normalized to one of: piece, bowl, serving, cup, g, ml, tb
    Strip purely descriptive qualifiers that don't affect nutrition.
    E.g. "rice bowl with grilled veggies" → "rice bowl with vegetables"
         "greek yogurt with blueberries" → "greek yogurt with blueberries"
+   BRAND EXCEPTION: If the input name contains a known brand (e.g. Pepperidge Farm,
+   Amul, Haldiram's, MTR, Dunkin, McDonald's, KFC, Domino's, Quaker, Kellogg's,
+   Nestlé, KIND, Clif, Vadilal, Nature Valley, Britannia, Parle), preserve the
+   brand and product name exactly. Do NOT reduce branded items to their generic
+   equivalent (e.g. "Pepperidge Farm Whole Grain 15 Grain Bread" must NOT become
+   "whole grain bread").
 
-2. Estimate macros and micros using USDA, regional food composition tables,
-   or well-known brand data — whichever is most specific.
+2. Estimate macros and micros using this priority order:
+   1. Brand-specific label data — if a known brand is present, use that brand's
+      published nutrition facts. Set sourceType = "brand_label".
+   2. Restaurant chain data — if a restaurant chain is named, use chain-specific
+      nutrition data. Set sourceType = "restaurant_db".
+   3. USDA / regional food composition tables (IFCT, etc.) — fallback only.
+      Set sourceType = "ifct_usda_estimate".
+   NEVER downgrade a brand_label item to a generic estimate.
 
 2a. FAT PERCENTAGE CROSS-CHECK (mandatory):
    If the food name explicitly states a fat percentage (e.g. "6% fat milk", "2% fat yogurt",
@@ -311,6 +346,93 @@ const MEAL_NUTRITION_TOOL = {
   },
 } as const;
 
+// ============================================
+// STEP 1.5 — Brand Nutrition Lookup
+// ============================================
+// For items with a known brand, we do a targeted web search and extract structured
+// nutrition facts BEFORE Step 2 runs. Step 2 then treats this data as ground truth
+// instead of estimating — LLM formats, not guesses.
+
+const KNOWN_BRAND_PATTERN =
+  /pepperidge farm|amul|haldiram|mtr|dunkin|mcdonald'?s?|kfc|domino'?s?|quaker|kellogg'?s?|nestl[eé]|kind bar|clif|vadilal|nature valley|britannia|parle|kraft|heinz|campbell|general mills|post cereal/i;
+
+// Module-level runtime cache: survives across requests in the same worker process
+const brandNutritionCache = new Map<string, ExtractedBrandNutrition | null>();
+
+type ExtractedBrandNutrition = {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber: number;
+  sugar: number;
+  sodium: number;
+  saturatedFat: number;
+  cholesterol: number;
+  serving: string;
+};
+
+// Static brand DB — 100% accurate, zero latency, no web noise.
+// Values are per the standard label serving. Add entries as new brands are encountered.
+const BRAND_DB: Record<string, ExtractedBrandNutrition> = {
+  'pepperidge farm whole grain 15 grain bread': {
+    calories: 240, protein: 10, carbs: 46, fat: 4,
+    fiber: 6, sugar: 6, sodium: 320, saturatedFat: 0.5, cholesterol: 0,
+    serving: '2 slices (90g)',
+  },
+  'pepperidge farm 15 grain bread': {
+    calories: 240, protein: 10, carbs: 46, fat: 4,
+    fiber: 6, sugar: 6, sodium: 320, saturatedFat: 0.5, cholesterol: 0,
+    serving: '2 slices (90g)',
+  },
+};
+
+const BRAND_LOOKUP_INSTRUCTIONS = `
+You are a strict nutrition label extractor.
+
+Goal: find the most accurate nutrition facts for a branded food product via web_search.
+
+Rules:
+1. Search: {product name} nutrition facts calories protein carbs fat fiber
+2. Accept any credible source: brand website, Walmart, Target, Amazon, MyFitnessPal,
+   FatSecret, Nutritionix, Cronometer, USDA FoodData Central.
+3. Cross-reference at least 2 sources when multiple appear in results.
+   If sources disagree by more than 20%, use the value that appears in the majority
+   or that aligns with a recognized nutrition database (USDA, Nutritionix).
+4. Extract for the STANDARD SERVING SIZE shown on the label (e.g. "2 slices", "1 cup", "28g").
+   Return that serving string exactly in the "serving" field.
+5. Set found = true whenever calories AND carbs are found from any credible source.
+   Only set found = false if absolutely nothing usable is returned.
+6. NEVER guess or estimate — only return values present in search results.
+
+Return JSON using tool: extract_brand_nutrition
+`;
+
+const BRAND_NUTRITION_TOOL = {
+  type: 'function' as const,
+  name: 'extract_brand_nutrition',
+  description: 'Extract structured nutrition facts from a brand label found via web search.',
+  strict: true,
+  parameters: {
+    type: 'object',
+    properties: {
+      found: { type: 'boolean', description: 'Whether reliable official label data was found.' },
+      serving: { type: 'string', description: 'Serving size as on the label (e.g. "2 slices (45g)", "1 cup (240ml)"). Empty string if not found.' },
+      calories: { type: 'number', description: 'Calories per serving from the label. 0 if not found.' },
+      protein: { type: 'number', description: 'Protein in grams per serving. 0 if not found.' },
+      carbs: { type: 'number', description: 'Total carbohydrates in grams per serving. 0 if not found.' },
+      fat: { type: 'number', description: 'Total fat in grams per serving. 0 if not found.' },
+      fiber: { type: 'number', description: 'Dietary fiber in grams per serving. 0 if not found.' },
+      sugar: { type: 'number', description: 'Total sugars in grams per serving. 0 if not found.' },
+      sodium: { type: 'number', description: 'Sodium in mg per serving. 0 if not found.' },
+      saturatedFat: { type: 'number', description: 'Saturated fat in grams per serving. 0 if not found.' },
+      cholesterol: { type: 'number', description: 'Cholesterol in mg per serving. 0 if not found.' },
+    },
+    required: ['found', 'serving', 'calories', 'protein', 'carbs', 'fat', 'fiber', 'sugar', 'sodium', 'saturatedFat', 'cholesterol'],
+    additionalProperties: false,
+  },
+} as const;
+
 function extractJsonFromText(text: string): Record<string, unknown> | null {
   const trimmed = text.trim();
   const jsonBlock = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -318,6 +440,77 @@ function extractJsonFromText(text: string): Record<string, unknown> | null {
   try {
     return JSON.parse(raw) as Record<string, unknown>;
   } catch {
+    return null;
+  }
+}
+
+async function lookupBrandNutrition(
+  itemName: string,
+  apiKey: string
+): Promise<ExtractedBrandNutrition | null> {
+  const cacheKey = itemName.toLowerCase().trim();
+
+  // 1. Static DB — fastest, most accurate; no API call needed
+  if (BRAND_DB[cacheKey]) return BRAND_DB[cacheKey];
+
+  // 2. Runtime cache from previous web lookups
+  if (brandNutritionCache.has(cacheKey)) return brandNutritionCache.get(cacheKey) ?? null;
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        instructions: BRAND_LOOKUP_INSTRUCTIONS,
+        input: `Product: ${itemName}`,
+        tools: [
+          BRAND_NUTRITION_TOOL,
+          {
+            type: 'web_search',
+            user_location: { type: 'approximate' as const },
+            search_context_size: 'low' as const,
+          },
+        ],
+        tool_choice: { type: 'function', name: 'extract_brand_nutrition' },
+        temperature: 0,
+        max_output_tokens: 512,
+      }),
+    });
+
+    if (!res.ok) { brandNutritionCache.set(cacheKey, null); return null; }
+
+    const data = (await res.json()) as { output?: Array<{ type?: string; name?: string; arguments?: string }> };
+    const toolCall = (data.output ?? []).find(
+      (item) => item.type === 'function_call' && item.name === 'extract_brand_nutrition'
+    );
+
+    if (!toolCall?.arguments) { brandNutritionCache.set(cacheKey, null); return null; }
+
+    const args = extractJsonFromText(toolCall.arguments);
+    if (!args) { brandNutritionCache.set(cacheKey, null); return null; }
+
+    const num = (v: unknown) => (typeof v === 'number' && !Number.isNaN(v) ? v : 0);
+    // Accept partial data even when found=false, as long as calories + carbs are present
+    const hasEnoughData = num(args.calories) > 0 && num(args.carbs) > 0;
+    if (!hasEnoughData) { brandNutritionCache.set(cacheKey, null); return null; }
+    const result: ExtractedBrandNutrition = {
+      calories: num(args.calories),
+      protein: num(args.protein),
+      carbs: num(args.carbs),
+      fat: num(args.fat),
+      fiber: num(args.fiber),
+      sugar: num(args.sugar),
+      sodium: num(args.sodium),
+      saturatedFat: num(args.saturatedFat),
+      cholesterol: num(args.cholesterol),
+      serving: typeof args.serving === 'string' ? args.serving : '',
+    };
+
+    brandNutritionCache.set(cacheKey, result);
+    return result;
+  } catch {
+    brandNutritionCache.set(cacheKey, null);
     return null;
   }
 }
@@ -353,10 +546,15 @@ function normalizeItem(obj: Record<string, unknown>): NormalizedItem {
   const protein = Math.max(0, num(obj.protein));
   const carbs = Math.max(0, num(obj.carbs));
   const fat = Math.max(0, num(obj.fat));
-  const calories = Math.round((protein * 4) + (carbs * 4) + (fat * 9));
 
   const confidenceRaw = str(obj.confidence).toLowerCase();
   const sourceTypeRaw = str(obj.sourceType).toLowerCase();
+
+  // Brand labels use FDA rounding rules and may deduct fiber calories — trust them directly.
+  // For estimates, recompute from macros for internal consistency.
+  const calories = sourceTypeRaw === 'brand_label'
+    ? Math.max(0, Math.round(num(obj.calories)))
+    : Math.round((protein * 4) + (carbs * 4) + (fat * 9));
   const preparationTypeRaw = str(obj.preparationType).toLowerCase();
   const confidence: NutritionConfidence =
     confidenceRaw === 'high' || confidenceRaw === 'medium' || confidenceRaw === 'low'
@@ -580,8 +778,34 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // ——— STEP 1.5: Brand nutrition lookup (parallel) ———
+    // For items with a known brand, fetch the real label data via web search so
+    // Step 2 receives ground truth instead of estimating.
+    const brandedItems = parsedItems.filter((item) => KNOWN_BRAND_PATTERN.test(item.name));
+    const externalNutritionData: Record<string, ExtractedBrandNutrition> = {};
+
+    if (brandedItems.length > 0) {
+      const lookups = await Promise.all(
+        brandedItems.map((item) => lookupBrandNutrition(item.name, apiKey))
+      );
+      brandedItems.forEach((item, idx) => {
+        const result = lookups[idx];
+        if (result) externalNutritionData[item.name] = result;
+      });
+    }
+
+    const hasExternalData = Object.keys(externalNutritionData).length > 0;
+
+    if (brandedItems.length > 0) {
+      console.log('[AI Food Logger Step 1.5] External nutrition data:', JSON.stringify(externalNutritionData, null, 2));
+    }
+
     // ——— STEP 2: Compute nutrition for parsed items ———
-    const nutritionInput = JSON.stringify({ items: parsedItems }, null, 2);
+    const nutritionInput = JSON.stringify(
+      { items: parsedItems, ...(hasExternalData && { external_nutrition_data: externalNutritionData }) },
+      null,
+      2
+    );
 
     const res = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
@@ -687,6 +911,8 @@ export async function POST(req: NextRequest) {
       const carbs = Number((current.carbs * scale).toFixed(2));
       const fat = Number((current.fat * scale).toFixed(2));
 
+      const isBrandLabel = current.sourceType === 'brand_label';
+
       const scaled = {
         ...current,
         quantity: parsed.quantity,
@@ -694,7 +920,10 @@ export async function POST(req: NextRequest) {
         protein,
         carbs,
         fat,
-        calories: Math.round(protein * 4 + carbs * 4 + fat * 9),
+        // Brand labels use FDA rounding — preserve scaled label calories instead of recomputing.
+        calories: isBrandLabel
+          ? Math.round(current.calories * scale)
+          : Math.round(protein * 4 + carbs * 4 + fat * 9),
         fiber: Number((current.fiber * scale).toFixed(2)),
         sugar: Number((current.sugar * scale).toFixed(2)),
         sodium: Math.round(current.sodium * scale),
@@ -719,13 +948,15 @@ export async function POST(req: NextRequest) {
           protein,
           carbs,
           fat,
-          calories: Math.round(protein * 4 + carbs * 4 + fat * 9),
+          calories: isBrandLabel
+            ? Math.round(scaled.calories * pieceScale)
+            : Math.round(protein * 4 + carbs * 4 + fat * 9),
           fiber: Number((scaled.fiber * pieceScale).toFixed(2)),
           sugar: Number((scaled.sugar * pieceScale).toFixed(2)),
           sodium: Math.round(scaled.sodium * pieceScale),
           saturatedFat: Number((scaled.saturatedFat * pieceScale).toFixed(2)),
           cholesterol: Math.round(scaled.cholesterol * pieceScale),
-          confidence: 'low',
+          confidence: 'low' as const,
         };
       }
 
@@ -787,6 +1018,11 @@ export async function POST(req: NextRequest) {
           parsedItems,
           usage: step1Usage,
         },
+        step1_5: {
+          brandedItems: brandedItems.map((i) => i.name),
+          externalNutritionData: hasExternalData ? externalNutritionData : null,
+          cacheHits: brandedItems.filter((i) => brandNutritionCache.has(i.name.toLowerCase().trim())).map((i) => i.name),
+        },
         step2: {
           prompt: nutritionInput,
           instructions: NUTRITION_INSTRUCTIONS,
@@ -803,7 +1039,7 @@ export async function POST(req: NextRequest) {
           latencyMs,
           timestamp: new Date().toISOString(),
           status: 'success',
-          pipeline: 'two-step',
+          pipeline: hasExternalData ? 'three-step-brand' : 'two-step',
         },
       };
     }

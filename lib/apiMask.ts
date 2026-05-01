@@ -138,13 +138,6 @@ export function stripSensitive<T extends Record<string, unknown>>(obj: T): Parti
 }
 
 /**
- * Strip sensitive data from an array of documents.
- */
-export function stripSensitiveArray<T extends Record<string, unknown>>(arr: T[]): Partial<T>[] {
-  return arr.map(stripSensitive);
-}
-
-/**
  * Create a masked JSON response.
  * Use this instead of NextResponse.json() in all API routes.
  */

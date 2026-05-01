@@ -70,7 +70,7 @@ export async function deriveActivityLevel(
     level = downgradeLevel(level);
   }
 
-  await User.updateOne(
+  void User.updateOne(
     { _id: userId },
     { $set: { 'profile.activityLevel': level } }
   );

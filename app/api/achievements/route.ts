@@ -5,6 +5,7 @@
 import { NextRequest } from 'next/server';
 import connectDB from '@/lib/db';
 import DailyLog from '@/models/DailyLog';
+import User from '@/models/User';
 import { getAuthUserId, isUserId } from '@/lib/session';
 import { maskedResponse } from '@/lib/apiMask';
 import { calculateAchievements } from '@/lib/gamification';
@@ -46,6 +47,8 @@ function parseTodayParam(value: string | null): string | undefined {
   return isNaN(d.getTime()) ? undefined : value;
 }
 
+const ACHIEVEMENTS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 // GET /api/achievements - Get current streaks and badges (and update them)
 export async function GET(req: NextRequest) {
   try {
@@ -56,6 +59,43 @@ export async function GET(req: NextRequest) {
 
     await connectDB();
 
+    const today = getToday();
+
+    // Fast path: return cached achievements if they were calculated recently
+    const userDoc = await User.findById(userId)
+      .select('achievements achievementsUpdatedAt')
+      .lean<{ achievements?: unknown; achievementsUpdatedAt?: Date } | null>();
+
+    const cacheAge = userDoc?.achievementsUpdatedAt
+      ? Date.now() - new Date(userDoc.achievementsUpdatedAt).getTime()
+      : Infinity;
+
+    if (cacheAge < ACHIEVEMENTS_CACHE_TTL_MS && userDoc?.achievements) {
+      const cached = userDoc.achievements as import('@/types').UserAchievements;
+      const xpTotal = cached.xpTotal ?? 0;
+      const { level, xpIntoLevel, xpPercent, xpForCurrentLevel } = getLevelProgress(xpTotal);
+      let xpToday = 0;
+      try {
+        const todayLog = await DailyLog.findOne(
+          { userId, date: today },
+          { xpAwarded: 1, _id: 0 }
+        ).lean<{ xpAwarded?: number } | null>();
+        xpToday = todayLog?.xpAwarded ?? 0;
+      } catch { /* non-critical */ }
+
+      return maskedResponse({
+        achievements: cached,
+        newlyEarnedBadges: [],
+        xpTotal,
+        xpToday,
+        level,
+        xpIntoLevel,
+        xpPercent,
+        xpForCurrentLevel,
+      });
+    }
+
+    // Slow path: full recalculation
     let result;
     try {
       result = await calculateAchievements(userId, todayOverride);
@@ -67,7 +107,6 @@ export async function GET(req: NextRequest) {
     const xpTotal = result.achievements.xpTotal ?? 0;
     const { level, xpIntoLevel, xpPercent, xpForCurrentLevel } = getLevelProgress(xpTotal);
 
-    const today = getToday();
     let xpToday = 0;
     try {
       const todayLog = await DailyLog.findOne(

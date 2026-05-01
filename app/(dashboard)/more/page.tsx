@@ -8,9 +8,6 @@ import {
   Dumbbell,
   Moon,
   Trophy,
-  Key,
-  Target,
-  Bell,
   Settings,
   Code2,
   LogOut,
@@ -25,9 +22,6 @@ type MoreItemTheme =
   | 'sleep'
   | 'achievements'
   | 'insights'
-  | 'apiKeys'
-  | 'targets'
-  | 'preferences'
   | 'project'
   | 'settings';
 
@@ -36,10 +30,7 @@ const moreItems: { href: string; icon: LucideIcon; label: string; theme: MoreIte
   { href: '/weight', icon: Scale, label: 'Weight', theme: 'weight' },
   { href: '/sleep', icon: Moon, label: 'Sleep', theme: 'sleep' },
   { href: '/achievements', icon: Trophy, label: 'Achievements', theme: 'achievements' },
-  { href: '/ai-insights', icon: Sparkles, label: 'Insights', theme: 'insights' },
-  { href: '/api-keys', icon: Key, label: 'API Keys', theme: 'apiKeys' },
-  { href: '/targets', icon: Target, label: 'Targets', theme: 'targets' },
-  { href: '/preferences', icon: Bell, label: 'Preferences', theme: 'preferences' },
+  { href: '/todays-plan', icon: Sparkles, label: "Today's Plan", theme: 'insights' },
   { href: '/project', icon: Code2, label: 'Project', theme: 'project' },
   { href: '/settings', icon: Settings, label: 'Settings', theme: 'settings' },
 ];
@@ -54,7 +45,7 @@ export default function MorePage() {
     return () => mq.removeEventListener('change', fn);
   }, []);
 
-  const hiddenOnMobile = ['/sleep', '/api-keys', '/targets', '/preferences'];
+  const hiddenOnMobile = ['/sleep'];
   const items = isMobile ? moreItems.filter((item) => !hiddenOnMobile.includes(item.href)) : moreItems;
 
   return (
@@ -76,9 +67,6 @@ export default function MorePage() {
               item.theme === 'sleep' && 'more-card-sleep',
               item.theme === 'achievements' && 'more-card-achievements',
               item.theme === 'insights' && 'more-card-insights',
-              item.theme === 'apiKeys' && 'more-card-api',
-              item.theme === 'targets' && 'more-card-targets',
-              item.theme === 'preferences' && 'more-card-preferences',
               item.theme === 'project' && 'more-card-project',
               item.theme === 'settings' && 'more-card-settings',
               'hover:text-text-primary focus:outline-none'

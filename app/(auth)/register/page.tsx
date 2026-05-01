@@ -20,7 +20,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (status === 'authenticated' && session) router.replace('/dashboard');
+    if (status === 'authenticated' && session) router.replace('/home');
   }, [session, status, router]);
 
   async function handleSubmit(e: React.FormEvent) {

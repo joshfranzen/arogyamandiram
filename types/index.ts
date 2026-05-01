@@ -245,6 +245,7 @@ export interface IUser {
   settings: UserSettings;
   targets: UserTargets;
   achievements?: UserAchievements;
+  achievementsUpdatedAt?: Date;
   onboardingComplete: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -430,6 +431,7 @@ export interface AiWorkoutPlan {
   reasoning?: string;
   exercises: {
     name: string;
+    steps?: string[];
     sets: number;
     reps: string;
     durationMinutes?: number;
@@ -472,12 +474,6 @@ export interface DailyPlanData {
     calorieGap?: number;
     recentWorkoutsPerWeek?: number;
     avgWorkoutDurationMin?: number;
-  };
-  regenerationCounts?: {
-    food?: number;
-    workout?: number;
-    overview?: number;
-    full?: number;
   };
   yesterdayFeedback?: {
     workoutDifficulty?: 'too_easy' | 'just_right' | 'too_hard';

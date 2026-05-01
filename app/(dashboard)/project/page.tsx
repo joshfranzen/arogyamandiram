@@ -97,11 +97,11 @@ export default function ProjectPage() {
               <p className="text-sm font-semibold text-text-primary">Quick pages</p>
               <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {[
-                  { href: '/dashboard', label: 'Dashboard' },
-                  { href: '/ai-insights', label: 'Insights' },
+                  { href: '/home', label: 'Home' },
+                  { href: '/todays-plan', label: "Today's Plan" },
                   { href: '/achievements', label: 'Achievements' },
-                  { href: '/api-keys', label: 'API Keys' },
-                  { href: '/targets', label: 'Targets' },
+                  { href: '/settings?tab=api-keys', label: 'API Keys' },
+                  { href: '/settings?tab=targets', label: 'Targets' },
                   { href: '/settings', label: 'Settings' },
                 ].map((item) => (
                   <Link

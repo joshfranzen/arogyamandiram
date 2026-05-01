@@ -24,7 +24,7 @@ const MOCK_BADGES: UserBadge[] = [
 ];
 
 const NAV_ITEMS = [
-  { href: '/dashboard',    icon: LayoutGrid,    label: 'Home',         active: true },
+  { href: '/home',    icon: LayoutGrid,    label: 'Home',         active: true },
   { href: '/sleep',        icon: Moon,          label: 'Sleep' },
   { href: '/water',        icon: Droplets,      label: 'Water' },
   { href: '/food',         icon: Utensils,      label: 'Food' },
@@ -32,7 +32,7 @@ const NAV_ITEMS = [
   { href: '/health-data',  icon: Activity,      label: 'Health Data' },
   { href: '/weight',       icon: Scale,         label: 'Weight' },
   { href: '/achievements', icon: Star,          label: 'Achievements' },
-  { href: '/ai-insights',  icon: CalendarDays,  label: "Today's Plan" },
+  { href: '/todays-plan',  icon: CalendarDays,  label: "Today's Plan" },
   { href: '/todos',        icon: CheckSquare,   label: 'Todos' },
   { href: '/debug',        icon: Bug,           label: 'Debugger' },
 ];
