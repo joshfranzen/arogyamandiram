@@ -1,17 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { CalendarDays, Dumbbell, Flame, Zap } from 'lucide-react';
+import { CalendarDays, CheckSquare, Dumbbell, Flame, Zap } from 'lucide-react';
 import DashboardPageShell from '@/components/layout/DashboardPageShell';
 import { cn } from '@/lib/utils';
 import OverviewTab from './OverviewTab';
 import FoodTab from './FoodTab';
 import WorkoutTab from './WorkoutTab';
+import TodosTab from './TodosTab';
 
-type Tab = 'overview' | 'food' | 'workout';
+type Tab = 'overview' | 'food' | 'workout' | 'todos';
 
 export default function TodaysPlanPage() {
-  const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const [activeTab, setActiveTab] = useState<Tab>('todos');
 
   return (
     <DashboardPageShell title="Today's Plan" subtitle="Your personalized daily health plan" icon={CalendarDays}>
@@ -20,6 +21,7 @@ export default function TodaysPlanPage() {
         <div className="mt-4 mobile-fade-up mobile-dash-px lg:px-0">
           <div className="flex gap-2">
             {([
+              { key: 'todos',    label: "Todo's",   icon: CheckSquare },
               { key: 'overview', label: 'Overview', icon: Zap },
               { key: 'food',     label: 'Food',     icon: Flame },
               { key: 'workout',  label: 'Workout',  icon: Dumbbell },
@@ -42,6 +44,7 @@ export default function TodaysPlanPage() {
           {activeTab === 'overview' && <OverviewTab />}
           {activeTab === 'food'     && <FoodTab />}
           {activeTab === 'workout'  && <WorkoutTab />}
+          {activeTab === 'todos'    && <TodosTab />}
         </div>
 
       </div>

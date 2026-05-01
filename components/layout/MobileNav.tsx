@@ -14,7 +14,6 @@ import {
   Settings,
   MoreHorizontal,
   X,
-  CheckSquare,
   LogOut,
   Activity,
 } from 'lucide-react';
@@ -35,7 +34,6 @@ const moreNav = [
   { href: '/weight', icon: Scale, label: 'Weight' },
   { href: '/achievements', icon: Star, label: 'Achievements' },
   { href: '/todays-plan', icon: CalendarDays, label: "Today's Plan" },
-  { href: '/todos', icon: CheckSquare, label: 'Todos' },
   { href: '/settings', icon: Settings, label: 'Settings' },
 ];
 

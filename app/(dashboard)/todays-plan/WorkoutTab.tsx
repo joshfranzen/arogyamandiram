@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { showToast } from '@/components/ui/Toast';
 import api from '@/lib/apiClient';
 import type { DailyPlanData } from '@/types';
+import { usePlanAutoRefresh } from './usePlanAutoRefresh';
 
 type WorkoutExercise = NonNullable<DailyPlanData['workoutPlan']>['exercises'][number];
 type WorkoutPlan = NonNullable<DailyPlanData['workoutPlan']>;
@@ -89,20 +90,7 @@ export default function WorkoutTab() {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
-
-  useEffect(() => {
-    const onFocus = () => { void load(); };
-    const onVisibility = () => { if (document.visibilityState === 'visible') void load(); };
-    window.addEventListener('focus', onFocus);
-    window.addEventListener('orchestrator:log-updated', onFocus);
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => {
-      window.removeEventListener('focus', onFocus);
-      window.removeEventListener('orchestrator:log-updated', onFocus);
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-  }, [load]);
+  usePlanAutoRefresh(load);
 
   useEffect(() => {
     const exercises = workoutPlan?.exercises ?? [];
@@ -193,11 +181,12 @@ export default function WorkoutTab() {
   };
 
   const hasFeedbackChanges = workoutDifficulty !== null || skippedWorkoutReason !== null;
-  const hasWorkoutPlanContent = (workoutPlan?.exercises?.length ?? 0) > 0;
+  const currentWorkoutPlan = workoutPlan;
+  const hasWorkoutPlanContent = (currentWorkoutPlan?.exercises?.length ?? 0) > 0;
 
   if (loading) return null;
 
-  if (!hasWorkoutPlanContent) {
+  if (!currentWorkoutPlan || !hasWorkoutPlanContent) {
     return (
       <div className="dashboard-unified-card rounded-2xl border p-5">
         <div className="flex flex-col items-center gap-3 py-10 text-center">
@@ -215,7 +204,15 @@ export default function WorkoutTab() {
   }
 
   return (
-    <div className="dashboard-unified-card rounded-2xl border p-5 sm:p-6">
+    <div className="space-y-4">
+      {currentWorkoutPlan.reasoning && (
+        <div className="flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-2.5">
+          <Lightbulb className="h-3.5 w-3.5 shrink-0 text-amber-400" />
+          <p className="text-xs text-amber-200">{currentWorkoutPlan.reasoning}</p>
+        </div>
+      )}
+
+      <div className="dashboard-unified-card rounded-2xl border p-5 sm:p-6">
       {/* Header */}
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
@@ -229,29 +226,21 @@ export default function WorkoutTab() {
         </button>
       </div>
 
-      {/* AI reasoning */}
-      {workoutPlan.reasoning && (
-        <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2.5">
-          <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
-          <p className="text-xs text-amber-200">{workoutPlan.reasoning}</p>
-        </div>
-      )}
-
       {/* Plan meta */}
       <div className="mb-4">
-        <p className="text-sm font-semibold text-text-primary">{workoutPlan.name}</p>
-        {workoutPlan.description && (
-          <p className="mt-0.5 text-xs text-text-muted">{workoutPlan.description}</p>
+          <p className="text-sm font-semibold text-text-primary">{currentWorkoutPlan.name}</p>
+        {currentWorkoutPlan.description && (
+          <p className="mt-0.5 text-xs text-text-muted">{currentWorkoutPlan.description}</p>
         )}
         <div className="mt-2 flex gap-2">
-          <span className="rounded-full bg-zinc-800 px-2.5 py-1 text-[10px] text-zinc-300">{workoutPlan.durationMinutes} min</span>
-          <span className="rounded-full bg-zinc-800 px-2.5 py-1 text-[10px] text-zinc-300">~{workoutPlan.estimatedCalories} kcal</span>
+          <span className="rounded-full bg-zinc-800 px-2.5 py-1 text-[10px] text-zinc-300">{currentWorkoutPlan.durationMinutes} min</span>
+          <span className="rounded-full bg-zinc-800 px-2.5 py-1 text-[10px] text-zinc-300">~{currentWorkoutPlan.estimatedCalories} kcal</span>
         </div>
       </div>
 
       {/* Exercises */}
       <div className="space-y-2">
-        {workoutPlan.exercises.map((ex, i) => {
+        {currentWorkoutPlan.exercises.map((ex, i) => {
           const draft = workoutDrafts[String(i)];
           return (
             <div key={i} className="rounded-xl border border-zinc-800 bg-zinc-900/30 px-4 py-3">
@@ -297,47 +286,55 @@ export default function WorkoutTab() {
         })}
       </div>
 
+      </div>
+
       {/* Progression tip */}
-      {workoutPlan.progressionTip && (
-        <div className="mt-4 flex items-start gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2.5">
+      {currentWorkoutPlan.progressionTip && (
+        <div className="mt-2">
+          <div className="flex items-start gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2.5">
           <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400" />
-          <p className="text-xs text-emerald-200">{workoutPlan.progressionTip}</p>
+          <p className="text-xs text-emerald-200">{currentWorkoutPlan.progressionTip}</p>
+          </div>
         </div>
       )}
 
       {/* Feedback */}
-      <div className="mt-5 space-y-3 border-t border-zinc-800 pt-4">
-        <p className="text-xs font-medium text-text-muted">How was today&apos;s workout?</p>
-        <div className="flex flex-wrap gap-2">
-          {(['too_easy', 'just_right', 'too_hard'] as const).map((d) => (
-            <button key={d} type="button" onClick={() => { setWorkoutDifficulty(d); setFeedbackSaved(false); }}
-              className={cn('rounded-full border px-3 py-1.5 text-xs capitalize transition-all',
-                workoutDifficulty === d
-                  ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
-                  : 'border-zinc-700 text-zinc-400 hover:border-zinc-500')}>
-              {d.replace('_', ' ')}
-            </button>
-          ))}
+      <div className="dashboard-unified-card rounded-2xl border p-4 space-y-4">
+        <div>
+          <p className="mb-2 text-xs font-medium text-text-muted">How was today&apos;s workout?</p>
+          <div className="flex flex-wrap gap-2">
+            {(['too_easy', 'just_right', 'too_hard'] as const).map((d) => (
+              <button key={d} type="button" onClick={() => { setWorkoutDifficulty(d); setFeedbackSaved(false); }}
+                className={cn('rounded-full border px-3 py-1.5 text-xs capitalize transition-all',
+                  workoutDifficulty === d
+                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
+                    : 'border-zinc-700 text-zinc-400 hover:border-zinc-500')}>
+                {d.replace('_', ' ')}
+              </button>
+            ))}
+          </div>
         </div>
-        <p className="text-xs font-medium text-text-muted">Did you skip it?</p>
-        <div className="flex flex-wrap gap-2">
-          {(['no_time', 'tired', 'injury', 'other'] as const).map((r) => (
-            <button key={r} type="button" onClick={() => { setSkippedWorkoutReason(skippedWorkoutReason === r ? null : r); setFeedbackSaved(false); }}
-              className={cn('rounded-full border px-3 py-1.5 text-xs capitalize transition-all',
-                skippedWorkoutReason === r
-                  ? 'border-rose-500 bg-rose-500/10 text-rose-400'
-                  : 'border-zinc-700 text-zinc-400 hover:border-zinc-500')}>
-              {r.replace('_', ' ')}
+        <div>
+          <p className="mb-2 text-xs font-medium text-text-muted">Did you skip it?</p>
+          <div className="flex flex-wrap gap-2">
+            {(['no_time', 'tired', 'injury', 'other'] as const).map((r) => (
+              <button key={r} type="button" onClick={() => { setSkippedWorkoutReason(skippedWorkoutReason === r ? null : r); setFeedbackSaved(false); }}
+                className={cn('rounded-full border px-3 py-1.5 text-xs capitalize transition-all',
+                  skippedWorkoutReason === r
+                    ? 'border-rose-500 bg-rose-500/10 text-rose-400'
+                    : 'border-zinc-700 text-zinc-400 hover:border-zinc-500')}>
+                {r.replace('_', ' ')}
+              </button>
+            ))}
+          </div>
+          {hasFeedbackChanges && (
+            <button onClick={handleSaveFeedback} disabled={feedbackSaving || feedbackSaved}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-50">
+              {feedbackSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : feedbackSaved ? <CheckCircle2 className="h-3 w-3" /> : null}
+              {feedbackSaved ? 'Saved!' : 'Save feedback'}
             </button>
-          ))}
+          )}
         </div>
-        {hasFeedbackChanges && (
-          <button onClick={handleSaveFeedback} disabled={feedbackSaving || feedbackSaved}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-50">
-            {feedbackSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : feedbackSaved ? <CheckCircle2 className="h-3 w-3" /> : null}
-            {feedbackSaved ? 'Saved!' : 'Save feedback'}
-          </button>
-        )}
       </div>
     </div>
   );

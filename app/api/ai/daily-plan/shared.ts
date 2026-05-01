@@ -1,4 +1,5 @@
 import type { AiMealSuggestion, AiWorkoutPlan, DailyPlanData } from '@/types';
+import { getAgeFromDateOfBirth } from '@/lib/utils';
 
 export type FoodRequestBody = {
   lastWeekFoodDetails?: string;
@@ -19,6 +20,65 @@ export type WorkoutRequestBody = {
   todayAvailableMinutes?: number;
 };
 
+export type WorkoutPromptContext = {
+  profile?: {
+    age?: number;
+    dateOfBirth?: string | Date;
+    gender?: string;
+    height?: number;
+    weight?: number;
+    activityLevel?: string;
+    goal?: string;
+    targetWeight?: number;
+    bodyType?: string;
+    bodyFat?: number;
+    fatFocusAreas?: string[];
+    fitnessLevelDerived?: string;
+    fitnessLevelUser?: string;
+  } | null;
+  targets?: {
+    dailyWorkoutMinutes?: number;
+    dailyCalorieBurn?: number;
+    dailyCalories?: number;
+    dailyWater?: number;
+    protein?: number;
+    carbs?: number;
+    fat?: number;
+    sleepHours?: number;
+    dailySteps?: number;
+  } | null;
+  recentLogs?: Array<{
+    date?: string;
+    totalCalories?: number;
+    totalProtein?: number;
+    totalCarbs?: number;
+    totalFat?: number;
+    waterIntake?: number;
+    caloriesBurned?: number;
+    heartRate?: number;
+    steps?: number;
+    activeCalories?: number;
+    distanceKm?: number;
+    sleep?: { duration?: number; quality?: number } | null;
+    workouts?: Array<{
+      exercise?: string;
+      category?: string;
+      duration?: number;
+      caloriesBurned?: number;
+      sets?: number;
+      reps?: number;
+      source?: string;
+    }>;
+  }>;
+  recentFeedback?: Array<{
+    date?: string;
+    feedback?: {
+      workoutDifficulty?: string;
+      skippedWorkoutReason?: string;
+    } | null;
+  }>;
+};
+
 const VALID_MEAL_TYPES = new Set(['breakfast', 'lunch', 'dinner', 'snack']);
 const VALID_INTENSITIES = new Set(['low', 'medium', 'high']);
 const VALID_CATEGORIES = new Set(['cardio', 'strength', 'flexibility', 'sports', 'other']);
@@ -34,6 +94,116 @@ function asNumber(value: unknown, fallback = 0): number {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function toFinite(value: unknown): number | undefined {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function sanitizeWorkoutContext(context?: WorkoutPromptContext) {
+  if (!context) return null;
+
+  const profile = context.profile
+    ? {
+        age: (() => {
+          if (context.profile?.dateOfBirth) {
+            const derived = getAgeFromDateOfBirth(context.profile.dateOfBirth);
+            if (Number.isFinite(derived) && derived > 0) return derived;
+          }
+          return toFinite(context.profile.age);
+        })(),
+        gender: asString(context.profile.gender),
+        heightCm: toFinite(context.profile.height),
+        weightKg: toFinite(context.profile.weight),
+        activityLevel: asString(context.profile.activityLevel),
+        goal: asString(context.profile.goal),
+        targetWeightKg: toFinite(context.profile.targetWeight),
+        bodyType: asString(context.profile.bodyType),
+        bodyFatPct: toFinite(context.profile.bodyFat),
+        fatFocusAreas: Array.isArray(context.profile.fatFocusAreas)
+          ? context.profile.fatFocusAreas.map((a) => asString(a)).filter(Boolean)
+          : [],
+        fitnessLevel: asString(context.profile.fitnessLevelDerived || context.profile.fitnessLevelUser),
+      }
+    : null;
+
+  const targets = context.targets
+    ? {
+        dailyWorkoutMinutes: toFinite(context.targets.dailyWorkoutMinutes),
+        dailyCalorieBurnKcal: toFinite(context.targets.dailyCalorieBurn),
+        dailyCaloriesKcal: toFinite(context.targets.dailyCalories),
+        dailyWaterMl: toFinite(context.targets.dailyWater),
+        proteinG: toFinite(context.targets.protein),
+        carbsG: toFinite(context.targets.carbs),
+        fatG: toFinite(context.targets.fat),
+        sleepHours: toFinite(context.targets.sleepHours),
+        dailySteps: toFinite(context.targets.dailySteps),
+      }
+    : null;
+
+  const recentLogs = Array.isArray(context.recentLogs)
+    ? context.recentLogs
+        .map((log) => ({
+          ...(() => {
+            const sleepDuration = toFinite(log.sleep?.duration);
+            const sleepQuality = toFinite(log.sleep?.quality);
+            const hasSleepData = typeof sleepDuration === 'number' || typeof sleepQuality === 'number';
+            return {
+              recovery: hasSleepData
+                ? {
+                    sleepDurationHours: sleepDuration,
+                    sleepQuality1to5: sleepQuality,
+                  }
+                : {
+                    sleepStatus: 'not_recorded',
+                  },
+            };
+          })(),
+          date: asString(log.date),
+          nutrition: {
+            caloriesKcal: toFinite(log.totalCalories) ?? 0,
+            proteinG: toFinite(log.totalProtein) ?? 0,
+            carbsG: toFinite(log.totalCarbs) ?? 0,
+            fatG: toFinite(log.totalFat) ?? 0,
+          },
+          hydration: {
+            waterMl: toFinite(log.waterIntake) ?? 0,
+          },
+          activity: {
+            caloriesBurnedKcal: toFinite(log.caloriesBurned) ?? 0,
+            steps: toFinite(log.steps) ?? 0,
+            activeCaloriesKcal: toFinite(log.activeCalories) ?? 0,
+            distanceKm: toFinite(log.distanceKm) ?? 0,
+            heartRateAvg: toFinite(log.heartRate) ?? 0,
+          },
+          workouts: Array.isArray(log.workouts)
+            ? log.workouts.map((w) => ({
+                exercise: asString(w.exercise),
+                category: asString(w.category, 'other'),
+                durationMinutes: toFinite(w.duration) ?? 0,
+                caloriesBurnedKcal: toFinite(w.caloriesBurned) ?? 0,
+                sets: toFinite(w.sets) ?? 0,
+                reps: toFinite(w.reps) ?? 0,
+                source: asString(w.source, 'manual'),
+              }))
+            : [],
+        }))
+        .slice(0, 3)
+    : [];
+
+  const recentFeedback = Array.isArray(context.recentFeedback)
+    ? context.recentFeedback
+        .map((entry) => ({
+          date: asString(entry.date),
+          workoutDifficulty: asString(entry.feedback?.workoutDifficulty),
+          skippedWorkoutReason: asString(entry.feedback?.skippedWorkoutReason),
+        }))
+        .filter((entry) => entry.date && (entry.workoutDifficulty || entry.skippedWorkoutReason))
+        .slice(0, 3)
+    : [];
+
+  return { profile, targets, recentLogs, recentFeedback };
 }
 
 export function buildFoodPrompt(body: FoodRequestBody, date: string): string {
@@ -64,20 +234,44 @@ export function buildOverviewPrompt(body: OverviewRequestBody, date: string): st
   ].join('\n');
 }
 
-export function buildWorkoutPrompt(body: WorkoutRequestBody, date: string): string {
+export function buildWorkoutPrompt(
+  body: WorkoutRequestBody,
+  date: string,
+  context?: WorkoutPromptContext
+): string {
   const details = body.lastWeekDetails?.trim() || 'No previous workout details provided.';
-  const goal = body.goal?.trim() || 'General fitness and consistency';
-  const fitnessLevel = body.fitnessLevel?.trim() || 'beginner';
+  const sanitized = sanitizeWorkoutContext(context);
+  const goal = body.goal?.trim() || sanitized?.profile?.goal || 'General fitness and consistency';
+  const fitnessLevel = body.fitnessLevel?.trim() || sanitized?.profile?.fitnessLevel || 'beginner';
   const minutes = Number(body.todayAvailableMinutes);
-  const durationTarget = Number.isFinite(minutes) && minutes > 0 ? Math.round(minutes) : 30;
+  const durationTarget = Number.isFinite(minutes) && minutes > 0
+    ? Math.round(minutes)
+    : Math.round(sanitized?.targets?.dailyWorkoutMinutes ?? 30);
 
-  return [
+  const lines = [
     `Plan date: ${date}`,
     `Goal: ${goal}`,
     `Fitness level: ${fitnessLevel}`,
     `Today workout target minutes: ${durationTarget}`,
     `Last week details from user: ${details}`,
-  ].join('\n');
+  ];
+
+  if (sanitized?.profile) {
+    lines.push(`Anonymized profile: ${JSON.stringify(sanitized.profile)}`);
+  }
+  if (sanitized?.targets) {
+    lines.push(`Targets and constraints: ${JSON.stringify(sanitized.targets)}`);
+  }
+  if (sanitized?.recentLogs?.length) {
+    lines.push(`Recent 3-day health/activity logs: ${JSON.stringify(sanitized.recentLogs)}`);
+  } else {
+    lines.push('Recent 3-day health/activity logs: none available');
+  }
+  if (sanitized?.recentFeedback?.length) {
+    lines.push(`Recent workout-plan feedback: ${JSON.stringify(sanitized.recentFeedback)}`);
+  }
+
+  return lines.join('\n');
 }
 
 export function normalizeFoodPlan(input: unknown): NonNullable<DailyPlanData['foodPlan']> {

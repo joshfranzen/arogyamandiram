@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server';
 import connectDB from '@/lib/db';
+import User from '@/models/User';
+import DailyLog from '@/models/DailyLog';
 import DailyPlan from '@/models/DailyPlan';
 import { resolveOpenAIKey } from '@/lib/openaiKey';
 import { createOpenAiJson } from '@/lib/openaiJson';
@@ -62,12 +64,94 @@ Return JSON only with this shape:
     "estimatedCalories": number,
     "progressionTip": "string",
     "reasoning": "string",
-    "durationMinutes": number,
-    "description": "string"
+    "durationMinutes": number
   }
 }
-Keep it realistic, beginner-friendly when unclear, and aligned to the user's details.`;
-    const userPrompt = buildWorkoutPrompt(body, today);
+Rules:
+- Order exercises as: warm-up first, then main work, then cool-down stretches.
+- Include a true warm-up block (3-5 min, low intensity) before strength/cardio.
+- Include at least 2 flexibility/cool-down stretches at the end (not just one).
+- Keep total planned exercise time + typical rest transitions reasonably aligned with durationMinutes.
+- If recent protein intake appears below 70% of protein target, mention recovery constraints in reasoning and avoid excessive high-volume programming.
+- If recent daily steps exceed the target (or 8,000 when target is unavailable), acknowledge the user is already active and avoid stacking extra cardio volume unnecessarily.
+- Keep it realistic, beginner-friendly when unclear, and aligned to the user's details.`;
+    const user = await User.findById(userId)
+      .select('profile.gender profile.age profile.dateOfBirth profile.height profile.weight profile.activityLevel profile.goal profile.targetWeight profile.bodyType profile.bodyFat profile.fatFocusAreas profile.fitnessLevelDerived profile.fitnessLevelUser targets')
+      .lean() as {
+        profile?: {
+          gender?: string;
+          age?: number;
+          dateOfBirth?: string | Date;
+          height?: number;
+          weight?: number;
+          activityLevel?: string;
+          goal?: string;
+          targetWeight?: number;
+          bodyType?: string;
+          bodyFat?: number;
+          fatFocusAreas?: string[];
+          fitnessLevelDerived?: string;
+          fitnessLevelUser?: string;
+        };
+        targets?: {
+          dailyWorkoutMinutes?: number;
+          dailyCalorieBurn?: number;
+          dailyCalories?: number;
+          dailyWater?: number;
+          protein?: number;
+          carbs?: number;
+          fat?: number;
+          sleepHours?: number;
+          dailySteps?: number;
+        };
+      } | null;
+
+    const recentLogs = await DailyLog.find({ userId, date: { $lte: today } })
+      .sort({ date: -1 })
+      .limit(3)
+      .select('date totalCalories totalProtein totalCarbs totalFat waterIntake caloriesBurned heartRate steps activeCalories distanceKm sleep.duration sleep.quality workouts.exercise workouts.category workouts.duration workouts.caloriesBurned workouts.sets workouts.reps workouts.source')
+      .lean() as Array<{
+        date?: string;
+        totalCalories?: number;
+        totalProtein?: number;
+        totalCarbs?: number;
+        totalFat?: number;
+        waterIntake?: number;
+        caloriesBurned?: number;
+        heartRate?: number;
+        steps?: number;
+        activeCalories?: number;
+        distanceKm?: number;
+        sleep?: { duration?: number; quality?: number };
+        workouts?: Array<{
+          exercise?: string;
+          category?: string;
+          duration?: number;
+          caloriesBurned?: number;
+          sets?: number;
+          reps?: number;
+          source?: string;
+        }>;
+      }>;
+
+    const recentFeedback = await DailyPlan.find({ userId, date: { $lte: today }, feedback: { $exists: true } })
+      .sort({ date: -1 })
+      .limit(3)
+      .select('date feedback.workoutDifficulty feedback.skippedWorkoutReason')
+      .lean() as Array<{
+        date?: string;
+        feedback?: {
+          workoutDifficulty?: string;
+          skippedWorkoutReason?: string;
+        };
+      }>;
+
+    const userPrompt = buildWorkoutPrompt(body, today, {
+      profile: user?.profile ?? null,
+      targets: user?.targets ?? null,
+      recentLogs,
+      recentFeedback,
+    });
     const ai = await createOpenAiJson<{ workoutPlan?: Record<string, unknown> }>({
       apiKey,
       systemPrompt,
