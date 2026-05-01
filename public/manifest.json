@@ -2,7 +2,7 @@
   "name": "Arogyamandiram",
   "short_name": "ArogyaM",
   "description": "Your Health & Wellness Companion - Track nutrition, water, weight & workouts",
-  "start_url": "/dashboard",
+  "start_url": "/home",
   "scope": "/",
   "display": "standalone",
   "background_color": "#08080d",
