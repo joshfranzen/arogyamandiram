@@ -1960,7 +1960,7 @@ function TodosSettingsTab() {
       let baseItems: Record<string, unknown>[] = [];
       if (form.category === 'food') {
         const foodText = [form.title, form.note].filter(Boolean).join(': ');
-        const foodRes = await api.logFoodText(foodText);
+        const foodRes = await api.logFoodText(foodText, 'settings-todos');
         if (foodRes.success && foodRes.data?.items?.length) {
           baseItems = foodRes.data.items as Record<string, unknown>[];
           showToast(`Parsed ${baseItems.length} food item${baseItems.length !== 1 ? 's' : ''} — nutrition auto-saved`, 'success');

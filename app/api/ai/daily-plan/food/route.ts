@@ -58,6 +58,16 @@ Return JSON only with this shape:
 }
 Keep suggestions realistic and easy to follow.`;
     const userPrompt = buildFoodPrompt(body, today);
+    let openAiDebug:
+      | {
+          endpoint: string;
+          requestBody: Record<string, unknown>;
+          rawResponse: unknown;
+          usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+          status: number;
+        }
+      | undefined;
+
     const ai = await createOpenAiJson<{
       foodPlan?: { suggestions?: unknown[]; reasoning?: string };
     }>({
@@ -65,6 +75,9 @@ Keep suggestions realistic and easy to follow.`;
       systemPrompt,
       userPrompt,
       maxTokens: 1500,
+      onDebug: (debug) => {
+        openAiDebug = debug;
+      },
     });
     const foodPlan = normalizeFoodPlan(ai.foodPlan ?? ai);
 
@@ -94,10 +107,19 @@ Keep suggestions realistic and easy to follow.`;
         },
         systemPrompt,
         userPrompt,
+        openAiRequest: openAiDebug
+          ? {
+              endpoint: openAiDebug.endpoint,
+              body: openAiDebug.requestBody,
+              status: openAiDebug.status,
+            }
+          : null,
+        openAiResponse: openAiDebug?.rawResponse ?? null,
         parsedResult: { foodPlan },
         metadata: {
           status: 'success',
           model: 'gpt-4o-mini',
+          usage: openAiDebug?.usage,
         },
       },
     });

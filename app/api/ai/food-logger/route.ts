@@ -15,6 +15,7 @@ import User from '@/models/User';
 import { decrypt } from '@/lib/encryption';
 import { maskedResponse, errorResponse } from '@/lib/apiMask';
 import { getAuthUserIdWithBypass, isUserId } from '@/lib/session';
+import { writeDebugLog } from '@/lib/debugLogWriter';
 
 export const dynamic = 'force-dynamic';
 
@@ -354,7 +355,7 @@ const MEAL_NUTRITION_TOOL = {
 // instead of estimating — LLM formats, not guesses.
 
 const KNOWN_BRAND_PATTERN =
-  /pepperidge farm|amul|haldiram|mtr|dunkin|mcdonald'?s?|kfc|domino'?s?|quaker|kellogg'?s?|nestl[eé]|kind bar|clif|vadilal|nature valley|britannia|parle|kraft|heinz|campbell|general mills|post cereal/i;
+  /silk|pepperidge farm|amul|haldiram|mtr|dunkin|mcdonald'?s?|kfc|domino'?s?|quaker|kellogg'?s?|nestl[eé]|kind bar|clif|vadilal|nature valley|britannia|parle|kraft|heinz|campbell|general mills|post cereal/i;
 
 // Module-level runtime cache: survives across requests in the same worker process
 const brandNutritionCache = new Map<string, ExtractedBrandNutrition | null>();
@@ -375,6 +376,16 @@ type ExtractedBrandNutrition = {
 // Static brand DB — 100% accurate, zero latency, no web noise.
 // Values are per the standard label serving. Add entries as new brands are encountered.
 const BRAND_DB: Record<string, ExtractedBrandNutrition> = {
+  'silk unsweetened almond milk': {
+    calories: 30, protein: 1, carbs: 1, fat: 2.5,
+    fiber: 1, sugar: 0, sodium: 160, saturatedFat: 0, cholesterol: 0,
+    serving: '1 cup (240ml)',
+  },
+  'silk almond milk unsweetened': {
+    calories: 30, protein: 1, carbs: 1, fat: 2.5,
+    fiber: 1, sugar: 0, sodium: 160, saturatedFat: 0, cholesterol: 0,
+    serving: '1 cup (240ml)',
+  },
   'pepperidge farm whole grain 15 grain bread': {
     calories: 240, protein: 10, carbs: 46, fat: 4,
     fiber: 6, sugar: 6, sodium: 320, saturatedFat: 0.5, cholesterol: 0,
@@ -533,6 +544,14 @@ type NormalizedItem = {
   preparationType: 'homemade' | 'restaurant' | 'packaged' | 'unknown';
 };
 
+type ParsedFoodItem = {
+  name: string;
+  quantity: number;
+  unit: string;
+  each_weight_g: number;
+  total_weight_g: number | null;
+};
+
 type NutritionConfidence = 'high' | 'medium' | 'low';
 type NutritionSourceType = 'brand_label' | 'restaurant_db' | 'ifct_usda_estimate';
 type NutritionPreparationType = 'homemade' | 'restaurant' | 'packaged' | 'unknown';
@@ -638,12 +657,129 @@ function clampSodiumSpikes(items: NormalizedItem[]) {
   }
 }
 
+function normalizeFoodName(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isLikelySameFood(a: string, b: string): boolean {
+  const na = normalizeFoodName(a);
+  const nb = normalizeFoodName(b);
+  if (!na || !nb) return false;
+  if (na === nb || na.includes(nb) || nb.includes(na)) return true;
+  const aTokens = new Set(na.split(' ').filter((t) => t.length > 2));
+  const bTokens = new Set(nb.split(' ').filter((t) => t.length > 2));
+  let overlap = 0;
+  for (const t of aTokens) {
+    if (bTokens.has(t)) overlap += 1;
+  }
+  return overlap >= 2;
+}
+
+function extractServingAmount(serving: string, targetUnit: string): number {
+  const s = serving.toLowerCase();
+  const unit = targetUnit.toLowerCase();
+  const toNum = (v: string) => {
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+
+  if (unit === 'ml') {
+    const ml = s.match(/(\d+(?:\.\d+)?)\s*ml/);
+    if (ml?.[1]) return toNum(ml[1]) ?? 1;
+  }
+  if (unit === 'g') {
+    const g = s.match(/(\d+(?:\.\d+)?)\s*g\b/);
+    if (g?.[1]) return toNum(g[1]) ?? 1;
+  }
+
+  const leading = s.match(/^(\d+(?:\.\d+)?)/);
+  if (leading?.[1]) return toNum(leading[1]) ?? 1;
+  return 1;
+}
+
+function scaleBrandLabelToItem(parsed: ParsedFoodItem, label: ExtractedBrandNutrition): NormalizedItem {
+  const unit = parsed.unit.toLowerCase();
+  const servingAmount = extractServingAmount(label.serving, unit);
+
+  const scale = (() => {
+    if (unit === 'ml' || unit === 'g') {
+      return parsed.quantity / servingAmount;
+    }
+    if (parsed.total_weight_g != null) {
+      const servingG = extractServingAmount(label.serving, 'g');
+      return parsed.total_weight_g / servingG;
+    }
+    return parsed.quantity / servingAmount;
+  })();
+
+  const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
+  const scaledProtein = Number((label.protein * safeScale).toFixed(2));
+  const scaledCarbs = Number((label.carbs * safeScale).toFixed(2));
+  const scaledFat = Number((label.fat * safeScale).toFixed(2));
+
+  return {
+    name: parsed.name,
+    calories: Math.round(label.calories * safeScale),
+    protein: scaledProtein,
+    carbs: scaledCarbs,
+    fat: scaledFat,
+    fiber: Number((label.fiber * safeScale).toFixed(2)),
+    sugar: Number((label.sugar * safeScale).toFixed(2)),
+    sodium: Math.round(label.sodium * safeScale),
+    saturatedFat: Number((label.saturatedFat * safeScale).toFixed(2)),
+    cholesterol: Math.round(label.cholesterol * safeScale),
+    quantity: parsed.quantity,
+    unit: parsed.unit,
+    confidence: 'high',
+    sourceType: 'brand_label',
+    preparationType: 'packaged',
+  };
+}
+
+function enforceAlmondMilkSanity(item: NormalizedItem): NormalizedItem {
+  const name = normalizeFoodName(item.name);
+  const looksLikeAlmondMilk = name.includes('almond') && name.includes('milk');
+  const unit = item.unit.toLowerCase();
+  const isVolumeItem = unit === 'ml' || unit === 'cup';
+  if (!looksLikeAlmondMilk || !isVolumeItem) return item;
+
+  const mlQty = unit === 'ml' ? item.quantity : item.quantity * 240;
+  if (mlQty < 150) return item;
+
+  if (item.fat >= 1 && item.calories >= 15) return item;
+
+  const scale = mlQty / 240;
+  const protein = Number(scale.toFixed(2));
+  const carbs = Number(scale.toFixed(2));
+  const fat = Number((2.5 * scale).toFixed(2));
+  return {
+    ...item,
+    calories: Math.round(30 * scale),
+    protein,
+    carbs,
+    fat,
+    fiber: Number(scale.toFixed(2)),
+    sugar: 0,
+    sodium: Math.round(160 * scale),
+    saturatedFat: 0,
+    cholesterol: 0,
+    sourceType: item.sourceType === 'brand_label' ? 'brand_label' : 'ifct_usda_estimate',
+    confidence: item.confidence === 'high' ? 'high' : 'medium',
+  };
+}
+
 export async function POST(req: NextRequest) {
   try {
     const userId = await getAuthUserIdWithBypass(req);
     if (!isUserId(userId)) return userId;
 
-    const { text } = await req.json();
+    const body = await req.json().catch(() => ({})) as { text?: unknown; source?: unknown };
+    const text = typeof body.text === 'string' ? body.text : '';
+    const source = typeof body.source === 'string' ? body.source : '';
     if (!text || typeof text !== 'string' || !text.trim()) {
       return errorResponse('Text description of the meal is required', 400);
     }
@@ -730,14 +866,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    type ParsedItem = {
-      name: string;
-      quantity: number;
-      unit: string;
-      each_weight_g: number;
-      total_weight_g: number | null;
-    };
-
     const MEASURE_UNITS = new Set(['g', 'ml', 'tbsp', 'tsp', 'cup', 'bowl', 'serving']);
 
     const normalizeUnit = (rawUnit: unknown): string => {
@@ -747,7 +875,7 @@ export async function POST(req: NextRequest) {
       return 'piece';
     };
 
-    const parsedItems: ParsedItem[] = parsedArgs.items
+    const parsedItems: ParsedFoodItem[] = parsedArgs.items
       .filter((x): x is Record<string, unknown> => x != null && typeof x === 'object')
       .map((x) => {
         const name = String(x.name ?? '').trim() || 'Item';
@@ -963,6 +1091,41 @@ export async function POST(req: NextRequest) {
       return scaled;
     });
 
+    if (hasExternalData) {
+      // Brand-label data is authoritative. Override model outputs for branded matches.
+      for (const parsed of parsedItems) {
+        const label = externalNutritionData[parsed.name];
+        if (!label) continue;
+        const expected = scaleBrandLabelToItem(parsed, label);
+        const index = items.findIndex((it) => isLikelySameFood(it.name, parsed.name));
+        if (index >= 0) {
+          items[index] = expected;
+        } else {
+          items.push(expected);
+        }
+      }
+    }
+
+    items = items.map((item) => enforceAlmondMilkSanity(item));
+
+    // Hard validation guard: reject obviously invalid almond milk outputs for drink-sized portions.
+    const invalidAlmondMilk = items.find((item) => {
+      const normalized = normalizeFoodName(item.name);
+      const isAlmondMilk = normalized.includes('almond') && normalized.includes('milk');
+      const mlQty = item.unit.toLowerCase() === 'ml'
+        ? item.quantity
+        : item.unit.toLowerCase() === 'cup'
+          ? item.quantity * 240
+          : 0;
+      return isAlmondMilk && mlQty >= 150 && (item.fat < 1 || item.calories < 15);
+    });
+    if (invalidAlmondMilk) {
+      return errorResponse(
+        'Nutrition validation failed for almond milk. Please retry or include explicit brand/serving details.',
+        422
+      );
+    }
+
     // Clamp unrealistic sodium spikes after normalization/scaling, before totals
     clampSodiumSpikes(items);
 
@@ -1010,7 +1173,7 @@ export async function POST(req: NextRequest) {
         : step2Usage ?? step1Usage;
 
       payload.debugLog = {
-        userRequest: { text: mealText, requestedAt },
+        userRequest: { text: mealText, source: source || 'direct', requestedAt },
         step1: {
           prompt: `User text: ${mealText}`,
           instructions: PARSE_INSTRUCTIONS,
@@ -1042,6 +1205,13 @@ export async function POST(req: NextRequest) {
           pipeline: hasExternalData ? 'three-step-brand' : 'two-step',
         },
       };
+
+      await writeDebugLog({
+        userId,
+        page: source === 'settings-todos' ? 'settings' : 'food',
+        agent: source === 'settings-todos' ? 'todos-food-parser' : 'ai-logger',
+        payload: payload.debugLog as Record<string, unknown>,
+      });
     }
     return maskedResponse(payload);
   } catch (err) {
