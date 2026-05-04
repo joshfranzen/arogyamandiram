@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import connectDB from '@/lib/db';
 import DailyPlan from '@/models/DailyPlan';
+import User from '@/models/User';
 import { resolveOpenAIKey } from '@/lib/openaiKey';
 import { createOpenAiJson } from '@/lib/openaiJson';
 import { maskedResponse, errorResponse } from '@/lib/apiMask';
@@ -8,6 +9,7 @@ import { getAuthUserId, isUserId } from '@/lib/session';
 import { getToday } from '@/lib/utils';
 import { writeDebugLog } from '@/lib/debugLogWriter';
 import { buildFoodPrompt, type FoodRequestBody, normalizeFoodPlan } from '../shared';
+import { OPENAI_BEST_MODEL } from '@/lib/aiModel';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,6 +40,28 @@ export async function POST(req: NextRequest) {
 
     await connectDB();
     const today = getToday();
+    const user = await User.findById(userId)
+      .select('settings.foodPreferences targets.protein targets.dailyCalories')
+      .lean() as {
+        settings?: {
+          foodPreferences?: {
+            dietaryPreference?: string;
+            allergies?: string[];
+          };
+        };
+        targets?: {
+          protein?: number;
+          dailyCalories?: number;
+        };
+      } | null;
+    const dietaryPreference = body.dietaryPreference?.trim()
+      || user?.settings?.foodPreferences?.dietaryPreference
+      || 'no_preference';
+    const allergies = Array.isArray(body.allergies) && body.allergies.length > 0
+      ? body.allergies
+      : (user?.settings?.foodPreferences?.allergies ?? []);
+    const targetProteinG = Number(user?.targets?.protein) || undefined;
+    const targetCalories = Number(user?.targets?.dailyCalories) || undefined;
     const systemPrompt = `You are a practical nutrition coach. Create a simple food plan for TODAY based on the user's last-week food details.
 Return JSON only with this shape:
 {
@@ -57,16 +81,46 @@ Return JSON only with this shape:
   }
 }
 Keep suggestions realistic and easy to follow.`;
-    const userPrompt = buildFoodPrompt(body, today);
-    const ai = await createOpenAiJson<{
-      foodPlan?: { suggestions?: unknown[]; reasoning?: string };
-    }>({
-      apiKey,
-      systemPrompt,
-      userPrompt,
-      maxTokens: 1500,
-    });
-    const foodPlan = normalizeFoodPlan(ai.foodPlan ?? ai);
+    const userPrompt = buildFoodPrompt({ ...body, dietaryPreference, allergies, targetProteinG, targetCalories }, today);
+    let openAiDebug:
+      | {
+          endpoint: string;
+          requestBody: Record<string, unknown>;
+          rawResponse: unknown;
+          usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+          status: number;
+        }
+      | undefined;
+
+    const runFoodGeneration = async (prompt: string) => {
+      const ai = await createOpenAiJson<{
+        foodPlan?: { suggestions?: unknown[]; reasoning?: string };
+      }>({
+        apiKey,
+        systemPrompt,
+        userPrompt: prompt,
+        maxTokens: 1500,
+        onDebug: (debug) => {
+          openAiDebug = debug;
+        },
+      });
+      return normalizeFoodPlan(ai.foodPlan ?? ai);
+    };
+
+    let foodPlan = await runFoodGeneration(userPrompt);
+    const totalProtein = foodPlan.suggestions.reduce((sum, meal) => sum + (Number(meal.protein) || 0), 0);
+    const minimumProteinFloor = targetProteinG && targetProteinG > 0
+      ? Math.max(60, Math.round(targetProteinG * 0.75))
+      : null;
+    if (minimumProteinFloor && totalProtein < minimumProteinFloor) {
+      const reinforcedPrompt = [
+        userPrompt,
+        `Critical correction: the previous plan was too low protein (${totalProtein}g).`,
+        `Regenerate with total protein >= ${minimumProteinFloor}g while keeping calories realistic and meal quality practical.`,
+        'Ensure breakfast/lunch/dinner each include meaningful protein sources.',
+      ].join('\n');
+      foodPlan = await runFoodGeneration(reinforcedPrompt);
+    }
 
     await DailyPlan.findOneAndUpdate(
       { userId, date: today },
@@ -94,10 +148,19 @@ Keep suggestions realistic and easy to follow.`;
         },
         systemPrompt,
         userPrompt,
+        openAiRequest: openAiDebug
+          ? {
+              endpoint: openAiDebug.endpoint,
+              body: openAiDebug.requestBody,
+              status: openAiDebug.status,
+            }
+          : null,
+        openAiResponse: openAiDebug?.rawResponse ?? null,
         parsedResult: { foodPlan },
         metadata: {
           status: 'success',
-          model: 'gpt-4o-mini',
+          model: (typeof openAiDebug?.requestBody?.model === 'string' ? openAiDebug.requestBody.model : OPENAI_BEST_MODEL),
+          usage: openAiDebug?.usage,
         },
       },
     });

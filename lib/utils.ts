@@ -23,6 +23,19 @@ export function formatWater(ml: number): string {
   return `${ml} ml`;
 }
 
+/** Format duration in minutes: 0.5 -> "30s", 1 -> "1 min", 1.5 -> "1m 30s", 12 -> "12 min" */
+export function formatDuration(min: number): string {
+  if (!Number.isFinite(min) || min <= 0) return '0 min';
+  if (min < 1) {
+    const seconds = Math.round(min * 60);
+    return `${seconds}s`;
+  }
+  const whole = Math.floor(min);
+  const remSeconds = Math.round((min - whole) * 60);
+  if (remSeconds === 0) return `${whole} min`;
+  return `${whole}m ${remSeconds}s`;
+}
+
 /** Format weight: 72.5 -> "72.5 kg" */
 export function formatWeight(kg: number, unit: 'metric' | 'imperial' = 'metric'): string {
   if (unit === 'imperial') {

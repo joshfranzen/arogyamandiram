@@ -11,9 +11,10 @@ import { getToday, toLocalDateString, getAgeFromDateOfBirth } from '@/lib/utils'
 import { calculateBMR, calculateTDEE } from '@/lib/health';
 import { getLatestLoggedWeight } from '@/lib/latestWeight';
 import type { ActivityLevel, Goal, Gender } from '@/types';
+import { OPENAI_BEST_MODEL } from '@/lib/aiModel';
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
-const MODEL = 'gpt-4o-mini';
+const MODEL = OPENAI_BEST_MODEL;
 
 export type MealHistoryResult = Record<string, string[]>;
 
@@ -490,7 +491,7 @@ async function callOpenAI(
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.4,
-      max_tokens: 450,
+      max_completion_tokens: 450,
       response_format: { type: 'json_object' as const },
     }),
   });

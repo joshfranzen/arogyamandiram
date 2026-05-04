@@ -35,16 +35,25 @@ export interface IDailyPlanDocument extends Document {
   workoutPlan?: {
     name: string;
     description: string;
+    /** @deprecated kept for old plans; new plans use `weeklyStrategyChosen` */
+    strategyUsed?: string;
+    /** Free-text description of the weekly split the LLM picked */
+    weeklyStrategyChosen?: string;
+    /** One-line reason for why today's session looks the way it does */
+    whyToday?: string;
+    readinessAdjustment?: string;
     progressionTip?: string;
     exercises: {
       name: string;
       steps?: string[];
       sets: number;
       reps: string;
+      phase?: 'warmup' | 'strength' | 'cardio' | 'core' | 'mobility' | 'cooldown';
       durationMinutes?: number;
       restSeconds: number;
       intensity?: 'low' | 'medium' | 'high';
       category?: string;
+      muscleGroup?: 'legs' | 'push' | 'pull' | 'core';
     }[];
     estimatedCalories: number;
     durationMinutes: number;
@@ -99,10 +108,12 @@ const ExerciseSchema = new Schema(
     steps: { type: [String], default: undefined },
     sets: { type: Number, default: 1 },
     reps: { type: String, default: '1' },
+    phase: { type: String, enum: ['warmup', 'strength', 'cardio', 'core', 'mobility', 'cooldown'] },
     durationMinutes: { type: Number },
     restSeconds: { type: Number, default: 60 },
     intensity: { type: String, enum: ['low', 'medium', 'high'] },
     category: { type: String },
+    muscleGroup: { type: String, enum: ['legs', 'push', 'pull', 'core'] },
   },
   { _id: false }
 );
@@ -125,6 +136,11 @@ const DailyPlanSchema = new Schema<IDailyPlanDocument>(
     workoutPlan: {
       name: { type: String },
       description: { type: String },
+      // strategyUsed kept (no enum) for old plans; new plans use weeklyStrategyChosen.
+      strategyUsed: { type: String },
+      weeklyStrategyChosen: { type: String },
+      whyToday: { type: String },
+      readinessAdjustment: { type: String },
       progressionTip: { type: String },
       exercises: { type: [ExerciseSchema], default: [] },
       estimatedCalories: { type: Number, default: 0 },

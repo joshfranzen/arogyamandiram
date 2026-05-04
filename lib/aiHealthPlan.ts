@@ -9,6 +9,7 @@ import { getAgeFromDateOfBirth } from '@/lib/utils';
 import { calculateIdealWeight } from '@/lib/health';
 import { getLatestLoggedWeight } from '@/lib/latestWeight';
 import type { UserTargets } from '@/types';
+import { OPENAI_BEST_MODEL } from '@/lib/aiModel';
 
 type OpenAIUsage = {
   prompt_tokens?: number;
@@ -57,13 +58,13 @@ async function callOpenAI(
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
+      model: OPENAI_BEST_MODEL,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.5,
-      max_tokens: 1200,
+      max_completion_tokens: 1200,
       response_format: { type: 'json_object' },
     }),
   });
@@ -83,7 +84,7 @@ async function callOpenAI(
     rawText,
     usage: (data?.usage ?? {}) as OpenAIUsage,
     latencyMs: Math.max(0, Date.now() - startedAt),
-    model: typeof data?.model === 'string' ? data.model : 'gpt-4o-mini',
+    model: typeof data?.model === 'string' ? data.model : OPENAI_BEST_MODEL,
     timestamp: new Date().toISOString(),
   };
 }

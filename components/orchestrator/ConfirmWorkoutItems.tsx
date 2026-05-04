@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Check, X, Dumbbell, Flame } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatDuration } from '@/lib/utils';
 import type { ParsedWorkoutItem } from '@/contexts/OrchestratorSidebarContext';
 
 interface ConfirmWorkoutItemsProps {
@@ -40,7 +40,7 @@ export default function ConfirmWorkoutItems({ items, onConfirm, onCancel }: Conf
               <span className="shrink-0 text-[11px] text-neutral-500 capitalize">{item.category}</span>
             </div>
             <div className="ml-4.5 flex gap-3 text-[11px] text-neutral-500">
-              {item.duration > 0 && <span>{item.duration} min</span>}
+              {item.duration > 0 && <span>{formatDuration(item.duration)}</span>}
               {item.sets && item.reps && <span>{item.sets}×{item.reps}</span>}
               {item.weight && <span>{item.weight} kg</span>}
               {item.caloriesBurned > 0 && (
@@ -57,7 +57,7 @@ export default function ConfirmWorkoutItems({ items, onConfirm, onCancel }: Conf
       <div className="mb-3 flex items-center justify-between rounded-lg bg-rose-500/5 px-3 py-2 border border-rose-500/10">
         <div className="flex items-center gap-1.5 text-xs text-neutral-400">
           <span>{items.length} exercise{items.length !== 1 ? 's' : ''}</span>
-          {totalDuration > 0 && <span>· {totalDuration} min</span>}
+          {totalDuration > 0 && <span>· {formatDuration(totalDuration)}</span>}
         </div>
         {totalCalories > 0 && (
           <span className="flex items-center gap-1 text-xs font-semibold text-rose-400">

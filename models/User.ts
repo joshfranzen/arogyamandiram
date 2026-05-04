@@ -131,6 +131,17 @@ const UserSchema = new Schema<IUserDocument>(
           },
         },
       },
+      foodPreferences: {
+        dietaryPreference: {
+          type: String,
+          enum: ['no_preference', 'vegetarian', 'non_vegetarian', 'vegan'],
+          default: 'no_preference',
+        },
+        allergies: {
+          type: [String],
+          default: [],
+        },
+      },
       todoTemplates: {
         type: [
           {

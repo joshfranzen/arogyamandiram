@@ -279,10 +279,10 @@ export const api = {
     }),
 
   // Log food via AI food-logger (used by food-category todos)
-  logFoodText: (text: string) =>
+  logFoodText: (text: string, source?: string) =>
     apiFetch<{ items: Record<string, unknown>[]; total: Record<string, unknown> }>('/ai/food-logger', {
       method: 'POST',
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, source }),
     }),
 
   // Todos

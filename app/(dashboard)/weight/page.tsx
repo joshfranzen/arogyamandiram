@@ -46,7 +46,7 @@ export default function WeightPage() {
   const { user, loading: userLoading } = useUser();
   const [history, setHistory] = useState<WeightEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState(30);
+  const [period, setPeriod] = useState(7);
   const [weight, setWeight] = useState('');
   const [saving, setSaving] = useState(false);
   const today = getToday();
@@ -72,16 +72,20 @@ export default function WeightPage() {
 
   const units = user?.settings?.units || 'metric';
 
-  // Pre-fill with today's weight if exists (API stores kg; show lbs when imperial)
+  // Pre-fill with today's weight if logged, otherwise the most recent prior entry
+  // (API stores kg; show lbs when imperial)
   useEffect(() => {
+    if (history.length === 0) return;
     const todayEntry = history.find((e) => e.date === today);
-    if (todayEntry) {
-      const display =
-        units === 'imperial'
-          ? (todayEntry.weight * 2.20462).toFixed(1)
-          : todayEntry.weight.toString();
-      setWeight(display);
-    }
+    const sourceKg = todayEntry
+      ? todayEntry.weight
+      : history[history.length - 1]?.weight;
+    if (sourceKg == null) return;
+    const display =
+      units === 'imperial'
+        ? (sourceKg * 2.20462).toFixed(1)
+        : sourceKg.toString();
+    setWeight(display);
   }, [history, today, units]);
 
   const handleLogWeight = async () => {
@@ -173,7 +177,13 @@ export default function WeightPage() {
               type="number"
               value={weight}
               onChange={(e) => setWeight(e.target.value)}
-              placeholder={units === 'metric' ? '72.5' : '160.0'}
+              placeholder={
+                currentWeight
+                  ? (units === 'imperial'
+                      ? (currentWeight * 2.20462).toFixed(1)
+                      : currentWeight.toFixed(1))
+                  : ''
+              }
               className="w-full rounded-xl bg-black/40 px-4 py-2.5 text-center text-xl font-bold text-white placeholder:text-gray-500 focus:outline-none sm:max-w-[180px]"
               step={0.1}
               min={0}
@@ -193,7 +203,7 @@ export default function WeightPage() {
         <button
           onClick={handleLogWeight}
           disabled={saving || !weight}
-          className="flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 py-2.5 text-sm font-semibold text-black shadow-lg shadow-emerald-500/30 transition-all duration-200 hover:bg-emerald-400 hover:shadow-emerald-400/40 active:scale-95 disabled:opacity-50"
+          className="flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 py-2.5 text-sm font-semibold text-black transition-all duration-200 hover:bg-emerald-400 active:scale-95 disabled:opacity-50"
         >
           {saving ? (
             <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -271,7 +281,10 @@ export default function WeightPage() {
       <div className="mobile-fade-up mobile-dash-px hidden lg:block lg:px-0" style={{ animationDelay: '240ms' }}>
       <div className="dashboard-unified-card rounded-2xl border p-6">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-base font-semibold text-text-primary">Weight Trend</h2>
+          <div className="flex items-center gap-2">
+            <TrendingDown className="h-5 w-5 text-accent-emerald" />
+            <h2 className="text-base font-semibold text-text-primary">Weight Trend</h2>
+          </div>
           <div className="flex gap-1.5">
             {periodOptions.map((opt) => (
               <button
@@ -280,8 +293,8 @@ export default function WeightPage() {
                 className={cn(
                   'rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
                   period === opt.key
-                    ? 'bg-accent-emerald/15 text-accent-emerald ring-1 ring-accent-emerald/30'
-                    : 'bg-white/[0.04] text-text-muted hover:bg-white/[0.08]'
+                    ? 'bg-white/[0.08] text-text-primary'
+                    : 'bg-white/[0.02] text-text-muted hover:bg-white/[0.06]',
                 )}
               >
                 {opt.label}
@@ -295,15 +308,47 @@ export default function WeightPage() {
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent-emerald border-t-transparent" />
           </div>
         ) : (
-          <MetricChart
-            data={chartData}
-            color="#10b981"
-            gradientId="weightGrad"
-            unit={units === 'metric' ? ' kg' : ' lbs'}
-            height={240}
-            targetValue={chartTarget}
-            targetLabel={`Goal: ${chartTarget}${units === 'metric' ? ' kg' : ' lbs'}`}
-          />
+          <>
+            <MetricChart
+              data={chartData}
+              color="#10b981"
+              gradientId="weightGrad"
+              unit={units === 'metric' ? ' kg' : ' lbs'}
+              height={240}
+              targetValue={chartTarget}
+              targetLabel={chartTarget ? `Goal: ${chartTarget}${units === 'metric' ? ' kg' : ' lbs'}` : undefined}
+            />
+            {chartData.length > 0 && (() => {
+              const values = chartData.map((d) => d.value);
+              const avg = values.reduce((a, b) => a + b, 0) / values.length;
+              const lowest = Math.min(...values);
+              const change = values[values.length - 1] - values[0];
+              const unitLabel = units === 'metric' ? 'kg' : 'lbs';
+              return (
+                <div className="mt-4 grid grid-cols-3 gap-3">
+                  <div className="rounded-xl bg-black/40 p-3 text-center shadow-lg">
+                    <p className="text-lg font-semibold text-text-primary">{avg.toFixed(1)} {unitLabel}</p>
+                    <p className="text-[11px] text-text-muted">Average</p>
+                  </div>
+                  <div className="rounded-xl bg-black/40 p-3 text-center shadow-lg">
+                    <p
+                      className={cn(
+                        'text-lg font-semibold',
+                        change < 0 ? 'text-accent-emerald' : change > 0 ? 'text-accent-rose' : 'text-text-primary',
+                      )}
+                    >
+                      {change > 0 ? '+' : ''}{change.toFixed(1)} {unitLabel}
+                    </p>
+                    <p className="text-[11px] text-text-muted">Change</p>
+                  </div>
+                  <div className="rounded-xl bg-black/40 p-3 text-center shadow-lg">
+                    <p className="text-lg font-semibold text-text-primary">{lowest.toFixed(1)} {unitLabel}</p>
+                    <p className="text-[11px] text-text-muted">Lowest</p>
+                  </div>
+                </div>
+              );
+            })()}
+          </>
         )}
       </div>
       </div>
@@ -312,8 +357,8 @@ export default function WeightPage() {
       <div className="mobile-fade-up mobile-dash-px lg:px-0" style={{ animationDelay: '320ms' }}>
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
         {/* History */}
-        <div className="flex flex-col lg:col-span-2">
-          <div className="dashboard-unified-card flex flex-1 flex-col rounded-2xl border p-6">
+        <div className="flex flex-col lg:relative lg:col-span-2">
+          <div className="dashboard-unified-card flex flex-1 flex-col rounded-2xl border p-6 lg:absolute lg:inset-0 lg:min-h-0">
             <h2 className="mb-4 text-base font-semibold text-text-primary">Weight History</h2>
 
             {history.length === 0 ? (
@@ -323,7 +368,7 @@ export default function WeightPage() {
                 <p className="text-xs text-text-muted">Start logging your daily weight above</p>
               </div>
             ) : (
-            <div className="space-y-1">
+            <div className="hide-scrollbar flex-1 min-h-0 space-y-1 overflow-y-auto">
               {/* Header */}
               <div className="flex items-center gap-4 border-b border-white/[0.06] px-3 py-2 text-[11px] font-medium text-text-muted">
                 <span className="w-28">Date</span>

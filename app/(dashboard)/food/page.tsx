@@ -13,6 +13,7 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  BarChart3,
 } from 'lucide-react';
 import DashboardPageShell from '@/components/layout/DashboardPageShell';
 import ProgressRing from '@/components/ui/ProgressRing';
@@ -93,7 +94,7 @@ export default function FoodLogPage() {
   const [expandedMealType, setExpandedMealType] = useState<string | null>(null);
   const [calorieHistory, setCalorieHistory] = useState<{ date: string; totalCalories: number }[]>([]);
   const [calorieHistoryLoading, setCalorieHistoryLoading] = useState(true);
-  const [caloriePeriod, setCaloriePeriod] = useState(30);
+  const [caloriePeriod, setCaloriePeriod] = useState(7);
 
   const searchTimerRef = useRef<NodeJS.Timeout>();
   const today = getToday();
@@ -632,22 +633,30 @@ export default function FoodLogPage() {
 
       {/* Daily calories history – hidden on mobile */}
       <div className="dashboard-unified-card hidden rounded-2xl border p-4 sm:p-6 lg:mt-4 lg:block">
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-base font-semibold text-neutral-400">Daily Calories</h2>
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-emerald-400" />
+            <h2 className="text-base font-semibold text-neutral-400">Daily Calories</h2>
+          </div>
           <div className="flex gap-1.5">
-            {[7, 30].map((opt) => (
+            {[
+              { key: 7, label: '7D' },
+              { key: 14, label: '2W' },
+              { key: 30, label: '1M' },
+              { key: 90, label: '3M' },
+            ].map((opt) => (
               <button
-                key={opt}
+                key={opt.key}
                 type="button"
-                onClick={() => setCaloriePeriod(opt)}
+                onClick={() => setCaloriePeriod(opt.key)}
                 className={cn(
-                  'rounded-full px-3 py-1.5 text-xs font-medium transition-all',
-                  caloriePeriod === opt
-                    ? 'bg-emerald-500/15 text-neutral-400 border border-white/10'
-                    : 'bg-neutral-900/70 text-neutral-400 hover:bg-neutral-800 border border-transparent'
+                  'rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
+                  caloriePeriod === opt.key
+                    ? 'bg-white/[0.08] text-neutral-400'
+                    : 'bg-white/[0.02] text-neutral-400/70 hover:bg-white/[0.06]',
                 )}
               >
-                {opt === 7 ? '7D' : '1M'}
+                {opt.label}
               </button>
             ))}
           </div>
@@ -658,18 +667,47 @@ export default function FoodLogPage() {
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
           </div>
         ) : (
-          <MetricChart
-            data={calorieHistory.map((entry) => ({
-              date: entry.date,
-              value: entry.totalCalories,
-            }))}
-            color="#10b981"
-            gradientId="caloriesGrad"
-            unit=""
-            tooltipUnit=" kcal"
-            formatY={(v) => formatNumber(Math.round(v))}
-            height={200}
-          />
+          <>
+            <MetricChart
+              data={calorieHistory.map((entry) => ({
+                date: entry.date,
+                value: entry.totalCalories,
+              }))}
+              color="#10b981"
+              gradientId="caloriesGrad"
+              gradientFrom="#064e3b"
+              gradientTo="#020617"
+              unit=""
+              tooltipUnit=" kcal"
+              formatY={(v) => formatNumber(Math.round(v))}
+              height={240}
+              targetValue={targets.dailyCalories}
+              targetLabel={`Goal: ${formatNumber(targets.dailyCalories)} kcal`}
+            />
+            {calorieHistory.length > 0 && (() => {
+              const logged = calorieHistory.filter((e) => e.totalCalories > 0);
+              const avg = logged.length > 0
+                ? Math.round(logged.reduce((s, e) => s + e.totalCalories, 0) / logged.length)
+                : 0;
+              const best = logged.length > 0 ? Math.max(...logged.map((e) => e.totalCalories)) : 0;
+              return (
+                <div className="mt-4 grid grid-cols-3 gap-3">
+                  <div className="rounded-xl bg-black/40 p-3 text-center shadow-lg">
+                    <p className="text-lg font-semibold text-neutral-400">{formatNumber(avg)} kcal</p>
+                    <p className="text-[11px] text-neutral-400/70">Daily Average</p>
+                  </div>
+                  <div className="rounded-xl bg-black/40 p-3 text-center shadow-lg">
+                    <p className="text-lg font-semibold text-neutral-400">{`${logged.length}/${calorieHistory.length}`}</p>
+                    <p className="text-[11px] text-neutral-400/70">Days Logged</p>
+                  </div>
+                  <div className="rounded-xl bg-black/40 p-3 text-center shadow-lg">
+                    <p className="text-lg font-semibold text-neutral-400">{formatNumber(best)} kcal</p>
+                    <p className="text-[11px] text-neutral-400/70">Highest Day</p>
+                  </div>
+                </div>
+              );
+            })()}
+          </>
         )}
       </div>
       </div>

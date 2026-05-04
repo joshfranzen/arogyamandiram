@@ -11,7 +11,7 @@ export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'ver
 export type Goal = 'lose' | 'maintain' | 'gain';
 export type UnitSystem = 'metric' | 'imperial';
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
-export type WorkoutCategory = 'cardio' | 'strength' | 'flexibility' | 'sports' | 'other';
+export type WorkoutCategory = 'cardio' | 'strength' | 'flexibility' | 'core' | 'sports' | 'other';
 export type BodyType = 'ectomorph' | 'mesomorph' | 'endomorph';
 export type FitnessLevel = 'beginner' | 'intermediate' | 'advanced';
 export type FatFocusArea = 'belly' | 'hips' | 'thighs' | 'arms' | 'chest' | 'overall';
@@ -95,6 +95,12 @@ export interface ReminderScheduleSettings {
 }
 
 export type HealthDataSyncSource = 'manual' | 'auto';
+export type DietaryPreference = 'no_preference' | 'vegetarian' | 'non_vegetarian' | 'vegan';
+
+export interface FoodPreferencesSettings {
+  dietaryPreference?: DietaryPreference;
+  allergies?: string[];
+}
 
 export interface HealthDataSettings {
   endpoint?: string;
@@ -155,6 +161,8 @@ export interface UserSettings {
   };
   /** External health data sync settings + latest sync metadata. */
   healthData?: HealthDataSettings;
+  /** Food planning preferences used by AI meal generation. */
+  foodPreferences?: FoodPreferencesSettings;
 }
 
 export interface UserTargets {
@@ -285,6 +293,8 @@ export interface WorkoutEntry {
   /** 'device' = from health-data sync; 'manual' = user-entered (default) */
   source?: 'manual' | 'device';
   notes?: string;
+  /** When this log entry corresponds to a planned exercise from DailyPlan.workoutPlan.exercises[].name */
+  planExerciseName?: string;
 }
 
 export type SleepQuality = 1 | 2 | 3 | 4 | 5;
@@ -427,6 +437,13 @@ export interface AiMealSuggestion {
 export interface AiWorkoutPlan {
   name: string;
   description: string;
+  /** @deprecated kept for backwards-compat with old plans; new plans use `weeklyStrategyChosen` */
+  strategyUsed?: string;
+  /** Free-text description of the weekly split the LLM chose for this user this week */
+  weeklyStrategyChosen?: string;
+  /** One-line reason for today's session given recent days */
+  whyToday?: string;
+  readinessAdjustment?: string;
   progressionTip?: string;
   reasoning?: string;
   exercises: {
@@ -434,10 +451,13 @@ export interface AiWorkoutPlan {
     steps?: string[];
     sets: number;
     reps: string;
+    /** Workout-flow phase, used for ordering and UI grouping */
+    phase?: 'warmup' | 'strength' | 'cardio' | 'core' | 'mobility' | 'cooldown';
     durationMinutes?: number;
     restSeconds: number;
     intensity?: 'low' | 'medium' | 'high';
     category: WorkoutCategory;
+    muscleGroup?: 'legs' | 'push' | 'pull' | 'core';
   }[];
   estimatedCalories: number;
   durationMinutes: number;

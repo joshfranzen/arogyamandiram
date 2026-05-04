@@ -25,6 +25,7 @@ export default function AIPage() {
       style={{
         height: '100%',
         paddingTop: 'max(env(safe-area-inset-top, 0px), 0.5rem)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       }}
     >
       {/* Header */}
