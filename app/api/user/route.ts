@@ -11,6 +11,8 @@ import { getAgeFromDateOfBirth } from '@/lib/utils';
 import { generateTargets } from '@/lib/health';
 import { getLatestLoggedWeight } from '@/lib/latestWeight';
 import { deriveActivityLevel } from '@/lib/deriveActivityLevel';
+import { syncGoalForUser } from '@/lib/goalSync';
+import { deriveGoalDirection } from '@/app/api/ai/daily-plan/shared';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,12 +47,16 @@ export async function GET() {
       getLatestLoggedWeight(String(userId)),
       deriveActivityLevel(userId),
     ]);
+    const profileBase = user.profile as { weight?: number; targetWeight?: number; goal?: string } | undefined;
+    const effectiveWeight = latestWeight != null ? latestWeight : profileBase?.weight;
+    const derivedGoal = deriveGoalDirection(effectiveWeight, profileBase?.targetWeight, profileBase?.goal);
     const userWithDerivedProfile = {
       ...user,
       profile: {
         ...user.profile,
         ...(latestWeight != null ? { weight: latestWeight } : {}),
         activityLevel: derivedActivityLevel,
+        goal: derivedGoal,
       },
     };
 
@@ -96,6 +102,9 @@ export async function PUT(req: NextRequest) {
       // Build dot-notation updates for nested fields (do not set profile.username - use top-level username only)
       for (const [key, value] of Object.entries(profile)) {
         if (key === 'username') continue; // username is top-level on User, not under profile
+        // profile.goal is server-derived from weight vs targetWeight — clients
+        // cannot set it. syncGoalForUser writes the derived value below.
+        if (key === 'goal') continue;
         if (key === 'dateOfBirth' && value) {
           updateData['profile.dateOfBirth'] = new Date(value as string);
         } else {
@@ -106,9 +115,11 @@ export async function PUT(req: NextRequest) {
       // Recompute formula-based targets when profile has all required fields
       const weight = typeof profile.weight === 'number' ? profile.weight : undefined;
       const height = typeof profile.height === 'number' ? profile.height : undefined;
+      const targetWeight = typeof profile.targetWeight === 'number' ? profile.targetWeight : undefined;
       const gender = profile.gender as string | undefined;
       const activityLevel = profile.activityLevel as string | undefined;
-      const goal = profile.goal as string | undefined;
+      // Goal is server-derived from weight vs targetWeight, not user-settable.
+      const goal = deriveGoalDirection(weight, targetWeight, undefined);
       let age: number | undefined;
       if (profile.dateOfBirth) {
         const dob = new Date(profile.dateOfBirth);
@@ -287,7 +298,17 @@ export async function PUT(req: NextRequest) {
 
     if (!user) return errorResponse('User not found', 404);
 
-    return maskedResponse(maskUser(user), { message: 'Profile updated' });
+    // If weight or targetWeight just changed, re-derive profile.goal so the UI
+    // selector and AI plans stay in sync with reality.
+    if (
+      Object.prototype.hasOwnProperty.call(updateData, 'profile.weight') ||
+      Object.prototype.hasOwnProperty.call(updateData, 'profile.targetWeight')
+    ) {
+      await syncGoalForUser(userId);
+    }
+
+    const refreshed = await User.findById(userId).lean();
+    return maskedResponse(maskUser(refreshed ?? user), { message: 'Profile updated' });
   } catch (err) {
     console.error('[User PUT Error]:', err);
     return errorResponse('Failed to update user', 500);

@@ -2,21 +2,24 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Sparkles, Loader2, Dumbbell, Lightbulb, Plus, CheckCircle2,
+  Sparkles, Loader2, Dumbbell, Lightbulb, CheckCircle2, Pencil,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { showToast } from '@/components/ui/Toast';
 import api from '@/lib/apiClient';
-import type { DailyPlanData } from '@/types';
+import type { DailyPlanData, WorkoutEntry } from '@/types';
 import { usePlanAutoRefresh } from './usePlanAutoRefresh';
 
 type WorkoutExercise = NonNullable<DailyPlanData['workoutPlan']>['exercises'][number];
 type WorkoutPlan = NonNullable<DailyPlanData['workoutPlan']>;
 
 type WorkoutDraft = {
-  reps: number;
+  comment: string;        // current text in the "You did" box
+  savedComment: string;   // last successfully-logged text (used to compare on edit cancel)
   saving: boolean;
   saved: boolean;
+  editing: boolean;
+  workoutId: string | null;
   error: string | null;
 };
 
@@ -28,35 +31,101 @@ const INTENSITY_BADGE: Record<string, string> = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function extractRepTarget(reps: string): number {
-  const match = reps.match(/\d+/);
-  if (!match) return 0;
-  const value = Number(match[0]);
-  return Number.isFinite(value) && value > 0 ? value : 0;
+function parseRepUpperBound(reps: string): number | null {
+  const matches = reps.match(/\d+/g);
+  if (!matches || matches.length === 0) return null;
+  const nums = matches.map(Number).filter((n) => Number.isFinite(n) && n > 0);
+  if (nums.length === 0) return null;
+  return Math.max(...nums);
 }
 
-function predictFiveMinuteTarget(exercise: WorkoutExercise) {
-  const plannedDuration = Math.max(1, Number(exercise.durationMinutes) || 5);
-  const plannedSets = Math.max(1, Number(exercise.sets) || 1);
-  const plannedRepsPerSet = Math.max(0, extractRepTarget(exercise.reps));
-  const plannedTotalReps = plannedRepsPerSet > 0 ? plannedRepsPerSet * plannedSets : 0;
-  const sets = Math.max(1, Math.round((plannedSets / plannedDuration) * 5));
-  if (plannedTotalReps <= 0) {
-    return { sets, repsPerSet: plannedRepsPerSet || 10, totalReps: sets * (plannedRepsPerSet || 10) };
+/** Generate the prefilled "You did" text from the AI's target. */
+function defaultDidText(ex: WorkoutExercise): string {
+  const sets = Math.max(1, Number(ex.sets) || 1);
+  const repsRaw = String(ex.reps || '').trim().toLowerCase();
+  const minutes = Math.max(1, Number(ex.durationMinutes) || 5);
+
+  if (!repsRaw || /^(continuous|steady|pace|steady pace)/.test(repsRaw)) {
+    return `${minutes} minutes`;
   }
-  const totalReps = Math.max(1, Math.round((plannedTotalReps / plannedDuration) * 5));
-  const repsPerSet = Math.max(1, Math.round(totalReps / sets));
-  return { sets, repsPerSet, totalReps };
+  if (/sec/.test(repsRaw)) {
+    const n = parseRepUpperBound(repsRaw) ?? 30;
+    return sets > 1 ? `${sets} sets × ${n} seconds` : `${n} seconds`;
+  }
+  if (/min/.test(repsRaw) && !/^\d+\s*reps?/.test(repsRaw)) {
+    const n = parseRepUpperBound(repsRaw) ?? minutes;
+    return `${n} minutes`;
+  }
+  const n = parseRepUpperBound(repsRaw) ?? 10;
+  return `${sets} sets × ${n} reps`;
 }
 
-function getTargetText(exercise: WorkoutExercise): string {
-  const sets = Math.max(1, Number(exercise.sets) || 1);
-  const repsRaw = String(exercise.reps || '').trim();
-  const parsedReps = extractRepTarget(repsRaw);
-  const repsLabel = repsRaw || `${parsedReps || 10} reps`;
-  const totalReps = parsedReps > 0 ? sets * parsedReps : 0;
-  const restPart = exercise.restSeconds ? ` · ${exercise.restSeconds}s rest after each set` : '';
-  return `${sets} sets × ${repsLabel}${totalReps > 0 ? ` (${totalReps} total)` : ''}${restPart}`;
+/** Render the AI target as a human-readable one-liner shown above the input. */
+function formatAiTarget(ex: WorkoutExercise): string {
+  const sets = Math.max(1, Number(ex.sets) || 1);
+  const reps = String(ex.reps || '').trim();
+  const minutes = ex.durationMinutes;
+  const parts: string[] = [];
+  if (reps && !/^(continuous|steady)/i.test(reps)) {
+    const looksLikeNumber = /^\d+(\s*[-–to ]\s*\d+)?$/.test(reps);
+    parts.push(looksLikeNumber ? `${sets} sets × ${reps} reps` : `${sets} × ${reps}`);
+  } else if (reps) {
+    parts.push(reps);
+  }
+  if (minutes) parts.push(`${minutes} min`);
+  if (ex.intensity) parts.push(`${ex.intensity} intensity`);
+  return parts.join(' · ');
+}
+
+/**
+ * Parse "<sets> × <reps>" from a free-text comment.
+ * "3 sets × 12 reps" → {sets:3, reps:12}; "3×12" → {sets:3, reps:12}; "12 reps" → {sets:fallbackSets, reps:12}.
+ * If no rep-shaped number is present (e.g. comment is "8 minutes"), reps will be 0.
+ */
+function extractSetsAndReps(comment: string, fallbackSets: number): { sets: number; reps: number } {
+  const setsRepsMatch = comment.match(/(\d+)\s*(?:sets?\s*)?[x×*]\s*(\d+)/i);
+  if (setsRepsMatch) {
+    const s = Number(setsRepsMatch[1]);
+    const r = Number(setsRepsMatch[2]);
+    if (Number.isFinite(s) && Number.isFinite(r) && s > 0 && r > 0) {
+      return { sets: s, reps: r };
+    }
+  }
+  // "12 reps" or "12 sec" — single integer that's clearly reps/seconds, not a duration
+  const repsOnly = comment.match(/(\d+)\s*(?:reps?|sec|second)/i);
+  if (repsOnly) {
+    const n = Number(repsOnly[1]);
+    if (Number.isFinite(n) && n > 0) return { sets: fallbackSets, reps: n };
+  }
+  return { sets: fallbackSets, reps: 0 };
+}
+
+/** Extract minutes from a free-text comment, e.g. "8 minutes" → 8. */
+function extractMinutes(comment: string, fallback: number): number {
+  const match = comment.match(/(\d+)\s*(?:min|minute)/i);
+  if (match) {
+    const n = Number(match[1]);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return fallback;
+}
+
+/** Render the planned target compactly for the notes string, e.g. "2 × 10-12". */
+function plannedNotesText(ex: WorkoutExercise): string {
+  const sets = Math.max(1, Number(ex.sets) || 1);
+  const reps = String(ex.reps || '').trim();
+  if (!reps) return `${sets} sets`;
+  if (/^(continuous|steady)/i.test(reps)) {
+    return ex.durationMinutes ? `${ex.durationMinutes} min` : reps;
+  }
+  return `${sets} × ${reps}`;
+}
+
+/** Pull just the "Executed: <text>" portion out of stored notes, falling back to the raw notes. */
+function extractExecutedFromNotes(notes: string): string {
+  const match = notes.match(/Executed:\s*([\s\S]+?)\s*$/);
+  if (match && match[1]) return match[1].trim();
+  return notes.trim();
 }
 
 function getExerciseDraftKey(exercise: WorkoutExercise, index: number): string {
@@ -64,10 +133,23 @@ function getExerciseDraftKey(exercise: WorkoutExercise, index: number): string {
   return `${index}:${name}`;
 }
 
+function emptyDraft(comment: string): WorkoutDraft {
+  return {
+    comment,
+    savedComment: '',
+    saving: false,
+    saved: false,
+    editing: false,
+    workoutId: null,
+    error: null,
+  };
+}
+
 // ─── WorkoutTab ───────────────────────────────────────────────────────────────
 
 export default function WorkoutTab() {
   const [workoutPlan, setWorkoutPlan] = useState<WorkoutPlan | null>(null);
+  const [loggedToday, setLoggedToday] = useState<WorkoutEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [workoutDrafts, setWorkoutDrafts] = useState<Record<string, WorkoutDraft>>({});
@@ -84,10 +166,15 @@ export default function WorkoutTab() {
       const res = await fetch('/api/ai/daily-plan/workout', { credentials: 'include' });
       const json = await res.json() as {
         success: boolean;
-        data?: { workoutPlan?: WorkoutPlan | null; feedback?: { workoutDifficulty?: string } | null };
+        data?: {
+          workoutPlan?: WorkoutPlan | null;
+          feedback?: { workoutDifficulty?: string } | null;
+          loggedToday?: WorkoutEntry[];
+        };
       };
       if (json.success) {
         setWorkoutPlan(json.data?.workoutPlan ?? null);
+        setLoggedToday(Array.isArray(json.data?.loggedToday) ? json.data!.loggedToday! : []);
         const fb = json.data?.feedback;
         if (fb?.workoutDifficulty) setWorkoutDifficulty(fb.workoutDifficulty);
       }
@@ -97,20 +184,49 @@ export default function WorkoutTab() {
 
   usePlanAutoRefresh(load);
 
+  // Re-hydrate per-exercise draft state from the plan AND today's logged entries.
+  // This fixes the bug where after a refresh, the "Logged" pill reverted to "+ Add"
+  // even though the workout was already in DailyLog.
   useEffect(() => {
     const exercises = workoutPlan?.exercises ?? [];
-    if (!exercises.length) { setWorkoutDrafts({}); return; }
+    if (exercises.length === 0) { setWorkoutDrafts({}); return; }
+
     setWorkoutDrafts((prev) => {
       const next: Record<string, WorkoutDraft> = {};
-      exercises.forEach((ex, index) => {
-        const key = getExerciseDraftKey(ex, index);
-        const predicted = predictFiveMinuteTarget(ex);
-        const aiReps = Math.max(0, Number(ex.sets) || 0) * Math.max(0, extractRepTarget(ex.reps));
-        next[key] = prev[key] ?? { reps: aiReps > 0 ? aiReps : predicted.totalReps, saving: false, saved: false, error: null };
-      });
+      for (let i = 0; i < exercises.length; i += 1) {
+        const ex = exercises[i];
+        const key = getExerciseDraftKey(ex, i);
+        const prefill = defaultDidText(ex);
+        const matchName = String(ex.name || '').trim().toLowerCase();
+        // Prefer planExerciseName match; fall back to fuzzy exercise-name match.
+        const match = loggedToday.find((entry) => {
+          const planName = String(entry.planExerciseName || '').trim().toLowerCase();
+          if (planName && planName === matchName) return true;
+          const exName = String(entry.exercise || '').trim().toLowerCase();
+          return exName === matchName;
+        });
+        if (match) {
+          const rawNotes = String(match.notes || '').trim();
+          const savedComment = rawNotes ? extractExecutedFromNotes(rawNotes) : prefill;
+          next[key] = {
+            comment: savedComment,
+            savedComment,
+            saving: false,
+            saved: true,
+            editing: false,
+            workoutId: match._id ?? null,
+            error: null,
+          };
+        } else {
+          // Preserve any in-progress edits the user had typed before reload.
+          next[key] = prev[key] && !prev[key].saved
+            ? { ...prev[key], comment: prev[key].comment || prefill }
+            : emptyDraft(prefill);
+        }
+      }
       return next;
     });
-  }, [workoutPlan?.exercises]);
+  }, [workoutPlan?.exercises, loggedToday]);
 
   const handleGenerate = async () => {
     const hadPlan = (workoutPlan?.exercises?.length ?? 0) > 0;
@@ -136,37 +252,109 @@ export default function WorkoutTab() {
     }
   };
 
-  const handleAddExercise = async (exercise: WorkoutExercise, index: number) => {
+  const setDraft = (key: string, patch: Partial<WorkoutDraft>) => {
+    setWorkoutDrafts((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
+  };
+
+  const handleLog = async (exercise: WorkoutExercise, index: number) => {
     const key = getExerciseDraftKey(exercise, index);
     const draft = workoutDrafts[key];
-    if (draft?.saving || draft?.saved) return;
+    if (!draft || draft.saving) return;
+    const comment = draft.comment.trim();
+    if (!comment) {
+      setDraft(key, { error: 'Add a short note about what you did.' });
+      return;
+    }
 
-    const predicted = predictFiveMinuteTarget(exercise);
-    const safeReps = Math.max(0, Math.round((draft?.reps ?? predicted.totalReps) || 0));
     const category = (['cardio', 'strength', 'flexibility', 'core', 'sports'].includes(exercise.category ?? ''))
       ? exercise.category! : 'other';
     const totalDuration = Math.max(1, Number(workoutPlan?.durationMinutes) || 1);
     const totalCalories = Math.max(1, Number(workoutPlan?.estimatedCalories) || 1);
-    const estimatedCalories = Math.max(1, Math.round((totalCalories / totalDuration) * 5));
+    const plannedDuration = Math.max(1, Number(exercise.durationMinutes) || 5);
+    // Caloric estimate scales the plan's total burn by this exercise's planned duration share.
+    const estimatedCalories = Math.max(1, Math.round((totalCalories / totalDuration) * plannedDuration));
+    const fallbackSets = Math.max(1, Number(exercise.sets) || 1);
+    const { sets, reps } = extractSetsAndReps(comment, fallbackSets);
+    const duration = extractMinutes(comment, plannedDuration);
+    const notes = `Planned: ${plannedNotesText(exercise)} | Executed: ${comment}`;
 
-    setWorkoutDrafts((prev) => ({ ...prev, [key]: { ...prev[key], saving: true, saved: false, error: null } }));
+    setDraft(key, { saving: true, error: null });
     try {
       const response = await api.addWorkout(today, {
-        exercise: exercise.name, category, duration: 5, caloriesBurned: estimatedCalories,
-        sets: Math.max(1, Number(exercise.sets) || 1),
-        ...(safeReps > 0 ? { reps: safeReps } : {}),
-        notes: `Planned: ${exercise.sets} x ${exercise.reps}; target: ${predicted.sets} x ${predicted.repsPerSet}${exercise.restSeconds ? `, rest ${exercise.restSeconds}s` : ''}`,
+        exercise: exercise.name,
+        planExerciseName: exercise.name,
+        category,
+        duration,
+        caloriesBurned: estimatedCalories,
+        sets,
+        ...(reps > 0 ? { reps } : {}),
+        notes,
       });
       if (!response.success) {
-        setWorkoutDrafts((prev) => ({ ...prev, [key]: { ...prev[key], saving: false, saved: false, error: response.error || 'Failed to add' } }));
+        setDraft(key, { saving: false, error: response.error || 'Failed to log' });
         return;
       }
-      setWorkoutDrafts((prev) => ({ ...prev, [key]: { ...prev[key], saving: false, saved: true, error: null } }));
-      showToast(`${exercise.name} added to workout log`, 'success');
+      // Re-fetch so we pick up the new entry's _id for future edits.
+      await load();
+      showToast(`${exercise.name} logged`, 'success');
     } catch (err) {
-      setWorkoutDrafts((prev) => ({
-        ...prev, [key]: { ...prev[key], saving: false, saved: false, error: err instanceof Error ? err.message : 'Failed to add' },
-      }));
+      setDraft(key, { saving: false, error: err instanceof Error ? err.message : 'Failed to log' });
+    }
+  };
+
+  const handleEdit = (exercise: WorkoutExercise, index: number) => {
+    const key = getExerciseDraftKey(exercise, index);
+    setDraft(key, { editing: true, error: null });
+  };
+
+  const handleCancelEdit = (exercise: WorkoutExercise, index: number) => {
+    const key = getExerciseDraftKey(exercise, index);
+    const draft = workoutDrafts[key];
+    if (!draft) return;
+    setDraft(key, { editing: false, comment: draft.savedComment || draft.comment, error: null });
+  };
+
+  const handleSaveEdit = async (exercise: WorkoutExercise, index: number) => {
+    const key = getExerciseDraftKey(exercise, index);
+    const draft = workoutDrafts[key];
+    if (!draft || !draft.workoutId) return;
+    const comment = draft.comment.trim();
+    if (!comment) {
+      setDraft(key, { error: 'Add a short note about what you did.' });
+      return;
+    }
+
+    const category = (['cardio', 'strength', 'flexibility', 'core', 'sports'].includes(exercise.category ?? ''))
+      ? exercise.category! : 'other';
+    const totalDuration = Math.max(1, Number(workoutPlan?.durationMinutes) || 1);
+    const totalCalories = Math.max(1, Number(workoutPlan?.estimatedCalories) || 1);
+    const plannedDuration = Math.max(1, Number(exercise.durationMinutes) || 5);
+    const estimatedCalories = Math.max(1, Math.round((totalCalories / totalDuration) * plannedDuration));
+    const fallbackSets = Math.max(1, Number(exercise.sets) || 1);
+    const { sets, reps } = extractSetsAndReps(comment, fallbackSets);
+    const duration = extractMinutes(comment, plannedDuration);
+    const notes = `Planned: ${plannedNotesText(exercise)} | Executed: ${comment}`;
+
+    setDraft(key, { saving: true, error: null });
+    try {
+      const response = await api.updateWorkout(today, draft.workoutId, {
+        exercise: exercise.name,
+        planExerciseName: exercise.name,
+        category,
+        duration,
+        caloriesBurned: estimatedCalories,
+        sets,
+        ...(reps > 0 ? { reps } : {}),
+        notes,
+      });
+      if (!response.success) {
+        setDraft(key, { saving: false, error: response.error || 'Failed to update' });
+        return;
+      }
+      await load();
+      showToast(`${exercise.name} updated`, 'success');
+    } catch (err) {
+      setDraft(key, { saving: false, error: err instanceof Error ? err.message : 'Failed to update' });
     }
   };
 
@@ -209,9 +397,25 @@ export default function WorkoutTab() {
 
   return (
     <div className="space-y-4">
+      {currentWorkoutPlan.weeklyStrategyChosen && (
+        <div className="flex items-start gap-2 rounded-xl border border-sky-500/20 bg-sky-500/5 px-4 py-2.5">
+          <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-sky-400" />
+          <p className="text-xs text-sky-200">
+            <span className="font-semibold">This week: </span>{currentWorkoutPlan.weeklyStrategyChosen}
+          </p>
+        </div>
+      )}
+      {currentWorkoutPlan.whyToday && (
+        <div className="flex items-start gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-2.5">
+          <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400" />
+          <p className="text-xs text-emerald-200">
+            <span className="font-semibold">Today: </span>{currentWorkoutPlan.whyToday}
+          </p>
+        </div>
+      )}
       {currentWorkoutPlan.reasoning && (
-        <div className="flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-2.5">
-          <Lightbulb className="h-3.5 w-3.5 shrink-0 text-amber-400" />
+        <div className="flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-2.5">
+          <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
           <p className="text-xs text-amber-200">{currentWorkoutPlan.reasoning}</p>
         </div>
       )}
@@ -245,10 +449,13 @@ export default function WorkoutTab() {
       {/* Exercises */}
       <div className="space-y-2">
         {currentWorkoutPlan.exercises.map((ex, i) => {
-          const draft = workoutDrafts[getExerciseDraftKey(ex, i)];
+          const key = getExerciseDraftKey(ex, i);
+          const draft = workoutDrafts[key];
+          const aiTarget = formatAiTarget(ex);
+          const showForm = !draft?.saved || draft?.editing;
           return (
             <div key={i} className="rounded-xl border border-zinc-800 bg-zinc-900/30 px-4 py-3">
-              <div className="flex items-start gap-3">
+              <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-text-primary">{ex.name}</p>
                   {ex.steps && ex.steps.length > 0 && (
@@ -261,7 +468,11 @@ export default function WorkoutTab() {
                       ))}
                     </ul>
                   )}
-                  <p className="mt-2 text-[11px] text-zinc-500">{getTargetText(ex)}</p>
+                  {aiTarget && (
+                    <p className="mt-2 text-[11px] text-zinc-500">
+                      <span className="text-zinc-400">AI target:</span> {aiTarget}
+                    </p>
+                  )}
                   <a
                     href={`https://www.google.com/search?q=${encodeURIComponent('how to perform ' + ex.name)}`}
                     target="_blank" rel="noopener noreferrer"
@@ -270,26 +481,56 @@ export default function WorkoutTab() {
                     Search &ldquo;{ex.name}&rdquo; on Google
                   </a>
                 </div>
-                <div className="flex shrink-0 flex-col items-end gap-2">
-                  {ex.intensity && (
-                    <span className={cn('rounded-full px-2 py-0.5 text-[10px] capitalize font-medium whitespace-nowrap', INTENSITY_BADGE[ex.intensity] ?? INTENSITY_BADGE.medium)}>
-                      {ex.intensity}
-                    </span>
-                  )}
-                  {draft?.saved ? (
-                    <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-semibold text-emerald-300 whitespace-nowrap">
-                      <CheckCircle2 className="h-3 w-3" />
-                      Added
-                    </span>
-                  ) : (
-                    <button type="button" onClick={() => handleAddExercise(ex, i)} disabled={draft?.saving}
-                      className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-emerald-500 px-2.5 py-1.5 text-xs font-semibold text-black whitespace-nowrap hover:bg-emerald-400 disabled:opacity-50">
-                      {draft?.saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
-                      {draft?.saving ? 'Adding…' : 'Add'}
-                    </button>
-                  )}
-                </div>
+                {ex.intensity && (
+                  <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[10px] capitalize font-medium whitespace-nowrap', INTENSITY_BADGE[ex.intensity] ?? INTENSITY_BADGE.medium)}>
+                    {ex.intensity}
+                  </span>
+                )}
               </div>
+
+              {/* You did — free-text comment */}
+              {showForm ? (
+                <div className="mt-3 space-y-2">
+                  <label className="block text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                    You did
+                  </label>
+                  <textarea
+                    value={draft?.comment ?? defaultDidText(ex)}
+                    onChange={(e) => setDraft(key, { comment: e.target.value, error: null })}
+                    rows={2}
+                    placeholder="e.g. 2 sets × 12 reps"
+                    className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-text-primary placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none"
+                  />
+                  <div className="flex items-center justify-end gap-2">
+                    {draft?.editing && (
+                      <button type="button" onClick={() => handleCancelEdit(ex, i)}
+                        className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors">
+                        Cancel
+                      </button>
+                    )}
+                    <button type="button"
+                      onClick={() => (draft?.editing ? handleSaveEdit(ex, i) : handleLog(ex, i))}
+                      disabled={draft?.saving}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-50">
+                      {draft?.saving ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                      {draft?.saving ? 'Saving…' : draft?.editing ? 'Save' : 'Log'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-3 flex items-start justify-between gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
+                  <div className="flex items-start gap-2 min-w-0">
+                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                    <p className="text-xs text-emerald-200 break-words">
+                      <span className="font-semibold">Logged: </span>{draft?.savedComment || draft?.comment}
+                    </p>
+                  </div>
+                  <button type="button" onClick={() => handleEdit(ex, i)}
+                    className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-zinc-700 px-2 py-1 text-[11px] text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors">
+                    <Pencil className="h-3 w-3" /> Edit
+                  </button>
+                </div>
+              )}
               {draft?.error && <p className="mt-2 text-xs text-rose-400">{draft.error}</p>}
             </div>
           );

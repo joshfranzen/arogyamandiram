@@ -293,6 +293,8 @@ export interface WorkoutEntry {
   /** 'device' = from health-data sync; 'manual' = user-entered (default) */
   source?: 'manual' | 'device';
   notes?: string;
+  /** When this log entry corresponds to a planned exercise from DailyPlan.workoutPlan.exercises[].name */
+  planExerciseName?: string;
 }
 
 export type SleepQuality = 1 | 2 | 3 | 4 | 5;
@@ -435,7 +437,12 @@ export interface AiMealSuggestion {
 export interface AiWorkoutPlan {
   name: string;
   description: string;
-  strategyUsed?: 'full_body_fat_loss' | 'upper_lower' | 'push_pull_legs';
+  /** @deprecated kept for backwards-compat with old plans; new plans use `weeklyStrategyChosen` */
+  strategyUsed?: string;
+  /** Free-text description of the weekly split the LLM chose for this user this week */
+  weeklyStrategyChosen?: string;
+  /** One-line reason for today's session given recent days */
+  whyToday?: string;
   readinessAdjustment?: string;
   progressionTip?: string;
   reasoning?: string;
@@ -444,6 +451,8 @@ export interface AiWorkoutPlan {
     steps?: string[];
     sets: number;
     reps: string;
+    /** Workout-flow phase, used for ordering and UI grouping */
+    phase?: 'warmup' | 'strength' | 'cardio' | 'core' | 'mobility' | 'cooldown';
     durationMinutes?: number;
     restSeconds: number;
     intensity?: 'low' | 'medium' | 'high';

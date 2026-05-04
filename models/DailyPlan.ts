@@ -35,7 +35,12 @@ export interface IDailyPlanDocument extends Document {
   workoutPlan?: {
     name: string;
     description: string;
-    strategyUsed?: 'full_body_fat_loss' | 'upper_lower' | 'push_pull_legs';
+    /** @deprecated kept for old plans; new plans use `weeklyStrategyChosen` */
+    strategyUsed?: string;
+    /** Free-text description of the weekly split the LLM picked */
+    weeklyStrategyChosen?: string;
+    /** One-line reason for why today's session looks the way it does */
+    whyToday?: string;
     readinessAdjustment?: string;
     progressionTip?: string;
     exercises: {
@@ -43,6 +48,7 @@ export interface IDailyPlanDocument extends Document {
       steps?: string[];
       sets: number;
       reps: string;
+      phase?: 'warmup' | 'strength' | 'cardio' | 'core' | 'mobility' | 'cooldown';
       durationMinutes?: number;
       restSeconds: number;
       intensity?: 'low' | 'medium' | 'high';
@@ -102,6 +108,7 @@ const ExerciseSchema = new Schema(
     steps: { type: [String], default: undefined },
     sets: { type: Number, default: 1 },
     reps: { type: String, default: '1' },
+    phase: { type: String, enum: ['warmup', 'strength', 'cardio', 'core', 'mobility', 'cooldown'] },
     durationMinutes: { type: Number },
     restSeconds: { type: Number, default: 60 },
     intensity: { type: String, enum: ['low', 'medium', 'high'] },
@@ -129,7 +136,10 @@ const DailyPlanSchema = new Schema<IDailyPlanDocument>(
     workoutPlan: {
       name: { type: String },
       description: { type: String },
-      strategyUsed: { type: String, enum: ['full_body_fat_loss', 'upper_lower', 'push_pull_legs'] },
+      // strategyUsed kept (no enum) for old plans; new plans use weeklyStrategyChosen.
+      strategyUsed: { type: String },
+      weeklyStrategyChosen: { type: String },
+      whyToday: { type: String },
       readinessAdjustment: { type: String },
       progressionTip: { type: String },
       exercises: { type: [ExerciseSchema], default: [] },

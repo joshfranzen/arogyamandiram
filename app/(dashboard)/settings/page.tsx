@@ -4,19 +4,18 @@ import { useState, useEffect, useRef, Suspense, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Bell, Key, Save, Settings, Target, User, Ruler, Activity, Flag, PersonStanding,
-  Shield, Eye, EyeOff, CheckCircle2, Sparkles, Utensils, Dumbbell,
-  Loader2, RefreshCw, Flame, Droplets, Scale, Moon,
-  Mail, Plus, X, ListChecks, Pill, Zap, Trash2, Pencil, CheckSquare,
+  Shield, Eye, EyeOff, CheckCircle2, Sparkles, Utensils,
+  Loader2, RefreshCw, Flame,
+  Mail, Plus, ListChecks, Pill, Zap, Trash2, Pencil, CheckSquare,
   Smartphone, RotateCcw, AlertCircle, SlidersHorizontal,
 } from 'lucide-react';
 import { showToast } from '@/components/ui/Toast';
 import { CardSkeleton } from '@/components/ui/Skeleton';
 import { useUser } from '@/hooks/useUser';
 import api from '@/lib/apiClient';
-import { cn, formatWater } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { getTargetsForUser } from '@/lib/health';
 import DashboardPageShell from '@/components/layout/DashboardPageShell';
-import Link from 'next/link';
 import Image from 'next/image';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -25,16 +24,14 @@ interface TodoTemplate { id: string; title: string; note: string; time: string; 
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-type Tab = 'profile' | 'body' | 'targets' | 'customizations' | 'api-keys' | 'notifications' | 'email' | 'todos' | 'health-data';
+type Tab = 'profile' | 'body' | 'targets' | 'customizations' | 'notifications' | 'todos' | 'health-data';
 
 const NAV_ITEMS: { key: Tab; label: string; icon: React.ElementType; desc: string }[] = [
   { key: 'profile',       label: 'Profile',        icon: User,          desc: 'Personal info & metrics' },
   { key: 'body',          label: 'Body',           icon: PersonStanding, desc: 'Composition & fitness' },
   { key: 'targets',       label: 'Targets',        icon: Target,        desc: 'Daily goals & macros' },
   { key: 'customizations', label: 'Customizations', icon: SlidersHorizontal, desc: 'Tracker-specific defaults' },
-  { key: 'api-keys',      label: 'API Keys',       icon: Key,           desc: 'OpenAI & USDA keys' },
-  { key: 'notifications', label: 'Notifications',  icon: Bell,          desc: 'Reminders & schedule' },
-  { key: 'email',         label: 'Email',          icon: Mail,          desc: 'SMTP, IMAP & recipients' },
+  { key: 'notifications', label: 'Notifications',  icon: Bell,          desc: 'Reminders, email & schedule' },
   { key: 'todos',         label: 'Daily Todos',    icon: CheckSquare,   desc: 'Recurring checklist' },
   { key: 'health-data',   label: 'Health Data',    icon: Smartphone,    desc: 'External health sync' },
 ];
@@ -93,44 +90,51 @@ const bodyFatGuides = [
 function FatAreaInput({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
   const [draft, setDraft] = useState('');
 
-  function add() {
-    const trimmed = draft.trim().toLowerCase();
-    if (trimmed && !value.includes(trimmed)) onChange([...value, trimmed]);
+  function commit(raw: string) {
+    const parts = raw.split(/[\n,]/).map((s) => s.trim().toLowerCase()).filter(Boolean);
+    if (parts.length === 0) return;
+    onChange(Array.from(new Set([...value, ...parts])));
     setDraft('');
   }
 
   return (
     <div className="mt-4 space-y-3">
-      {/* Existing areas as bullet points */}
+      <input
+        type="text"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            commit(draft);
+          } else if (e.key === 'Backspace' && draft === '' && value.length > 0) {
+            onChange(value.slice(0, -1));
+          }
+        }}
+        onBlur={() => commit(draft)}
+        placeholder="Type and press Enter (e.g. belly)"
+        className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+      />
       {value.length > 0 && (
-        <ul className="space-y-1.5">
-          {value.map((area) => (
-            <li key={area} className="flex items-center gap-2 rounded-lg bg-zinc-900/60 px-3 py-2">
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
-              <span className="flex-1 text-sm capitalize text-zinc-200">{area}</span>
-              <button type="button" onClick={() => onChange(value.filter((a) => a !== area))}
-                className="text-zinc-600 hover:text-zinc-300 transition-colors">
-                <X className="h-3.5 w-3.5" />
+        <div className="flex flex-wrap gap-1.5">
+          {value.map((area, idx) => (
+            <span
+              key={`${area}-${idx}`}
+              className="inline-flex items-center gap-1 rounded-full border border-zinc-700 bg-zinc-800/60 pl-2.5 pr-1 py-0.5 text-xs capitalize text-zinc-200"
+            >
+              {area}
+              <button
+                type="button"
+                aria-label={`Remove ${area}`}
+                onClick={() => onChange(value.filter((_, i) => i !== idx))}
+                className="ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-700 hover:text-rose-400 transition-colors"
+              >
+                ×
               </button>
-            </li>
+            </span>
           ))}
-        </ul>
+        </div>
       )}
-      {/* Input row */}
-      <div className="flex gap-2">
-        <input
-          type="text"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
-          placeholder="e.g. belly, arms, lower back…"
-          className="flex-1 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-        />
-        <button type="button" onClick={add}
-          className="flex items-center gap-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 px-3 py-2 text-sm text-emerald-400 hover:bg-emerald-500/20 transition-colors">
-          <Plus className="h-3.5 w-3.5" /> Add
-        </button>
-      </div>
     </div>
   );
 }
@@ -143,7 +147,7 @@ function SettingsInner() {
   const { user, loading, refetch } = useUser();
 
   const rawTab = searchParams.get('tab') as Tab | null;
-  const validTabs: Tab[] = ['profile', 'body', 'targets', 'customizations', 'api-keys', 'notifications', 'email', 'todos', 'health-data'];
+  const validTabs: Tab[] = ['profile', 'body', 'targets', 'customizations', 'notifications', 'todos', 'health-data'];
   const [activeTab, setActiveTabState] = useState<Tab>(
     rawTab && validTabs.includes(rawTab) ? rawTab : 'profile'
   );
@@ -169,7 +173,8 @@ function SettingsInner() {
   const [bodyFat, setBodyFat] = useState('');
   const [fatFocusAreas, setFatFocusAreas] = useState<string[]>([]);
   const [dietaryPreference, setDietaryPreference] = useState<'no_preference' | 'vegetarian' | 'non_vegetarian' | 'vegan'>('no_preference');
-  const [allergiesInput, setAllergiesInput] = useState('');
+  const [allergies, setAllergies] = useState<string[]>([]);
+  const [allergyDraft, setAllergyDraft] = useState('');
 
   // ── Targets state ──────────────────────────────────────────────────────────
   const [targetsSaving, setTargetsSaving] = useState(false);
@@ -333,7 +338,8 @@ function SettingsInner() {
           ? (savedDietaryPreference as 'no_preference' | 'vegetarian' | 'non_vegetarian' | 'vegan')
           : 'no_preference';
       setDietaryPreference(normalizedDietaryPreference);
-      setAllergiesInput((s.foodPreferences?.allergies ?? []).join(', '));
+      setAllergies(Array.isArray(s.foodPreferences?.allergies) ? s.foodPreferences.allergies.filter((v): v is string => typeof v === 'string' && v.trim().length > 0) : []);
+      setAllergyDraft('');
       const lsa = s.reminderSchedule?.lastSentAt ?? {};
       setLastSentAt({
         water: String(lsa.water ?? ''), breakfast: String(lsa.breakfast ?? ''),
@@ -453,24 +459,7 @@ function SettingsInner() {
         return;
       }
 
-      const allergies = Array.from(
-        new Set(
-          allergiesInput
-            .split(/[\n,]/)
-            .map((entry) => entry.trim())
-            .filter(Boolean)
-        )
-      );
-      const foodPreferencesRes = await api.updateSettings({
-        foodPreferences: {
-          dietaryPreference,
-          allergies,
-        },
-      });
-      if (!foodPreferencesRes.success) {
-        showToast(foodPreferencesRes.error || 'Failed to save food preferences', 'error');
-        return;
-      }
+      // Food preferences live on the Customizations tab now (see saveCustomizations).
       showToast('Profile updated', 'success');
       const updated = profileRes.data as { username?: string } | undefined;
       if (updated?.username) setUsername(updated.username);
@@ -545,16 +534,29 @@ function SettingsInner() {
       return;
     }
 
+    // Fold any unsaved draft text in the allergies input into the chip list.
+    const pendingDraft = allergyDraft.trim();
+    const merged = pendingDraft
+      ? [...allergies, ...pendingDraft.split(/[\n,]/).map((s) => s.trim()).filter(Boolean)]
+      : allergies;
+    const dedupedAllergies = Array.from(new Set(merged.map((s) => s.trim()).filter(Boolean)));
+
     setCustomizationsSaving(true);
     try {
       const res = await api.updateSettings({
+        units,
         customizations: {
           water: {
             quickAmountsMl: parsedAmounts,
           },
         },
+        foodPreferences: {
+          dietaryPreference,
+          allergies: dedupedAllergies,
+        },
       });
       if (res.success) {
+        if (pendingDraft) setAllergyDraft('');
         showToast('Customizations saved', 'success');
         await refetch();
       } else {
@@ -839,7 +841,6 @@ function SettingsInner() {
   const fdcActive = !!user?.hasFdcKey;
   const hasSmtp = smtpConfigured || (user?.hasSmtp ?? false);
   const hasImap = imapConfigured || (user?.hasImap ?? false);
-  const enabledCount = [waterNotif, mealNotif, weighInNotif, workoutNotif, sleepNotif].filter(Boolean).length;
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -989,57 +990,22 @@ function SettingsInner() {
               </div>
             </div>
 
-            {/* Goal */}
+            {/* Goal — auto-derived from current weight vs target weight. */}
             <div className="glass-card rounded-2xl p-6">
               <div className="flex items-center gap-2">
                 <Flag className="h-4 w-4 text-accent-emerald" />
                 <h2 className="text-base font-semibold text-text-primary">Goal</h2>
               </div>
+              <p className="mt-1 text-xs text-text-muted">Auto-derived from your current weight vs. target weight. Update those above to change your goal.</p>
               <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
                 {goals.map((g) => (
-                  <button key={g.value} type="button" onClick={() => setGoal(g.value)}
+                  <div key={g.value}
                     className={cn('rounded-2xl border px-4 py-3 text-left text-xs transition-all',
-                      goal === g.value ? 'border-emerald-500 bg-emerald-500/10' : 'border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700')}>
+                      goal === g.value ? 'border-emerald-500 bg-emerald-500/10' : 'border-zinc-800 bg-zinc-900/50 text-zinc-400')}>
                     <p className={cn('font-semibold', goal === g.value ? 'text-emerald-400' : 'text-zinc-200')}>{g.label}</p>
                     <p className="mt-0.5 text-[10px] text-zinc-400">{g.desc}</p>
-                  </button>
+                  </div>
                 ))}
-              </div>
-            </div>
-
-            {/* Food preferences */}
-            <div className="glass-card rounded-2xl p-6">
-              <div className="flex items-center gap-2">
-                <Utensils className="h-4 w-4 text-emerald-400" />
-                <h2 className="text-base font-semibold text-text-primary">Food preferences</h2>
-              </div>
-              <p className="mt-1 text-xs text-text-muted">Used automatically when AI creates your food plan.</p>
-              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="text-xs font-medium text-text-muted">Dietary preference</label>
-                  <select
-                    value={dietaryPreference}
-                    onChange={(e) => setDietaryPreference(e.target.value as 'no_preference' | 'vegetarian' | 'non_vegetarian' | 'vegan')}
-                    className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm bg-zinc-900 border border-zinc-800 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                  >
-                    {dietaryPreferenceOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-text-muted">Allergies / foods to avoid</label>
-                  <textarea
-                    value={allergiesInput}
-                    onChange={(e) => setAllergiesInput(e.target.value)}
-                    placeholder="e.g. peanuts, shellfish, lactose"
-                    rows={3}
-                    className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm bg-zinc-900 border border-zinc-800 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                  />
-                  <p className="mt-1 text-[11px] text-zinc-500">Separate values with commas or new lines.</p>
-                </div>
               </div>
             </div>
 
@@ -1122,7 +1088,7 @@ function SettingsInner() {
             {/* Fat focus areas */}
             <div className="glass-card rounded-2xl p-6">
               <h2 className="text-base font-semibold text-text-primary">Where do you carry more fat?</h2>
-              <p className="mt-1 text-xs text-text-muted">Type an area and press Enter — used to personalise your workout target zones.</p>
+              <p className="mt-1 text-xs text-text-muted">Used to personalise your workout target zones.</p>
               <FatAreaInput value={fatFocusAreas} onChange={setFatFocusAreas} />
             </div>
 
@@ -1151,201 +1117,104 @@ function SettingsInner() {
         {/* ══════ TARGETS ══════ */}
         {activeTab === 'targets' && (
           <>
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              {/* Left: actions */}
-              <div className="flex flex-col gap-4">
-                <div className="glass-card rounded-2xl p-6">
-                  <p className="text-sm font-semibold text-text-primary">Recalculate from profile</p>
-                  <p className="mt-2 text-xs text-text-muted">Refresh all targets using your current profile data.</p>
+            {/* Daily targets */}
+            <div className="glass-card rounded-2xl p-6">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Target className="h-4 w-4 text-emerald-400" />
+                  <h2 className="text-base font-semibold text-text-primary">Daily targets</h2>
+                </div>
+                <div className="flex items-center gap-2">
                   <button type="button" onClick={recalculateTargetsFromProfile} disabled={recalculatingTargets}
-                    className="mt-4 flex w-fit items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.04] px-4 py-2.5 text-sm font-medium text-text-primary hover:bg-white/[0.06] disabled:opacity-50">
-                    {recalculatingTargets ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors disabled:opacity-50">
+                    {recalculatingTargets ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
                     Recalculate
                   </button>
-                </div>
-
-                {user?.hasOpenAiKey && (
-                  <div className="glass-card rounded-2xl border border-accent-violet/20 bg-accent-violet/5 p-6">
-                    <p className="text-sm font-semibold text-text-primary">AI Health Plan</p>
-                    <p className="mt-2 text-xs text-text-muted">Generate personalized targets based on your profile.</p>
+                  {user?.hasOpenAiKey && (
                     <button type="button" onClick={regenerateHealthPlan} disabled={regeneratingPlan}
-                      className="glass-button-primary mt-4 flex w-fit items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium disabled:opacity-50">
-                      {regeneratingPlan ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-accent-violet/40 bg-accent-violet/10 px-2.5 py-1 text-xs text-accent-violet hover:bg-accent-violet/20 transition-colors disabled:opacity-50">
+                      {regeneratingPlan ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
                       Regenerate plan
                     </button>
-                  </div>
-                )}
-
-                {formulaTargets && (
-                  <div className="glass-card rounded-2xl p-6">
-                    <p className="text-sm font-semibold text-text-primary">From your profile (formula-based)</p>
-                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                      {[
-                        { label: 'Ideal weight', value: `${formulaTargets.idealWeight} kg` },
-                        { label: 'Workout (min/day)', value: String(formulaTargets.dailyWorkoutMinutes) },
-                        { label: 'Calorie burn', value: `${formulaTargets.dailyCalorieBurn} kcal` },
-                        { label: 'Sleep target', value: `${formulaTargets.sleepHours} h` },
-                        { label: 'Daily steps', value: `${(formulaTargets.dailySteps ?? 8000).toLocaleString()}` },
-                        { label: 'Distance / day', value: `${formulaTargets.idealDistance ?? 5} km` },
-                      ].map((r) => (
-                        <div key={r.label} className="rounded-xl bg-white/[0.03] p-3">
-                          <span className="text-xs text-text-muted">{r.label}</span>
-                          <p className="mt-1 font-semibold text-text-primary">{r.value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Right: editable targets */}
-              <div className="glass-card flex flex-col rounded-2xl p-6 space-y-6">
-                <div>
-                  <p className="text-sm font-semibold text-text-primary">Daily targets</p>
-                  <p className="mt-1 text-xs text-text-muted">These values are used across your dashboard and trackers.</p>
-                </div>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  {[
-                    { label: 'Daily Calories (kcal)', value: dailyCalories, set: setDailyCalories },
-                    { label: 'Daily Water (ml)', value: dailyWater, set: setDailyWater },
-                    { label: 'Protein (g)', value: protein, set: setProtein },
-                    { label: 'Carbs (g)', value: carbs, set: setCarbs },
-                  ].map((f) => (
-                    <div key={f.label}>
-                      <label className="text-xs font-medium text-text-muted">{f.label}</label>
-                      <input type="number" value={f.value} onChange={(e) => f.set(e.target.value)}
-                        className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm" />
-                    </div>
-                  ))}
-                  <div className="sm:col-span-2">
-                    <label className="text-xs font-medium text-text-muted">Fat (g)</label>
-                    <input type="number" value={fat} onChange={(e) => setFat(e.target.value)}
-                      className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-text-muted">Daily Steps</label>
-                    <input type="number" value={dailySteps} onChange={(e) => setDailySteps(e.target.value)}
-                      className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-text-muted">Distance / day (km)</label>
-                    <input type="number" step="0.1" value={idealDistance} onChange={(e) => setIdealDistance(e.target.value)}
-                      className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm" />
-                  </div>
-                </div>
-
-                {protein && carbs && fat && (
-                  <div className="rounded-2xl bg-white/[0.02] p-4">
-                    <p className="text-xs font-semibold text-text-primary">Macro split</p>
-                    <div className="mt-3 flex h-3 overflow-hidden rounded-full bg-white/[0.04]">
-                      {(() => {
-                        const total = (parseInt(protein) || 0) * 4 + (parseInt(carbs) || 0) * 4 + (parseInt(fat) || 0) * 9;
-                        const pPct = total > 0 ? (((parseInt(protein) || 0) * 4) / total) * 100 : 33;
-                        const cPct = total > 0 ? (((parseInt(carbs) || 0) * 4) / total) * 100 : 33;
-                        const fPct = total > 0 ? (((parseInt(fat) || 0) * 9) / total) * 100 : 34;
-                        return (<>
-                          <div className="bg-accent-violet" style={{ width: `${pPct}%` }} />
-                          <div className="bg-accent-amber" style={{ width: `${cPct}%` }} />
-                          <div className="bg-accent-rose" style={{ width: `${fPct}%` }} />
-                        </>);
-                      })()}
-                    </div>
-                    <div className="mt-2 flex justify-between text-[10px] text-text-muted">
-                      <span className="text-accent-violet">Protein {Math.round((((parseInt(protein) || 0) * 4) / ((parseInt(protein) || 0) * 4 + (parseInt(carbs) || 0) * 4 + (parseInt(fat) || 0) * 9)) * 100 || 0)}%</span>
-                      <span className="text-accent-amber">Carbs {Math.round((((parseInt(carbs) || 0) * 4) / ((parseInt(protein) || 0) * 4 + (parseInt(carbs) || 0) * 4 + (parseInt(fat) || 0) * 9)) * 100 || 0)}%</span>
-                      <span className="text-accent-rose">Fat {Math.round((((parseInt(fat) || 0) * 9) / ((parseInt(protein) || 0) * 4 + (parseInt(carbs) || 0) * 4 + (parseInt(fat) || 0) * 9)) * 100 || 0)}%</span>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex justify-end pt-4">
-                  <button onClick={saveTargets} disabled={targetsSaving}
-                    className="glass-button-primary flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold disabled:opacity-50">
-                    {targetsSaving ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <Save className="h-4 w-4" />}
-                    Save Targets
-                  </button>
+                  )}
                 </div>
               </div>
-            </div>
-          </>
-        )}
-
-        {/* ══════ API KEYS ══════ */}
-        {activeTab === 'api-keys' && (
-          <>
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              {/* Left: info */}
-              <div className="flex flex-col gap-4">
-                <div className="glass-card rounded-2xl p-6 flex-1">
-                  <p className="text-sm font-semibold text-text-primary">Where these keys are used</p>
-                  <div className="mt-4 space-y-2">
-                    {[
-                      { icon: Sparkles, label: "Today's Plan", desc: 'Daily plan, insights, recommendations', href: '/todays-plan', color: 'text-accent-violet' },
-                      { icon: Utensils, label: 'Food', desc: 'AI meal ideas + USDA food search', href: '/food', color: 'text-accent-emerald' },
-                      { icon: Dumbbell, label: 'Workout', desc: 'AI workout plan generation', href: '/workout', color: 'text-accent-rose' },
-                    ].map((item) => (
-                      <div key={item.href} className="flex items-center gap-3 rounded-xl bg-white/[0.03] px-4 py-3">
-                        <div className={cn('flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.04]', item.color)}>
-                          <item.icon className="h-4 w-4" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-text-primary">{item.label}</p>
-                          <p className="text-[11px] text-text-muted">{item.desc}</p>
-                        </div>
-                        <Link href={item.href} className="ml-auto text-xs font-medium text-accent-violet hover:underline">Open</Link>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Right: key inputs */}
-              <div className="glass-card flex flex-col rounded-2xl p-6 space-y-5">
-                <p className="flex items-center gap-1.5 text-[11px] text-text-muted"><Shield className="h-3 w-3 text-accent-cyan shrink-0" /> AES-256 encrypted — never exposed to the browser</p>
+              <p className="mt-1 text-xs text-text-muted">These values are used across your dashboard and trackers.</p>
+              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {[
-                  {
-                    label: 'OpenAI API Key', active: openAiActive, show: showOpenai,
-                    toggleShow: () => setShowOpenai(!showOpenai), value: openaiKey,
-                    set: setOpenaiKey, placeholder: openAiActive ? '••••••••••••••••' : 'sk-...',
-                    hint: 'Required for AI-powered meal suggestions, workout plans, and insights.',
-                  },
-                  {
-                    label: 'USDA FoodData Central API Key', active: fdcActive, show: showFdc,
-                    toggleShow: () => setShowFdc(!showFdc), value: fdcKey,
-                    set: setFdcKey, placeholder: fdcActive ? '••••••••••••••••' : 'Your FDC API key',
-                    hint: 'Required for food search. Get a free key at fdc.nal.usda.gov/api-key-signup',
-                  },
-                ].map((k) => (
-                  <div key={k.label} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-text-primary">{k.label}</span>
-                      {k.active && (
-                        <span className="flex items-center gap-1 rounded-md bg-accent-emerald/10 px-2 py-0.5 text-[10px] font-medium text-accent-emerald">
-                          <CheckCircle2 className="h-3 w-3" /> Active
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-1 text-xs text-text-muted">{k.hint}</p>
-                    <div className="relative mt-3">
-                      <input type={k.show ? 'text' : 'password'} value={k.value}
-                        onChange={(e) => k.set(e.target.value)} placeholder={k.placeholder}
-                        className="glass-input w-full rounded-xl px-3 py-2 pr-10 text-sm" />
-                      <button type="button" onClick={k.toggleShow}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary">
-                        {k.show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
+                  { label: 'Daily Calories (kcal)', value: dailyCalories, set: setDailyCalories },
+                  { label: 'Daily Water (ml)', value: dailyWater, set: setDailyWater },
+                  { label: 'Protein (g)', value: protein, set: setProtein },
+                  { label: 'Carbs (g)', value: carbs, set: setCarbs },
+                  { label: 'Fat (g)', value: fat, set: setFat },
+                  { label: 'Daily Steps', value: dailySteps, set: setDailySteps },
+                  { label: 'Distance / day (km)', value: idealDistance, set: setIdealDistance, step: '0.1' },
+                ].map((f) => (
+                  <div key={f.label}>
+                    <label className="text-xs font-medium text-text-muted">{f.label}</label>
+                    <input type="number" step={f.step} value={f.value} onChange={(e) => f.set(e.target.value)}
+                      className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm bg-zinc-900 border border-zinc-800 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
                   </div>
                 ))}
+              </div>
 
-                <div className="flex justify-end pt-4">
-                  <button onClick={saveApiKeys} disabled={apiKeysSaving}
-                    className="glass-button-primary flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold disabled:opacity-50">
-                    {apiKeysSaving ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <Save className="h-4 w-4" />}
-                    Save Keys
-                  </button>
+              {protein && carbs && fat && (
+                <div className="mt-5 rounded-2xl bg-white/[0.02] p-4">
+                  <p className="text-xs font-semibold text-text-primary">Macro split</p>
+                  <div className="mt-3 flex h-3 overflow-hidden rounded-full bg-white/[0.04]">
+                    {(() => {
+                      const total = (parseInt(protein) || 0) * 4 + (parseInt(carbs) || 0) * 4 + (parseInt(fat) || 0) * 9;
+                      const pPct = total > 0 ? (((parseInt(protein) || 0) * 4) / total) * 100 : 33;
+                      const cPct = total > 0 ? (((parseInt(carbs) || 0) * 4) / total) * 100 : 33;
+                      const fPct = total > 0 ? (((parseInt(fat) || 0) * 9) / total) * 100 : 34;
+                      return (<>
+                        <div className="bg-accent-violet" style={{ width: `${pPct}%` }} />
+                        <div className="bg-accent-amber" style={{ width: `${cPct}%` }} />
+                        <div className="bg-accent-rose" style={{ width: `${fPct}%` }} />
+                      </>);
+                    })()}
+                  </div>
+                  <div className="mt-2 flex justify-between text-[10px] text-text-muted">
+                    <span className="text-accent-violet">Protein {Math.round((((parseInt(protein) || 0) * 4) / ((parseInt(protein) || 0) * 4 + (parseInt(carbs) || 0) * 4 + (parseInt(fat) || 0) * 9)) * 100 || 0)}%</span>
+                    <span className="text-accent-amber">Carbs {Math.round((((parseInt(carbs) || 0) * 4) / ((parseInt(protein) || 0) * 4 + (parseInt(carbs) || 0) * 4 + (parseInt(fat) || 0) * 9)) * 100 || 0)}%</span>
+                    <span className="text-accent-rose">Fat {Math.round((((parseInt(fat) || 0) * 9) / ((parseInt(protein) || 0) * 4 + (parseInt(carbs) || 0) * 4 + (parseInt(fat) || 0) * 9)) * 100 || 0)}%</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* From your profile (formula-based) */}
+            {formulaTargets && (
+              <div className="glass-card rounded-2xl p-6">
+                <div className="flex items-center gap-2">
+                  <Flame className="h-4 w-4 text-accent-amber" />
+                  <h2 className="text-base font-semibold text-text-primary">From your profile (formula-based)</h2>
+                </div>
+                <p className="mt-1 text-xs text-text-muted">Reference values calculated from your current profile.</p>
+                <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:grid-cols-6">
+                  {[
+                    { label: 'Ideal weight', value: `${formulaTargets.idealWeight} kg` },
+                    { label: 'Workout (min/day)', value: String(formulaTargets.dailyWorkoutMinutes) },
+                    { label: 'Calorie burn', value: `${formulaTargets.dailyCalorieBurn} kcal` },
+                    { label: 'Sleep target', value: `${formulaTargets.sleepHours} h` },
+                    { label: 'Daily steps', value: `${(formulaTargets.dailySteps ?? 8000).toLocaleString()}` },
+                    { label: 'Distance / day', value: `${formulaTargets.idealDistance ?? 5} km` },
+                  ].map((r) => (
+                    <div key={r.label} className="rounded-xl bg-white/[0.03] p-3">
+                      <span className="text-xs text-text-muted">{r.label}</span>
+                      <p className="mt-1 font-semibold text-text-primary">{r.value}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
+            )}
+
+            <div className="flex justify-end">
+              <button onClick={saveTargets} disabled={targetsSaving}
+                className="glass-button-primary flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold disabled:opacity-50">
+                {targetsSaving ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <Save className="h-4 w-4" />}
+                Save Targets
+              </button>
             </div>
           </>
         )}
@@ -1358,49 +1227,258 @@ function SettingsInner() {
                 <SlidersHorizontal className="h-4 w-4 text-accent-cyan" />
                 <h2 className="text-base font-semibold text-text-primary">Water tracker</h2>
               </div>
-              <p className="mt-1 text-xs text-text-muted">
-                Edit the four quick-add water buttons. The Water page will use these values directly instead of showing a separate custom button.
-              </p>
+              <p className="mt-1 text-xs text-text-muted">Edit the four quick-add water buttons used on the Water page.</p>
+              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {customWaterAmounts.map((amount, index) => (
+                  <div key={index}>
+                    <label className="text-xs font-medium text-text-muted">Quick add {index + 1} (ml)</label>
+                    <input
+                      type="number"
+                      value={amount}
+                      onChange={(e) => setCustomWaterAmounts((prev) => prev.map((item, itemIndex) => itemIndex === index ? e.target.value : item))}
+                      min={1}
+                      max={MAX_CUSTOM_WATER_GLASS_ML}
+                      placeholder={`e.g. ${DEFAULT_WATER_QUICK_AMOUNTS[index]}`}
+                      className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm bg-zinc-900 border border-zinc-800 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
 
-              <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,26rem)_1fr]">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {customWaterAmounts.map((amount, index) => (
-                    <div key={index}>
-                      <label className="text-xs font-medium text-text-muted">Quick add {index + 1} (ml)</label>
-                      <input
-                        type="number"
-                        value={amount}
-                        onChange={(e) => setCustomWaterAmounts((prev) => prev.map((item, itemIndex) => itemIndex === index ? e.target.value : item))}
-                        min={1}
-                        max={MAX_CUSTOM_WATER_GLASS_ML}
-                        placeholder={`e.g. ${DEFAULT_WATER_QUICK_AMOUNTS[index]}`}
-                        className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm"
-                      />
-                    </div>
-                  ))}
-                  <p className="sm:col-span-2 text-[11px] text-text-muted">
-                    Defaults are 100 ml, 250 ml, 500 ml, and 750 ml. Replace any slot with your actual bottle or glass amount.
-                  </p>
+            {/* Food preferences */}
+            <div className="glass-card rounded-2xl p-6">
+              <div className="flex items-center gap-2">
+                <Utensils className="h-4 w-4 text-emerald-400" />
+                <h2 className="text-base font-semibold text-text-primary">Food preferences</h2>
+              </div>
+              <p className="mt-1 text-xs text-text-muted">Used automatically when AI creates your food plan.</p>
+              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="text-xs font-medium text-text-muted">Dietary preference</label>
+                  <select
+                    value={dietaryPreference}
+                    onChange={(e) => setDietaryPreference(e.target.value as 'no_preference' | 'vegetarian' | 'non_vegetarian' | 'vegan')}
+                    className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm bg-zinc-900 border border-zinc-800 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                  >
+                    {dietaryPreferenceOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
+                <div>
+                  <label className="text-xs font-medium text-text-muted">Allergies / foods to avoid</label>
+                  <input
+                    type="text"
+                    value={allergyDraft}
+                    onChange={(e) => setAllergyDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ',') {
+                        e.preventDefault();
+                        const parts = allergyDraft.split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
+                        if (parts.length > 0) {
+                          setAllergies((prev) => Array.from(new Set([...prev, ...parts])));
+                          setAllergyDraft('');
+                        }
+                      } else if (e.key === 'Backspace' && allergyDraft === '' && allergies.length > 0) {
+                        setAllergies((prev) => prev.slice(0, -1));
+                      }
+                    }}
+                    onBlur={() => {
+                      const parts = allergyDraft.split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
+                      if (parts.length > 0) {
+                        setAllergies((prev) => Array.from(new Set([...prev, ...parts])));
+                        setAllergyDraft('');
+                      }
+                    }}
+                    placeholder="Type and press Enter (e.g. peanuts)"
+                    className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm bg-zinc-900 border border-zinc-800 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                  />
+                  {allergies.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {allergies.map((tag, idx) => (
+                        <span
+                          key={`${tag}-${idx}`}
+                          className="inline-flex items-center gap-1 rounded-full border border-zinc-700 bg-zinc-800/60 pl-2.5 pr-1 py-0.5 text-xs text-zinc-200"
+                        >
+                          {tag}
+                          <button
+                            type="button"
+                            aria-label={`Remove ${tag}`}
+                            onClick={() => setAllergies((prev) => prev.filter((_, i) => i !== idx))}
+                            className="ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-700 hover:text-rose-400 transition-colors"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
 
-                <div className="rounded-2xl bg-white/[0.02] p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Preview</p>
-                  <div className="mt-3 grid grid-cols-2 gap-3">
-                    {customWaterAmounts.map((amount, index) => {
-                      const parsedAmount = Number(amount);
-                      const displayAmount = Number.isInteger(parsedAmount) && parsedAmount > 0
-                        ? formatWater(parsedAmount)
-                        : 'Set amount';
+            {/* Reminder schedule */}
+            <div className="glass-card rounded-2xl p-6">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Bell className="h-4 w-4 text-accent-violet" />
+                  <h2 className="text-base font-semibold text-text-primary">Reminder schedule</h2>
+                </div>
+                <button onClick={savePreferences} disabled={prefSaving}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors disabled:opacity-50">
+                  {prefSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                  Save Schedule
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-text-muted">Set the times for each reminder. Leave blank to disable.</p>
 
-                      return (
-                        <div key={index} className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-4 py-3">
-                          <p className="text-[11px] uppercase tracking-wide text-text-muted">Button {index + 1}</p>
-                          <p className="mt-1 text-sm font-semibold text-text-primary">{displayAmount}</p>
-                        </div>
-                      );
-                    })}
+              {/* Timezone */}
+              <div className="mt-4">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-medium text-text-muted">Timezone</label>
+                  <button type="button"
+                    onClick={() => setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone)}
+                    className="text-[10px] text-accent-violet hover:underline">
+                    Auto-detect
+                  </button>
+                </div>
+                <input type="text" value={timezone} onChange={(e) => setTimezone(e.target.value)}
+                  placeholder="e.g. Asia/Kolkata"
+                  className="glass-input w-full rounded-xl px-3 py-2 text-sm bg-zinc-900 border border-zinc-800 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
+              </div>
+
+              {/* Times grid */}
+              <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 lg:grid-cols-6">
+                {[
+                  { label: 'Breakfast',     value: breakfastTime, set: setBreakfastTime, key: 'breakfast' },
+                  { label: 'Lunch',         value: lunchTime,     set: setLunchTime,     key: 'lunch' },
+                  { label: 'Dinner',        value: dinnerTime,    set: setDinnerTime,    key: 'dinner' },
+                  { label: 'Sleep',         value: sleepTime,     set: setSleepTime,     key: 'sleep' },
+                  { label: 'Workout',       value: workoutTime,   set: setWorkoutTime,   key: 'workout' },
+                  { label: 'Weigh-in',      value: weighInTime,   set: setWeighInTime,   key: 'weighIn' },
+                ].map((t) => (
+                  <div key={t.key}>
+                    <label className="text-xs font-medium text-text-muted">{t.label}</label>
+                    <input type="time" value={t.value} onChange={(e) => t.set(e.target.value)}
+                      className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm bg-zinc-900 border border-zinc-800 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
+                    <p className="mt-1 text-[10px] text-text-muted truncate">{formatLastSent(lastSentAt[t.key]) || '—'}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Water reminders */}
+              <div className="mt-5 border-t border-zinc-800/80 pt-5">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-text-primary">Water reminders</p>
+                  <button type="button" onClick={() => setWaterReminderEnabled(!waterReminderEnabled)}
+                    className={cn('relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200', waterReminderEnabled ? 'bg-accent-violet' : 'bg-white/[0.1]')}
+                    aria-pressed={waterReminderEnabled}>
+                    <span className={cn('absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform duration-200', waterReminderEnabled && 'translate-x-5')} />
+                  </button>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 lg:grid-cols-6">
+                  <div className="lg:col-span-1">
+                    <label className="text-xs font-medium text-text-muted">Start</label>
+                    <input type="time" value={waterStartTime} onChange={(e) => setWaterStartTime(e.target.value)}
+                      className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm bg-zinc-900 border border-zinc-800 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
+                  </div>
+                  <div className="lg:col-span-1">
+                    <label className="text-xs font-medium text-text-muted">End</label>
+                    <input type="time" value={waterEndTime} onChange={(e) => setWaterEndTime(e.target.value)}
+                      className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm bg-zinc-900 border border-zinc-800 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
+                  </div>
+                  <div className="lg:col-span-1">
+                    <label className="text-xs font-medium text-text-muted">Frequency</label>
+                    <select
+                      value={waterFrequencyMinutes}
+                      onChange={(e) => setWaterFrequencyMinutes(Number(e.target.value))}
+                      className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm bg-zinc-900 border border-zinc-800 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                    >
+                      {[15, 30, 45, 60, 90, 120].map((minutes) => (
+                        <option key={minutes} value={minutes}>{minutes} min</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
+                <p className="mt-3 text-[11px] text-text-muted">Pauses 30 min before meals, resumes 60 min after. Last sent: {formatLastSent(lastSentAt.water) || 'None'}.</p>
+              </div>
+            </div>
+
+            {/* API keys */}
+            <div className="glass-card rounded-2xl p-6">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Key className="h-4 w-4 text-accent-cyan" />
+                  <h2 className="text-base font-semibold text-text-primary">API keys</h2>
+                </div>
+                <button onClick={saveApiKeys} disabled={apiKeysSaving}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors disabled:opacity-50">
+                  {apiKeysSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                  Save Keys
+                </button>
+              </div>
+              <p className="mt-1 flex items-center gap-1.5 text-xs text-text-muted">
+                <Shield className="h-3 w-3 text-accent-cyan shrink-0" /> AES-256 encrypted — never exposed to the browser.
+              </p>
+              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {[
+                  {
+                    label: 'OpenAI API Key', active: openAiActive, show: showOpenai,
+                    toggleShow: () => setShowOpenai(!showOpenai), value: openaiKey,
+                    set: setOpenaiKey, placeholder: openAiActive ? '••••••••••••••••' : 'sk-...',
+                    hint: 'Required for AI meal suggestions, workout plans, and insights.',
+                  },
+                  {
+                    label: 'USDA FoodData Central API Key', active: fdcActive, show: showFdc,
+                    toggleShow: () => setShowFdc(!showFdc), value: fdcKey,
+                    set: setFdcKey, placeholder: fdcActive ? '••••••••••••••••' : 'Your FDC API key',
+                    hint: 'Required for food search. Get a free key at fdc.nal.usda.gov/api-key-signup',
+                  },
+                ].map((k) => (
+                  <div key={k.label}>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-medium text-text-muted">{k.label}</label>
+                      {k.active && (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-accent-emerald/10 px-1.5 py-0.5 text-[10px] font-medium text-accent-emerald">
+                          <CheckCircle2 className="h-3 w-3" /> Active
+                        </span>
+                      )}
+                    </div>
+                    <div className="relative mt-1">
+                      <input type={k.show ? 'text' : 'password'} value={k.value}
+                        onChange={(e) => k.set(e.target.value)} placeholder={k.placeholder}
+                        className="glass-input w-full rounded-xl px-3 py-2 pr-10 text-sm bg-zinc-900 border border-zinc-800 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
+                      <button type="button" onClick={k.toggleShow}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary">
+                        {k.show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    <p className="mt-1 text-[11px] text-text-muted">{k.hint}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Units */}
+            <div className="glass-card rounded-2xl p-6">
+              <div className="flex items-center gap-2">
+                <Ruler className="h-4 w-4 text-accent-cyan" />
+                <h2 className="text-base font-semibold text-text-primary">Units</h2>
+              </div>
+              <p className="mt-1 text-xs text-text-muted">How weight and height are displayed across the app.</p>
+              <div className="mt-4 grid grid-cols-2 gap-2 max-w-xs">
+                {(['metric', 'imperial'] as const).map((u) => (
+                  <button key={u} type="button" onClick={() => setUnits(u)}
+                    className={cn('rounded-2xl border px-4 py-3 text-left transition-all',
+                      units === u ? 'border-accent-violet/30 bg-accent-violet/10 text-accent-violet'
+                        : 'border-white/[0.06] bg-white/[0.03] text-text-muted hover:bg-white/[0.05]')}>
+                    <p className="text-sm font-semibold capitalize">{u}</p>
+                    <p className="mt-0.5 text-[11px] opacity-80">{u === 'metric' ? 'kg, cm' : 'lbs, in'}</p>
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -1417,270 +1495,135 @@ function SettingsInner() {
         {/* ══════ NOTIFICATIONS ══════ */}
         {activeTab === 'notifications' && (
           <>
-            {/* Units */}
-            <div className="glass-card rounded-2xl p-6">
-              <p className="text-sm font-semibold text-text-primary">Units</p>
-              <p className="mt-1 text-xs text-text-muted">How weight and height are displayed across the app.</p>
-              <div className="mt-4 grid grid-cols-2 gap-2 max-w-xs">
-                {(['metric', 'imperial'] as const).map((u) => (
-                  <button key={u} type="button" onClick={() => setUnits(u)}
-                    className={cn('rounded-2xl border px-4 py-3 text-left transition-all',
-                      units === u ? 'border-accent-violet/30 bg-accent-violet/10 text-accent-violet'
-                        : 'border-white/[0.06] bg-white/[0.03] text-text-muted hover:bg-white/[0.05]')}>
-                    <p className="text-sm font-semibold capitalize">{u}</p>
-                    <p className="mt-0.5 text-[11px] opacity-80">{u === 'metric' ? 'kg, cm' : 'lbs, in'}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Reminder toggles */}
-            <div className="glass-card rounded-2xl p-6">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-text-primary">Reminder notifications</p>
-                  <p className="mt-1 text-xs text-text-muted">Control which reminders you receive by email.</p>
-                </div>
-                <span className="rounded-full bg-white/[0.04] px-3 py-1 text-[11px] font-medium text-text-muted">{enabledCount}/5 on</span>
-              </div>
-              <div className="mt-4 space-y-2">
-                {[
-                  { key: 'water',   label: 'Water reminders',        value: waterNotif,   set: setWaterNotif,   icon: Droplets, color: 'text-accent-cyan' },
-                  { key: 'meals',   label: 'Meal logging reminders',  value: mealNotif,    set: setMealNotif,    icon: Utensils, color: 'text-accent-emerald' },
-                  { key: 'weighIn', label: 'Daily weigh-in',          value: weighInNotif, set: setWeighInNotif, icon: Scale,    color: 'text-accent-amber' },
-                  { key: 'workout', label: 'Workout reminders',       value: workoutNotif, set: setWorkoutNotif, icon: Dumbbell, color: 'text-accent-rose' },
-                  { key: 'sleep',   label: 'Sleep reminders',         value: sleepNotif,   set: setSleepNotif,   icon: Moon,     color: 'text-accent-violet' },
-                ].map((item) => (
-                  <div key={item.key} className="flex items-center justify-between gap-3 rounded-2xl bg-white/[0.02] px-4 py-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/[0.04]', item.color)}>
-                        <item.icon className="h-4 w-4" />
-                      </div>
-                      <span className="truncate text-sm text-text-secondary">{item.label}</span>
-                    </div>
-                    <button type="button" onClick={() => item.set(!item.value)}
-                      className={cn('relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200', item.value ? 'bg-accent-violet' : 'bg-white/[0.1]')}
-                      aria-pressed={item.value}>
-                      <span className={cn('absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform duration-200', item.value && 'translate-x-5')} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Reminder schedule */}
-            <div className="glass-card rounded-2xl p-6">
-              <p className="text-sm font-semibold text-text-primary">Reminder schedule</p>
-              <p className="mt-1 text-xs text-text-muted">Set the times for each reminder. Leave blank to disable that reminder.</p>
-              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {/* Timezone */}
-                <div className="sm:col-span-2">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs font-medium text-text-muted">Timezone</label>
-                    <button type="button"
-                      onClick={() => setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone)}
-                      className="text-[10px] text-accent-violet hover:underline">
-                      Auto-detect
-                    </button>
-                  </div>
-                  <input type="text" value={timezone} onChange={(e) => setTimezone(e.target.value)}
-                    placeholder="e.g. Asia/Kolkata"
-                    className="w-full rounded-xl bg-white/[0.03] border border-white/[0.06] px-3 py-2 text-sm text-text-primary placeholder:text-text-muted/50 focus:outline-none focus:border-accent-violet/50 transition-colors" />
-                </div>
-                {[
-                  { label: 'Breakfast time',            value: breakfastTime, set: setBreakfastTime, key: 'breakfast' },
-                  { label: 'Lunch time',                value: lunchTime,     set: setLunchTime,     key: 'lunch' },
-                  { label: 'Dinner time',               value: dinnerTime,    set: setDinnerTime,    key: 'dinner' },
-                  { label: 'Sleep reminder time',       value: sleepTime,     set: setSleepTime,     key: 'sleep' },
-                  { label: 'Workout time',              value: workoutTime,   set: setWorkoutTime,   key: 'workout' },
-                  { label: 'Weigh-in time (morning)',   value: weighInTime,   set: setWeighInTime,   key: 'weighIn' },
-                ].map((t) => (
-                  <div key={t.key}>
-                    <label className="mb-1.5 block text-xs font-medium text-text-muted">{t.label}</label>
-                    <input type="time" value={t.value} onChange={(e) => t.set(e.target.value)}
-                      className="w-full rounded-xl bg-white/[0.03] border border-white/[0.06] px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent-violet/50 transition-colors" />
-                    <p className="mt-1 text-[10px] text-text-muted">Last sent: {formatLastSent(lastSentAt[t.key]) || 'None'}</p>
-                  </div>
-                ))}
-                {/* Water schedule */}
-                <div className="sm:col-span-2 rounded-2xl bg-white/[0.02] px-4 py-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <span className="text-sm font-medium text-text-secondary">Water reminders</span>
-                      <p className="text-[10px] text-text-muted mt-0.5">Last sent: {formatLastSent(lastSentAt.water) || 'None'}</p>
-                    </div>
-                    <button type="button" onClick={() => setWaterReminderEnabled(!waterReminderEnabled)}
-                      className={cn('relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200', waterReminderEnabled ? 'bg-accent-violet' : 'bg-white/[0.1]')}
-                      aria-pressed={waterReminderEnabled}>
-                      <span className={cn('absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform duration-200', waterReminderEnabled && 'translate-x-5')} />
-                    </button>
-                  </div>
-                  <div className="mt-3 grid grid-cols-1 gap-1 text-[10px] text-text-muted sm:grid-cols-2">
-                    <p>Before Breakfast: no water reminders 30 min prior</p>
-                    <p>After Breakfast: resumes 60 min after meal</p>
-                    <p>Before Lunch: no water reminders 30 min prior</p>
-                    <p>After Lunch: resumes 60 min after meal</p>
-                    <p>Before Dinner: no water reminders 30 min prior</p>
-                    <p>After Dinner: resumes 60 min after meal</p>
-                  </div>
-                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <div>
-                      <label className="mb-1.5 block text-xs font-medium text-text-muted">Start time</label>
-                      <input type="time" value={waterStartTime} onChange={(e) => setWaterStartTime(e.target.value)}
-                        className="w-full rounded-xl bg-white/[0.03] border border-white/[0.06] px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent-violet/50 transition-colors" />
-                    </div>
-                    <div>
-                      <label className="mb-1.5 block text-xs font-medium text-text-muted">End time</label>
-                      <input type="time" value={waterEndTime} onChange={(e) => setWaterEndTime(e.target.value)}
-                        className="w-full rounded-xl bg-white/[0.03] border border-white/[0.06] px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent-violet/50 transition-colors" />
-                    </div>
-                    <div>
-                      <label className="mb-1.5 block text-xs font-medium text-text-muted">Frequency (minutes)</label>
-                      <select
-                        value={waterFrequencyMinutes}
-                        onChange={(e) => setWaterFrequencyMinutes(Number(e.target.value))}
-                        className="w-full rounded-xl bg-white/[0.03] border border-white/[0.06] px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent-violet/50 transition-colors"
-                      >
-                        {[15, 30, 45, 60, 90, 120].map((minutes) => (
-                          <option key={minutes} value={minutes}>{minutes} min</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  <p className="mt-2 text-[10px] text-text-muted">Default window is 06:00 to 21:00 in your timezone.</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end">
-              <button onClick={savePreferences} disabled={prefSaving}
-                className="glass-button-primary flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold disabled:opacity-50">
-                {prefSaving ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <Save className="h-4 w-4" />}
-                Save
-              </button>
-            </div>
-          </>
-        )}
-
-        {/* ══════ EMAIL ══════ */}
-        {activeTab === 'email' && (
-          <>
-            {/* Setup status */}
-            <div className="flex flex-wrap gap-2">
-              {[
-                { label: 'Recipients', done: emailChecklist.recipientListSaved },
-                { label: 'SMTP',       done: emailChecklist.smtpSaved },
-                { label: 'SMTP test',  done: emailChecklist.smtpTestSent },
-                { label: 'IMAP',       done: emailChecklist.imapSaved },
-                { label: 'IMAP test',  done: emailChecklist.imapTestSent },
-                { label: 'IMAP reply', done: Boolean(emailChecklist.imapReplyVerifiedAt) },
-              ].map((s) => (
-                <span key={s.label} className={cn('flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium border',
-                  s.done ? 'bg-accent-emerald/10 border-accent-emerald/20 text-accent-emerald' : 'bg-white/[0.03] border-white/[0.06] text-text-muted')}>
-                  <CheckCircle2 className={cn('h-3 w-3', s.done ? 'text-accent-emerald' : 'text-text-muted opacity-30')} />
-                  {s.label}
-                </span>
-              ))}
-            </div>
 
             {/* Recipients */}
             <div className="glass-card rounded-2xl p-6">
-              <p className="text-sm font-semibold text-text-primary">Recipients</p>
-              <p className="mt-1 text-xs text-text-muted">Reminder and test emails go to this list.</p>
-              <div className="mt-3 flex gap-2">
-                <input type="email" value={recipientInput} onChange={(e) => setRecipientInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && addRecipientEmail()} placeholder="email@example.com"
-                  className="min-w-0 flex-1 rounded-xl bg-white/[0.03] border border-white/[0.06] px-3 py-2 text-sm text-text-primary placeholder:text-text-muted/50 focus:outline-none focus:border-accent-violet/50 transition-colors" />
-                <button type="button" onClick={addRecipientEmail}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent-violet/10 text-accent-violet hover:bg-accent-violet/20 transition-colors">
-                  <Plus className="h-4 w-4" />
-                </button>
+              <div className="flex items-center gap-2">
+                <Mail className="h-4 w-4 text-accent-emerald" />
+                <h2 className="text-base font-semibold text-text-primary">Recipients</h2>
               </div>
-              {recipientEmails.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {recipientEmails.map((email) => (
-                    <span key={email} className="flex items-center gap-1 rounded-full bg-white/[0.05] border border-white/[0.06] px-2.5 py-1 text-[11px] text-text-secondary">
-                      {email}
-                      <button type="button" onClick={() => setRecipientEmails(recipientEmails.filter((e) => e !== email))}
-                        className="text-text-muted hover:text-text-primary transition-colors">
-                        <X className="h-3 w-3" />
-                      </button>
-                    </span>
-                  ))}
+              <div className="flex items-center justify-between gap-3 mt-1">
+                <p className="text-xs text-text-muted">Reminder and test emails go to this list.</p>
+                <div className="flex shrink-0 items-center gap-2">
+                  <button onClick={sendTestEmail} disabled={sendingTestEmail || savingRecipients}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors disabled:opacity-50">
+                    {sendingTestEmail ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                    Send Test
+                  </button>
+                  <button onClick={saveRecipientEmails} disabled={savingRecipients || sendingTestEmail}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors disabled:opacity-50">
+                    {savingRecipients ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                    Save
+                  </button>
                 </div>
-              )}
-              <div className="mt-4 flex justify-end gap-2">
-                <button onClick={sendTestEmail} disabled={sendingTestEmail || savingRecipients}
-                  className="flex items-center justify-center rounded-xl border border-white/[0.12] bg-white/[0.03] px-5 py-2 text-sm font-semibold text-text-secondary hover:bg-white/[0.06] disabled:opacity-50">
-                  {sendingTestEmail ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : 'Send Test Email'}
-                </button>
-                <button onClick={saveRecipientEmails} disabled={savingRecipients || sendingTestEmail}
-                  className="glass-button-primary flex items-center gap-2 rounded-xl px-5 py-2 text-sm font-semibold disabled:opacity-50">
-                  {savingRecipients ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <Save className="h-4 w-4" />}
-                  Save
-                </button>
+              </div>
+              <div className="mt-3">
+                <input type="email" value={recipientInput} onChange={(e) => setRecipientInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ',') {
+                      e.preventDefault();
+                      addRecipientEmail();
+                    } else if (e.key === 'Backspace' && recipientInput === '' && recipientEmails.length > 0) {
+                      setRecipientEmails(recipientEmails.slice(0, -1));
+                    }
+                  }}
+                  placeholder="Type and press Enter (e.g. you@example.com)"
+                  className="glass-input w-full rounded-xl px-3 py-2 text-sm bg-zinc-900 border border-zinc-800 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
+                {recipientEmails.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {recipientEmails.map((email, idx) => (
+                      <span key={`${email}-${idx}`} className="inline-flex items-center gap-1 rounded-full border border-zinc-700 bg-zinc-800/60 pl-2.5 pr-1 py-0.5 text-xs text-zinc-200">
+                        {email}
+                        <button type="button" aria-label={`Remove ${email}`}
+                          onClick={() => setRecipientEmails(recipientEmails.filter((_, i) => i !== idx))}
+                          className="ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-700 hover:text-rose-400 transition-colors">
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
             {/* SMTP + IMAP */}
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              {[
-                {
-                  label: 'SMTP', desc: 'Sends reminders to your recipient list', configured: hasSmtp,
-                  emailUser: smtpUser, setEmailUser: setSmtpUser, pass: smtpPass, setPass: setSmtpPass,
-                  showPass: showSmtpPass, toggleShow: () => setShowSmtpPass(!showSmtpPass),
-                  saving: savingSmtp, onSave: saveSmtpSettings, btnLabel: 'Save SMTP',
-                },
-                {
-                  label: 'IMAP', desc: 'Reads your replies and auto-logs them', configured: hasImap,
-                  emailUser: imapUser, setEmailUser: setImapUser, pass: imapPass, setPass: setImapPass,
-                  showPass: showImapPass, toggleShow: () => setShowImapPass(!showImapPass),
-                  saving: savingImap, onSave: saveImapSettings, btnLabel: 'Save IMAP',
-                },
-              ].map((cfg) => (
-                <div key={cfg.label} className={cn('glass-card rounded-2xl p-5 flex flex-col transition-all duration-300', cfg.configured && 'border border-accent-emerald/30')}>
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-xl', cfg.configured ? 'bg-accent-emerald/15 text-accent-emerald' : 'bg-white/[0.04] text-text-muted')}>
-                        <Mail className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-text-primary">{cfg.label}</p>
-                        <p className="text-[11px] text-text-muted">{cfg.desc}</p>
-                      </div>
-                    </div>
+            {[
+              {
+                label: 'SMTP', desc: 'Sends reminders to your recipient list.', configured: hasSmtp,
+                emailUser: smtpUser, setEmailUser: setSmtpUser, pass: smtpPass, setPass: setSmtpPass,
+                showPass: showSmtpPass, toggleShow: () => setShowSmtpPass(!showSmtpPass),
+                saving: savingSmtp, onSave: saveSmtpSettings,
+              },
+              {
+                label: 'IMAP', desc: 'Reads your replies and auto-logs them.', configured: hasImap,
+                emailUser: imapUser, setEmailUser: setImapUser, pass: imapPass, setPass: setImapPass,
+                showPass: showImapPass, toggleShow: () => setShowImapPass(!showImapPass),
+                saving: savingImap, onSave: saveImapSettings,
+              },
+            ].map((cfg) => (
+              <div key={cfg.label} className="glass-card rounded-2xl p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-accent-emerald" />
+                    <h2 className="text-base font-semibold text-text-primary">{cfg.label}</h2>
                     {cfg.configured && (
-                      <span className="shrink-0 rounded-full bg-accent-emerald/10 px-2.5 py-1 text-[11px] font-medium text-accent-emerald">Configured</span>
+                      <span className="inline-flex items-center gap-1 rounded-md bg-accent-emerald/10 px-1.5 py-0.5 text-[10px] font-medium text-accent-emerald">
+                        <CheckCircle2 className="h-3 w-3" /> Configured
+                      </span>
                     )}
                   </div>
-                  <div className="mt-4 space-y-3">
-                    <div>
-                      <label className="mb-1.5 block text-xs font-medium text-text-muted">Email</label>
-                      <input type="email" value={cfg.emailUser} onChange={(e) => cfg.setEmailUser(e.target.value)} placeholder="you@gmail.com"
-                        className="w-full rounded-xl bg-white/[0.03] border border-white/[0.06] px-3 py-2 text-sm text-text-primary placeholder:text-text-muted/50 focus:outline-none focus:border-accent-violet/50 transition-colors" />
-                    </div>
-                    <div>
-                      <label className="mb-1.5 block text-xs font-medium text-text-muted">Password</label>
-                      <div className="relative">
-                        <input type={cfg.showPass ? 'text' : 'password'} value={cfg.pass} onChange={(e) => cfg.setPass(e.target.value)}
-                          placeholder={cfg.configured ? '•••••••• (leave blank to keep)' : 'App password'}
-                          className="w-full rounded-xl bg-white/[0.03] border border-white/[0.06] px-3 py-2 pr-10 text-sm text-text-primary placeholder:text-text-muted/50 focus:outline-none focus:border-accent-violet/50 transition-colors" />
-                        <button type="button" onClick={cfg.toggleShow}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors">
-                          {cfg.showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-                    </div>
+                  <button onClick={cfg.onSave} disabled={cfg.saving}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors disabled:opacity-50">
+                    {cfg.saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                    Save {cfg.label}
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-text-muted">{cfg.desc}</p>
+                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="text-xs font-medium text-text-muted">Email</label>
+                    <input type="email" value={cfg.emailUser} onChange={(e) => cfg.setEmailUser(e.target.value)} placeholder="you@gmail.com"
+                      className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm bg-zinc-900 border border-zinc-800 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
                   </div>
-                  <div className="mt-4 flex justify-end">
-                    <button onClick={cfg.onSave} disabled={cfg.saving}
-                      className="glass-button-primary flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold disabled:opacity-50">
-                      {cfg.saving ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <Save className="h-4 w-4" />}
-                      {cfg.btnLabel}
-                    </button>
+                  <div>
+                    <label className="text-xs font-medium text-text-muted">Password</label>
+                    <div className="relative mt-1">
+                      <input type={cfg.showPass ? 'text' : 'password'} value={cfg.pass} onChange={(e) => cfg.setPass(e.target.value)}
+                        placeholder={cfg.configured ? '•••••••• (leave blank to keep)' : 'App password'}
+                        className="glass-input w-full rounded-xl px-3 py-2 pr-10 text-sm bg-zinc-900 border border-zinc-800 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
+                      <button type="button" onClick={cfg.toggleShow}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors">
+                        {cfg.showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              ))}
+              </div>
+            ))}
+
+            {/* Setup status */}
+            <div className="glass-card rounded-2xl p-6">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-accent-emerald" />
+                <h2 className="text-base font-semibold text-text-primary">Setup status</h2>
+              </div>
+              <p className="mt-1 text-xs text-text-muted">Steps completed for email delivery and reply ingestion.</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {[
+                  { label: 'Recipients', done: emailChecklist.recipientListSaved },
+                  { label: 'SMTP',       done: emailChecklist.smtpSaved },
+                  { label: 'SMTP test',  done: emailChecklist.smtpTestSent },
+                  { label: 'IMAP',       done: emailChecklist.imapSaved },
+                  { label: 'IMAP test',  done: emailChecklist.imapTestSent },
+                  { label: 'IMAP reply', done: Boolean(emailChecklist.imapReplyVerifiedAt) },
+                ].map((s) => (
+                  <span key={s.label} className={cn('flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium border',
+                    s.done ? 'bg-accent-emerald/10 border-accent-emerald/20 text-accent-emerald' : 'bg-white/[0.03] border-white/[0.06] text-text-muted')}>
+                    <CheckCircle2 className={cn('h-3 w-3', s.done ? 'text-accent-emerald' : 'text-text-muted opacity-30')} />
+                    {s.label}
+                  </span>
+                ))}
+              </div>
             </div>
           </>
         )}
@@ -2083,17 +2026,18 @@ function TodosSettingsTab() {
   return (
     <div className="glass-card rounded-2xl p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-base font-semibold text-zinc-100">Daily Todos</h2>
-          <p className="mt-0.5 text-xs text-zinc-500">
-            Recurring checklist — resets fresh every day.
-          </p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <CheckSquare className="h-4 w-4 text-emerald-400" />
+            <h2 className="text-base font-semibold text-text-primary">Daily Todos</h2>
+          </div>
+          <p className="mt-1 text-xs text-text-muted">Recurring checklist — resets fresh every day.</p>
         </div>
         {!showForm && (
           <button type="button" onClick={() => setShowForm(true)}
-            className="flex items-center gap-1.5 rounded-xl bg-emerald-500/10 px-3.5 py-2 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 transition-colors ring-1 ring-emerald-500/20">
-            <Plus className="h-3.5 w-3.5" />
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 transition-colors">
+            <Plus className="h-3 w-3" />
             Add item
           </button>
         )}
