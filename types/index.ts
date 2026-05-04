@@ -11,7 +11,7 @@ export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'ver
 export type Goal = 'lose' | 'maintain' | 'gain';
 export type UnitSystem = 'metric' | 'imperial';
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
-export type WorkoutCategory = 'cardio' | 'strength' | 'flexibility' | 'sports' | 'other';
+export type WorkoutCategory = 'cardio' | 'strength' | 'flexibility' | 'core' | 'sports' | 'other';
 export type BodyType = 'ectomorph' | 'mesomorph' | 'endomorph';
 export type FitnessLevel = 'beginner' | 'intermediate' | 'advanced';
 export type FatFocusArea = 'belly' | 'hips' | 'thighs' | 'arms' | 'chest' | 'overall';
@@ -95,6 +95,12 @@ export interface ReminderScheduleSettings {
 }
 
 export type HealthDataSyncSource = 'manual' | 'auto';
+export type DietaryPreference = 'no_preference' | 'vegetarian' | 'non_vegetarian' | 'vegan';
+
+export interface FoodPreferencesSettings {
+  dietaryPreference?: DietaryPreference;
+  allergies?: string[];
+}
 
 export interface HealthDataSettings {
   endpoint?: string;
@@ -155,6 +161,8 @@ export interface UserSettings {
   };
   /** External health data sync settings + latest sync metadata. */
   healthData?: HealthDataSettings;
+  /** Food planning preferences used by AI meal generation. */
+  foodPreferences?: FoodPreferencesSettings;
 }
 
 export interface UserTargets {
@@ -427,6 +435,8 @@ export interface AiMealSuggestion {
 export interface AiWorkoutPlan {
   name: string;
   description: string;
+  strategyUsed?: 'full_body_fat_loss' | 'upper_lower' | 'push_pull_legs';
+  readinessAdjustment?: string;
   progressionTip?: string;
   reasoning?: string;
   exercises: {
@@ -438,6 +448,7 @@ export interface AiWorkoutPlan {
     restSeconds: number;
     intensity?: 'low' | 'medium' | 'high';
     category: WorkoutCategory;
+    muscleGroup?: 'legs' | 'push' | 'pull' | 'core';
   }[];
   estimatedCalories: number;
   durationMinutes: number;

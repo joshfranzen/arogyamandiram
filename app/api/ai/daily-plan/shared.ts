@@ -5,6 +5,9 @@ export type FoodRequestBody = {
   lastWeekFoodDetails?: string;
   goal?: string;
   dietaryPreference?: string;
+  allergies?: string[];
+  targetProteinG?: number;
+  targetCalories?: number;
 };
 
 export type OverviewRequestBody = {
@@ -81,7 +84,22 @@ export type WorkoutPromptContext = {
 
 const VALID_MEAL_TYPES = new Set(['breakfast', 'lunch', 'dinner', 'snack']);
 const VALID_INTENSITIES = new Set(['low', 'medium', 'high']);
-const VALID_CATEGORIES = new Set(['cardio', 'strength', 'flexibility', 'sports', 'other']);
+const VALID_CATEGORIES = new Set(['cardio', 'strength', 'flexibility', 'core']);
+const VALID_MUSCLE_GROUPS = new Set(['legs', 'push', 'pull', 'core']);
+const DEFAULT_REQUIRED_COMPONENTS: Array<'legs' | 'push' | 'pull' | 'core'> = ['legs', 'push', 'pull', 'core'];
+
+export type WorkoutPlanConstraints = {
+  targetDurationMinutes: number;
+  strategy: 'full_body_fat_loss' | 'upper_lower' | 'push_pull_legs';
+  requiredComponentsPerWorkout: Array<'legs' | 'push' | 'pull' | 'core'>;
+  readinessAdjustment: string;
+  reduceVolume: boolean;
+  reduceExtraCardio: boolean;
+  includeLightCardio: boolean;
+  avoidHighIntensity: boolean;
+  bodyFatPct?: number;
+  weightKg?: number;
+};
 
 function asString(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value.trim() || fallback : fallback;
@@ -206,14 +224,123 @@ function sanitizeWorkoutContext(context?: WorkoutPromptContext) {
   return { profile, targets, recentLogs, recentFeedback };
 }
 
+function normalizeFitnessLevel(level: string): 'beginner' | 'intermediate' | 'advanced' {
+  const normalized = level.trim().toLowerCase();
+  if (normalized === 'advanced') return 'advanced';
+  if (normalized === 'intermediate') return 'intermediate';
+  return 'beginner';
+}
+
+export function deriveWorkoutPlanConstraints(
+  body: WorkoutRequestBody,
+  context?: WorkoutPromptContext
+): WorkoutPlanConstraints {
+  const sanitized = sanitizeWorkoutContext(context);
+  const fitnessLevel = normalizeFitnessLevel(
+    body.fitnessLevel?.trim() || sanitized?.profile?.fitnessLevel || 'beginner'
+  );
+  const bodyFatPct = toFinite(sanitized?.profile?.bodyFatPct);
+  const activityLevel = asString(sanitized?.profile?.activityLevel).toLowerCase();
+
+  let strategy: WorkoutPlanConstraints['strategy'] = 'full_body_fat_loss';
+  if (fitnessLevel === 'beginner' && (bodyFatPct ?? 0) > 20) {
+    strategy = 'full_body_fat_loss';
+  } else if (fitnessLevel === 'intermediate') {
+    strategy = ['active', 'very_active', 'moderate'].includes(activityLevel)
+      ? 'push_pull_legs'
+      : 'upper_lower';
+  } else if (fitnessLevel === 'advanced') {
+    strategy = 'push_pull_legs';
+  }
+
+  const minutes = Number(body.todayAvailableMinutes);
+  const targetDurationMinutes = Number.isFinite(minutes) && minutes > 0
+    ? clamp(Math.round(minutes), 12, 120)
+    : clamp(Math.round(sanitized?.targets?.dailyWorkoutMinutes ?? 30), 12, 120);
+
+  const recentLogs = sanitized?.recentLogs ?? [];
+  const proteinTarget = sanitized?.targets?.proteinG;
+  const proteinRatios = recentLogs
+    .map((log) => {
+      const protein = toFinite(log.nutrition?.proteinG);
+      if (!proteinTarget || proteinTarget <= 0 || protein == null || protein < 0) return null;
+      return protein / proteinTarget;
+    })
+    .filter((v): v is number => typeof v === 'number');
+  const avgProteinRatio = proteinRatios.length > 0
+    ? proteinRatios.reduce((sum, ratio) => sum + ratio, 0) / proteinRatios.length
+    : 1;
+
+  const stepValues = recentLogs
+    .map((log) => toFinite(log.activity?.steps))
+    .filter((v): v is number => typeof v === 'number' && v >= 0);
+  const avgSteps = stepValues.length > 0
+    ? stepValues.reduce((sum, steps) => sum + steps, 0) / stepValues.length
+    : 0;
+
+  const sleepDurations = recentLogs
+    .map((log) => toFinite(log.recovery?.sleepDurationHours))
+    .filter((v): v is number => typeof v === 'number' && v > 0);
+  const avgSleepHours = sleepDurations.length > 0
+    ? sleepDurations.reduce((sum, hours) => sum + hours, 0) / sleepDurations.length
+    : (sanitized?.targets?.sleepHours ?? 7);
+
+  const stepsTarget = sanitized?.targets?.dailySteps ?? 8000;
+  const reduceVolume = avgProteinRatio < 0.7;
+  const reduceExtraCardio = avgSteps > stepsTarget || avgSteps > 8000;
+  const includeLightCardio = avgSteps > 0 && avgSteps < 3000;
+  const avoidHighIntensity = avgSleepHours < 6;
+
+  const readinessLines: string[] = [];
+  if (reduceVolume) readinessLines.push('reduced volume because recent protein intake is under 70% of target');
+  if (reduceExtraCardio) readinessLines.push('reduced extra cardio because recent steps already exceed target');
+  if (includeLightCardio) readinessLines.push('included light cardio because recent step count is low');
+  if (avoidHighIntensity) readinessLines.push('avoided high intensity because recent sleep is under 6 hours');
+  if (readinessLines.length === 0) readinessLines.push('normal volume and intensity based on current readiness');
+
+  return {
+    targetDurationMinutes,
+    strategy,
+    requiredComponentsPerWorkout: DEFAULT_REQUIRED_COMPONENTS,
+    readinessAdjustment: readinessLines.join('; '),
+    reduceVolume,
+    reduceExtraCardio,
+    includeLightCardio,
+    avoidHighIntensity,
+    bodyFatPct,
+    weightKg: toFinite(sanitized?.profile?.weightKg),
+  };
+}
+
 export function buildFoodPrompt(body: FoodRequestBody, date: string): string {
   const details = body.lastWeekFoodDetails?.trim() || 'No previous food details provided.';
   const goal = body.goal?.trim() || 'Eat balanced meals for health';
-  const dietaryPreference = body.dietaryPreference?.trim() || 'No specific preference';
+  const dietaryPreferenceRaw = body.dietaryPreference?.trim() || 'no_preference';
+  const dietaryPreference = (() => {
+    if (dietaryPreferenceRaw === 'vegetarian') return 'Vegetarian';
+    if (dietaryPreferenceRaw === 'non_vegetarian') return 'Non-vegetarian';
+    if (dietaryPreferenceRaw === 'vegan') return 'Vegan';
+    return 'No specific preference';
+  })();
+  const allergies = Array.isArray(body.allergies)
+    ? body.allergies.map((entry) => entry.trim()).filter(Boolean)
+    : [];
+  const targetProtein = Number(body.targetProteinG);
+  const targetCalories = Number(body.targetCalories);
+  const proteinLine = Number.isFinite(targetProtein) && targetProtein > 0
+    ? `Daily protein target: ${Math.round(targetProtein)}g`
+    : 'Daily protein target: not provided';
+  const caloriesLine = Number.isFinite(targetCalories) && targetCalories > 0
+    ? `Daily calories target: ${Math.round(targetCalories)} kcal`
+    : 'Daily calories target: not provided';
   return [
     `Plan date: ${date}`,
     `Goal: ${goal}`,
     `Dietary preference: ${dietaryPreference}`,
+    `Allergies or avoid list: ${allergies.length > 0 ? allergies.join(', ') : 'None provided'}`,
+    proteinLine,
+    caloriesLine,
+    'Protein rule: Keep total daily protein close to the protein target and keep each main meal protein-forward.',
     `Last week food details from user: ${details}`,
   ].join('\n');
 }
@@ -241,18 +368,22 @@ export function buildWorkoutPrompt(
 ): string {
   const details = body.lastWeekDetails?.trim() || 'No previous workout details provided.';
   const sanitized = sanitizeWorkoutContext(context);
+  const constraints = deriveWorkoutPlanConstraints(body, context);
   const goal = body.goal?.trim() || sanitized?.profile?.goal || 'General fitness and consistency';
   const fitnessLevel = body.fitnessLevel?.trim() || sanitized?.profile?.fitnessLevel || 'beginner';
-  const minutes = Number(body.todayAvailableMinutes);
-  const durationTarget = Number.isFinite(minutes) && minutes > 0
-    ? Math.round(minutes)
-    : Math.round(sanitized?.targets?.dailyWorkoutMinutes ?? 30);
 
   const lines = [
     `Plan date: ${date}`,
     `Goal: ${goal}`,
     `Fitness level: ${fitnessLevel}`,
-    `Today workout target minutes: ${durationTarget}`,
+    `Today workout target minutes: ${constraints.targetDurationMinutes}`,
+    `Required planning architecture: strategy_engine -> readiness_adjustment -> daily_workout_generation -> fat_loss_intelligence -> calorie_estimation`,
+    `Computed strategy engine output: ${JSON.stringify({
+      strategy: constraints.strategy,
+      requiredComponentsPerWorkout: constraints.requiredComponentsPerWorkout,
+    })}`,
+    `Computed readiness adjustment: ${constraints.readinessAdjustment}`,
+    `Generation quality requirements: include legs + push + pull + core each session; order warm-up -> strength -> cardio -> core -> cooldown; include at least 2 cooldown stretches; keep duration within ±3 minutes of target.`,
     `Last week details from user: ${details}`,
   ];
 
@@ -304,41 +435,381 @@ export function normalizeFoodPlan(input: unknown): NonNullable<DailyPlanData['fo
   };
 }
 
-export function normalizeWorkoutPlan(input: unknown): AiWorkoutPlan {
-  const root = (input && typeof input === 'object') ? input as Record<string, unknown> : {};
+function inferMuscleGroup(name: string, category: string): 'legs' | 'push' | 'pull' | 'core' {
+  const n = name.toLowerCase();
+  if (category === 'core' || /core|plank|crunch|dead bug|bird dog|russian twist|hollow hold/.test(n)) return 'core';
+  if (/squat|lunge|glute|hamstring|calf|step-up|wall sit/.test(n)) return 'legs';
+  if (/push|press|dip|chest|shoulder|tricep/.test(n)) return 'push';
+  if (/row|pull|lat|rear delt|bicep/.test(n)) return 'pull';
+  return category === 'cardio' ? 'legs' : 'push';
+}
+
+type WorkoutExercise = AiWorkoutPlan['exercises'][number];
+const EQUIPMENT_MAP: Record<string, string> = {
+  'Bent Over Dumbbell Rows': 'Resistance Band Rows',
+  'Lat Pulldown': 'Towel Rows',
+  'Cable Row': 'Seated Resistance Band Rows',
+};
+
+function normalizeMuscleGroup(exercise: WorkoutExercise): WorkoutExercise {
+  if (exercise.category === 'cardio') {
+    return { ...exercise, muscleGroup: 'legs' };
+  }
+  if (exercise.category === 'flexibility') {
+    return { ...exercise, muscleGroup: 'core' };
+  }
+  return exercise;
+}
+
+function enforceBeginnerEquipment(exercise: WorkoutExercise): WorkoutExercise {
+  const replacement = EQUIPMENT_MAP[exercise.name];
+  if (!replacement) return exercise;
+  return { ...exercise, name: replacement };
+}
+
+function normalizeWarmup(exercise: WorkoutExercise): WorkoutExercise {
+  return {
+    ...exercise,
+    sets: 1,
+    reps: 'continuous',
+    durationMinutes: clamp(Math.round(asNumber(exercise.durationMinutes, 4)), 3, 5),
+    restSeconds: 0,
+    intensity: 'low',
+    category: 'cardio',
+    muscleGroup: 'legs',
+  };
+}
+
+function defaultWarmup(): WorkoutExercise {
+  return {
+    name: 'March in Place + Arm Circles',
+    sets: 1,
+    reps: 'continuous',
+    durationMinutes: 4,
+    restSeconds: 0,
+    category: 'cardio',
+    intensity: 'low',
+    muscleGroup: 'legs',
+  };
+}
+
+function isLikelyWarmup(exercise: WorkoutExercise): boolean {
+  const name = exercise.name.toLowerCase();
+  return /warm.?up|march in place|arm circles|mobility|joint rotation/.test(name)
+    || (exercise.category === 'flexibility' && exercise.intensity === 'low' && (exercise.durationMinutes ?? 0) <= 5);
+}
+
+function ensureMinCooldown(exercises: WorkoutExercise[]): WorkoutExercise[] {
+  const stretches = exercises.filter((exercise) => exercise.category === 'flexibility');
+  if (stretches.length >= 2) {
+    return stretches.slice(0, 4).map((stretch) => ({
+      ...stretch,
+      sets: Math.max(1, stretch.sets),
+      restSeconds: 0,
+      intensity: 'low',
+      muscleGroup: 'core',
+    }));
+  }
+  const required: WorkoutExercise[] = [
+    {
+      name: 'Standing Quad Stretch',
+      sets: 1,
+      reps: '30 seconds each leg',
+      durationMinutes: 2,
+      restSeconds: 0,
+      category: 'flexibility',
+      intensity: 'low',
+      muscleGroup: 'core',
+    },
+    {
+      name: 'Hamstring Stretch',
+      sets: 1,
+      reps: '30 seconds each leg',
+      durationMinutes: 2,
+      restSeconds: 0,
+      category: 'flexibility',
+      intensity: 'low',
+      muscleGroup: 'core',
+    },
+  ];
+  return [...stretches, ...required].slice(0, 2);
+}
+
+function ensureCore(exercises: WorkoutExercise[]): WorkoutExercise[] {
+  const coreExercises = exercises.filter((exercise) => exercise.muscleGroup === 'core');
+  if (coreExercises.length === 0) {
+    return [
+      ...exercises,
+      {
+        name: 'Plank',
+        sets: 3,
+        reps: '25-30 seconds',
+        durationMinutes: 5,
+        restSeconds: 30,
+        category: 'core',
+        intensity: 'medium',
+        muscleGroup: 'core',
+      },
+    ];
+  }
+  return exercises.map((exercise) => {
+    if (exercise.muscleGroup === 'core' && exercise.sets < 3) {
+      return { ...exercise, sets: 3, reps: '25-30 seconds' };
+    }
+    return exercise;
+  });
+}
+
+function enforceWorkoutOrder(exercises: WorkoutExercise[]): WorkoutExercise[] {
+  const warmupCandidates: WorkoutExercise[] = [];
+  const strength: WorkoutExercise[] = [];
+  const cardio: WorkoutExercise[] = [];
+  const core: WorkoutExercise[] = [];
+  const cooldownCandidates: WorkoutExercise[] = [];
+
+  for (const exercise of exercises) {
+    if (isLikelyWarmup(exercise)) {
+      warmupCandidates.push(exercise);
+    } else if (exercise.category === 'strength') {
+      strength.push(exercise);
+    } else if (exercise.category === 'cardio') {
+      cardio.push(exercise);
+    } else if (exercise.category === 'core') {
+      core.push(exercise);
+    } else if (exercise.category === 'flexibility') {
+      cooldownCandidates.push(exercise);
+    }
+  }
+
+  const warmup = warmupCandidates.length > 0
+    ? [normalizeWarmup(warmupCandidates[0])]
+    : [defaultWarmup()];
+  const cooldown = ensureMinCooldown([...warmupCandidates.slice(1), ...cooldownCandidates]);
+  return [...warmup, ...strength, ...cardio, ...core, ...cooldown];
+}
+
+function dedupeExercises(exercises: WorkoutExercise[]): WorkoutExercise[] {
+  const seen = new Set<string>();
+  const deduped: WorkoutExercise[] = [];
+  for (const exercise of exercises) {
+    const key = `${exercise.name.toLowerCase()}|${exercise.category}|${exercise.muscleGroup}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(exercise);
+  }
+  return deduped;
+}
+
+function createDefaultExercise(muscleGroup: 'legs' | 'push' | 'pull' | 'core'): AiWorkoutPlan['exercises'][number] {
+  if (muscleGroup === 'legs') {
+    return {
+      name: 'Bodyweight Squat',
+      sets: 3,
+      reps: '10-12',
+      durationMinutes: 6,
+      restSeconds: 60,
+      category: 'strength',
+      intensity: 'medium',
+      muscleGroup: 'legs',
+    };
+  }
+  if (muscleGroup === 'push') {
+    return {
+      name: 'Incline Push-up',
+      sets: 3,
+      reps: '8-12',
+      durationMinutes: 6,
+      restSeconds: 60,
+      category: 'strength',
+      intensity: 'medium',
+      muscleGroup: 'push',
+    };
+  }
+  if (muscleGroup === 'pull') {
+    return {
+      name: 'Band Row',
+      sets: 3,
+      reps: '10-12',
+      durationMinutes: 6,
+      restSeconds: 60,
+      category: 'strength',
+      intensity: 'medium',
+      muscleGroup: 'pull',
+    };
+  }
+  return {
+    name: 'Forearm Plank',
+    sets: 3,
+    reps: '30-45 sec hold',
+    durationMinutes: 5,
+    restSeconds: 45,
+    category: 'core',
+    intensity: 'medium',
+    muscleGroup: 'core',
+  };
+}
+
+function estimateCaloriesFromMet(exercises: AiWorkoutPlan['exercises'], weightKg?: number): number {
+  const weight = clamp(Math.round((weightKg ?? 70) * 10) / 10, 40, 160);
+  const total = exercises.reduce((sum, exercise) => {
+    const minutes = clamp(Math.round(asNumber(exercise.durationMinutes, 0)), 0, 180);
+    const intensity = exercise.intensity ?? 'medium';
+    const met = (() => {
+      if (exercise.category === 'cardio') return intensity === 'low' ? 4.2 : intensity === 'high' ? 6 : 5;
+      if (exercise.category === 'strength') return intensity === 'low' ? 3.5 : intensity === 'high' ? 6 : 4.8;
+      if (exercise.category === 'core') return intensity === 'low' ? 3 : intensity === 'high' ? 4.5 : 3.8;
+      return 2.5;
+    })();
+    return sum + ((met * 3.5 * weight) / 200) * minutes;
+  }, 0);
+  return clamp(Math.round(total), 40, 1200);
+}
+
+function generateProgression(exercises: WorkoutExercise[]): string {
+  const push = exercises.find((exercise) => exercise.muscleGroup === 'push');
+  const core = exercises.find((exercise) => exercise.muscleGroup === 'core');
+  return `Next session: add +2 reps to ${push?.name || 'your push exercise'} and +5 sec to ${core?.name || 'your core holds'}`;
+}
+
+function alignDuration(exercises: AiWorkoutPlan['exercises'], targetMinutes: number): AiWorkoutPlan['exercises'] {
+  const target = clamp(targetMinutes, 12, 120);
+  const current = exercises.reduce((sum, ex) => sum + clamp(Math.round(asNumber(ex.durationMinutes, 0)), 0, 180), 0);
+  if (Math.abs(current - target) <= 3) return exercises;
+  const updated = exercises.map((exercise) => ({ ...exercise }));
+  let delta = target - current;
+  const priorities = delta > 0
+    ? updated
+    : updated.filter((exercise) => exercise.category === 'cardio' || exercise.category === 'strength');
+  for (const exercise of priorities) {
+    if (Math.abs(delta) <= 3) break;
+    const currentDuration = clamp(Math.round(asNumber(exercise.durationMinutes, 5)), 1, 180);
+    if (delta > 0) {
+      const add = Math.min(4, delta);
+      exercise.durationMinutes = currentDuration + add;
+      delta -= add;
+    } else {
+      const removable = Math.max(0, currentDuration - 3);
+      const remove = Math.min(removable, Math.abs(delta));
+      exercise.durationMinutes = currentDuration - remove;
+      delta += remove;
+    }
+  }
+  return updated;
+}
+
+export function normalizeWorkoutPlan(input: unknown, constraints?: WorkoutPlanConstraints): AiWorkoutPlan {
+  const parsedRoot = (input && typeof input === 'object') ? input as Record<string, unknown> : {};
+  const root = (parsedRoot.workoutPlan && typeof parsedRoot.workoutPlan === 'object')
+    ? parsedRoot.workoutPlan as Record<string, unknown>
+    : parsedRoot;
   const rawExercises = Array.isArray(root.exercises) ? root.exercises : [];
 
-  const exercises: AiWorkoutPlan['exercises'] = rawExercises
+  let exercises: AiWorkoutPlan['exercises'] = rawExercises
     .map((raw) => {
       const ex = (raw && typeof raw === 'object') ? raw as Record<string, unknown> : {};
       const intensity = asString(ex.intensity, 'medium').toLowerCase();
-      const category = asString(ex.category, 'other').toLowerCase();
+      const category = asString(ex.category, 'strength').toLowerCase();
+      const muscleGroupRaw = asString(ex.muscleGroup).toLowerCase();
+      const name = asString(ex.name, 'Exercise');
       const steps = Array.isArray(ex.steps)
         ? ex.steps.map((step) => String(step).trim()).filter(Boolean).slice(0, 10)
         : [];
+      const safeCategory = (VALID_CATEGORIES.has(category) ? category : 'strength') as AiWorkoutPlan['exercises'][number]['category'];
+      const inferredMuscleGroup = inferMuscleGroup(name, safeCategory);
 
       return {
-        name: asString(ex.name, 'Exercise'),
+        name,
         ...(steps.length > 0 ? { steps } : {}),
         sets: clamp(Math.round(asNumber(ex.sets, 3)), 1, 20),
         reps: asString(ex.reps, '10-12'),
         durationMinutes: clamp(Math.round(asNumber(ex.durationMinutes, 5)), 1, 180),
         restSeconds: clamp(Math.round(asNumber(ex.restSeconds, 60)), 0, 600),
         intensity: (VALID_INTENSITIES.has(intensity) ? intensity : 'medium') as 'low' | 'medium' | 'high',
-        category: (VALID_CATEGORIES.has(category) ? category : 'other') as AiWorkoutPlan['exercises'][number]['category'],
+        category: safeCategory,
+        muscleGroup: (VALID_MUSCLE_GROUPS.has(muscleGroupRaw) ? muscleGroupRaw : inferredMuscleGroup) as 'legs' | 'push' | 'pull' | 'core',
       };
     })
     .filter((exercise) => exercise.name.length > 0)
     .slice(0, 20);
 
+  exercises = exercises.map(normalizeMuscleGroup).map(enforceBeginnerEquipment);
+
+  const requiredComponents = constraints?.requiredComponentsPerWorkout ?? DEFAULT_REQUIRED_COMPONENTS;
+  const availableGroups = new Set(exercises.map((exercise) => exercise.muscleGroup));
+  for (const component of requiredComponents) {
+    if (!availableGroups.has(component)) {
+      exercises.push(createDefaultExercise(component));
+      availableGroups.add(component);
+    }
+  }
+  exercises = ensureCore(exercises);
+  exercises = dedupeExercises(exercises);
+
+  if (constraints?.reduceVolume) {
+    exercises = exercises.map((exercise) => ({
+      ...exercise,
+      sets: exercise.category === 'flexibility' ? exercise.sets : Math.max(2, Math.min(exercise.sets, 3)),
+    }));
+  }
+
+  if (constraints?.avoidHighIntensity) {
+    exercises = exercises.map((exercise) => ({
+      ...exercise,
+      intensity: exercise.intensity === 'high' ? 'medium' : exercise.intensity,
+    }));
+  }
+
+  if (constraints?.reduceExtraCardio) {
+    exercises = exercises.map((exercise) => ({
+      ...exercise,
+      durationMinutes: exercise.category === 'cardio' && !isLikelyWarmup(exercise)
+        ? Math.min(exercise.durationMinutes ?? 5, 10)
+        : exercise.durationMinutes,
+    }));
+  }
+
+  if (constraints?.includeLightCardio && !exercises.some((exercise) => exercise.category === 'cardio' && (exercise.durationMinutes ?? 0) >= 6)) {
+    exercises.push({
+      name: 'Brisk Walk',
+      sets: 1,
+      reps: 'steady pace',
+      durationMinutes: 8,
+      restSeconds: 0,
+      category: 'cardio',
+      intensity: 'low',
+      muscleGroup: 'legs',
+    });
+  }
+
+  if ((constraints?.bodyFatPct ?? 0) >= 25) {
+    exercises = exercises.map((exercise) => ({
+      ...exercise,
+      durationMinutes: exercise.category === 'cardio'
+        ? Math.min(exercise.durationMinutes ?? 5, 15)
+        : exercise.durationMinutes,
+    }));
+    if (!exercises.some((exercise) => exercise.muscleGroup === 'core')) {
+      exercises.push(createDefaultExercise('core'));
+    }
+  }
+
+  exercises = enforceWorkoutOrder(exercises);
+  exercises = alignDuration(exercises, constraints?.targetDurationMinutes ?? Math.round(asNumber(root.durationMinutes, 30)));
+
+  const durationMinutes = exercises.reduce((sum, exercise) => sum + (exercise.durationMinutes ?? 0), 0);
+  const strategyUsed = constraints?.strategy ?? 'full_body_fat_loss';
+  const readinessAdjustment = constraints?.readinessAdjustment ?? 'normal volume and intensity based on current readiness';
+
   return {
-    name: asString(root.name, 'Today Workout'),
-    description: asString(root.description, 'A balanced session based on your recent activity.'),
-    progressionTip: asString(root.progressionTip) || undefined,
-    reasoning: asString(root.reasoning) || undefined,
+    name: asString(root.name, 'Today Full-Body Workout'),
+    description: asString(root.description, 'Balanced daily training designed from your profile, behavior, and recovery signals.'),
+    strategyUsed,
+    readinessAdjustment,
+    progressionTip: generateProgression(exercises),
+    reasoning: `${asString(root.reasoning, 'Plan built from profile, behavior, and recovery.')} Strategy: ${strategyUsed}. Readiness: ${readinessAdjustment}.`,
     exercises,
-    estimatedCalories: clamp(Math.round(asNumber(root.estimatedCalories, 220)), 0, 3000),
-    durationMinutes: clamp(Math.round(asNumber(root.durationMinutes, 30)), 1, 240),
+    estimatedCalories: estimateCaloriesFromMet(exercises, constraints?.weightKg),
+    durationMinutes: clamp(Math.round(durationMinutes), 12, 180),
   };
 }
 

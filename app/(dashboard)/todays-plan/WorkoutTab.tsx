@@ -59,6 +59,11 @@ function getTargetText(exercise: WorkoutExercise): string {
   return `${sets} sets × ${repsLabel}${totalReps > 0 ? ` (${totalReps} total)` : ''}${restPart}`;
 }
 
+function getExerciseDraftKey(exercise: WorkoutExercise, index: number): string {
+  const name = String(exercise.name || '').trim().toLowerCase();
+  return `${index}:${name}`;
+}
+
 // ─── WorkoutTab ───────────────────────────────────────────────────────────────
 
 export default function WorkoutTab() {
@@ -98,7 +103,7 @@ export default function WorkoutTab() {
     setWorkoutDrafts((prev) => {
       const next: Record<string, WorkoutDraft> = {};
       exercises.forEach((ex, index) => {
-        const key = String(index);
+        const key = getExerciseDraftKey(ex, index);
         const predicted = predictFiveMinuteTarget(ex);
         const aiReps = Math.max(0, Number(ex.sets) || 0) * Math.max(0, extractRepTarget(ex.reps));
         next[key] = prev[key] ?? { reps: aiReps > 0 ? aiReps : predicted.totalReps, saving: false, saved: false, error: null };
@@ -132,13 +137,13 @@ export default function WorkoutTab() {
   };
 
   const handleAddExercise = async (exercise: WorkoutExercise, index: number) => {
-    const key = String(index);
+    const key = getExerciseDraftKey(exercise, index);
     const draft = workoutDrafts[key];
-    if (draft?.saving) return;
+    if (draft?.saving || draft?.saved) return;
 
     const predicted = predictFiveMinuteTarget(exercise);
     const safeReps = Math.max(0, Math.round((draft?.reps ?? predicted.totalReps) || 0));
-    const category = (['cardio', 'strength', 'flexibility', 'sports'].includes(exercise.category ?? ''))
+    const category = (['cardio', 'strength', 'flexibility', 'core', 'sports'].includes(exercise.category ?? ''))
       ? exercise.category! : 'other';
     const totalDuration = Math.max(1, Number(workoutPlan?.durationMinutes) || 1);
     const totalCalories = Math.max(1, Number(workoutPlan?.estimatedCalories) || 1);
@@ -158,7 +163,6 @@ export default function WorkoutTab() {
       }
       setWorkoutDrafts((prev) => ({ ...prev, [key]: { ...prev[key], saving: false, saved: true, error: null } }));
       showToast(`${exercise.name} added to workout log`, 'success');
-      setTimeout(() => setWorkoutDrafts((prev) => prev[key] ? { ...prev, [key]: { ...prev[key], saved: false } } : prev), 1500);
     } catch (err) {
       setWorkoutDrafts((prev) => ({
         ...prev, [key]: { ...prev[key], saving: false, saved: false, error: err instanceof Error ? err.message : 'Failed to add' },
@@ -241,7 +245,7 @@ export default function WorkoutTab() {
       {/* Exercises */}
       <div className="space-y-2">
         {currentWorkoutPlan.exercises.map((ex, i) => {
-          const draft = workoutDrafts[String(i)];
+          const draft = workoutDrafts[getExerciseDraftKey(ex, i)];
           return (
             <div key={i} className="rounded-xl border border-zinc-800 bg-zinc-900/30 px-4 py-3">
               <div className="flex items-start gap-3">
@@ -272,12 +276,18 @@ export default function WorkoutTab() {
                       {ex.intensity}
                     </span>
                   )}
-                  <button type="button" onClick={() => handleAddExercise(ex, i)} disabled={draft?.saving}
-                    className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-emerald-500 px-2.5 py-1.5 text-xs font-semibold text-black whitespace-nowrap hover:bg-emerald-400 disabled:opacity-50">
-                    {draft?.saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
-                    {draft?.saving ? 'Adding…' : 'Add'}
-                  </button>
-                  {draft?.saved && <span className="text-[11px] font-medium text-emerald-400 whitespace-nowrap">added ✓</span>}
+                  {draft?.saved ? (
+                    <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-semibold text-emerald-300 whitespace-nowrap">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Added
+                    </span>
+                  ) : (
+                    <button type="button" onClick={() => handleAddExercise(ex, i)} disabled={draft?.saving}
+                      className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-emerald-500 px-2.5 py-1.5 text-xs font-semibold text-black whitespace-nowrap hover:bg-emerald-400 disabled:opacity-50">
+                      {draft?.saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                      {draft?.saving ? 'Adding…' : 'Add'}
+                    </button>
+                  )}
                 </div>
               </div>
               {draft?.error && <p className="mt-2 text-xs text-rose-400">{draft.error}</p>}

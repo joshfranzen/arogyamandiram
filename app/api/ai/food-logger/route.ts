@@ -378,12 +378,12 @@ type ExtractedBrandNutrition = {
 const BRAND_DB: Record<string, ExtractedBrandNutrition> = {
   'silk unsweetened almond milk': {
     calories: 30, protein: 1, carbs: 1, fat: 2.5,
-    fiber: 1, sugar: 0, sodium: 160, saturatedFat: 0, cholesterol: 0,
+    fiber: 0.5, sugar: 0, sodium: 160, saturatedFat: 0, cholesterol: 0,
     serving: '1 cup (240ml)',
   },
   'silk almond milk unsweetened': {
     calories: 30, protein: 1, carbs: 1, fat: 2.5,
-    fiber: 1, sugar: 0, sodium: 160, saturatedFat: 0, cholesterol: 0,
+    fiber: 0.5, sugar: 0, sodium: 160, saturatedFat: 0, cholesterol: 0,
     serving: '1 cup (240ml)',
   },
   'pepperidge farm whole grain 15 grain bread': {
@@ -756,13 +756,14 @@ function enforceAlmondMilkSanity(item: NormalizedItem): NormalizedItem {
   const protein = Number(scale.toFixed(2));
   const carbs = Number(scale.toFixed(2));
   const fat = Number((2.5 * scale).toFixed(2));
+  const fiber = Number((0.5 * scale).toFixed(2));
   return {
     ...item,
     calories: Math.round(30 * scale),
     protein,
     carbs,
     fat,
-    fiber: Number(scale.toFixed(2)),
+    fiber,
     sugar: 0,
     sodium: Math.round(160 * scale),
     saturatedFat: 0,
@@ -881,7 +882,14 @@ export async function POST(req: NextRequest) {
         const name = String(x.name ?? '').trim() || 'Item';
         const quantity =
           typeof x.quantity === 'number' && !Number.isNaN(x.quantity) ? Math.max(0.1, x.quantity) : 1;
-        const unit = normalizeUnit(x.unit);
+        const unit = (() => {
+          const normalized = normalizeUnit(x.unit);
+          const normalizedName = normalizeFoodName(name);
+          const looksLikePowderServing =
+            normalized === 'piece' &&
+            /(protein|whey|casein|powder|scoop|shake|mass gainer)/i.test(normalizedName);
+          return looksLikePowderServing ? 'serving' : normalized;
+        })();
         const each_weight_g =
           typeof x.each_weight_g === 'number' && !Number.isNaN(x.each_weight_g)
             ? Math.max(0, x.each_weight_g)
@@ -1033,6 +1041,16 @@ export async function POST(req: NextRequest) {
     items = items.map((current) => {
       const parsed = parsedByName.get(current.name.toLowerCase());
       if (!parsed) return current;
+      const hasAuthoritativeExternalLabel = Boolean(externalNutritionData[parsed.name]);
+      if (hasAuthoritativeExternalLabel) {
+        // Avoid intermediate/double scaling; brand-label totals are deterministically
+        // replaced once in the external-data override block below.
+        return {
+          ...current,
+          quantity: parsed.quantity,
+          unit: parsed.unit,
+        };
+      }
 
       const scale = current.quantity > 0 ? parsed.quantity / current.quantity : 1;
       const protein = Number((current.protein * scale).toFixed(2));

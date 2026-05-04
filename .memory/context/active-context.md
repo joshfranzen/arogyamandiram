@@ -1,7 +1,7 @@
 ---
 name: active-context
 type: context
-last_updated: 2026-05-01
+last_updated: 2026-05-02
 updated_by: codex-5.3
 staleness_days: 3
 ---
@@ -31,6 +31,12 @@ Recent changes since the last broad memory refresh:
 - **Repo-shape reality check (2026-04-15)**: Memory refreshed against the live codebase. Important corrections: Next.js is now 15.x, food fallback is USDA FoodData Central rather than Edamam, dashboard protection currently happens in `DashboardLayoutClient` plus API session helpers, and the repo no longer has a root `middleware.ts`
 - **Daily-plan architecture cleanup (2026-04-30)**: Removed unused regeneration counters from schema/types, deleted dead utility exports, and refactored duplicated OpenAI JSON request/parsing logic into `lib/openaiJson.ts` plus `app/api/ai/daily-plan/shared.ts` with normalized plan outputs for more stable UI contracts
 - **Food logger brand-label hardening + todos debug trace (2026-05-01)**: Added `settings-todos` source tagging from Settings → Todos food template parsing, persisted dedicated Request Inspector logs under `settings/todos-food-parser`, expanded brand detection to include Silk almond milk with static label fallback, and added post-AI enforcement/validation so almond-milk fat/calories cannot silently underflow for drink-sized portions
+- **Workout planner deterministic normalization hardening (2026-05-02)**: Upgraded `POST /api/ai/daily-plan/workout` with enforced strategy engine + readiness adjustments and a deterministic post-AI normalization pipeline: muscle-group correction, beginner equipment fallback remaps, mandatory core minimum with floor sets, single warm-up + ordered workout phases (warm-up → strength → cardio → core → cooldown), guaranteed >=2 cooldown stretches, duplicate exercise pruning, MET-based calorie estimation, and persisted workout metadata (`strategyUsed`, `readinessAdjustment`, per-exercise `muscleGroup`, and `core` category support across API/model/types/UI logging)
+- **Settings todos food-parser nutrition unit/scaling fix (2026-05-02)**: Hardened `POST /api/ai/food-logger` for Settings → Todos parser flow by remapping scoop/powder items from `piece` to `serving`, preventing intermediate rescaling when authoritative external brand labels are present (single-pass deterministic label override), and tightening Silk almond-milk fiber baselines in both static label data and sanity fallback correction.
+- **Food-plan dietary preferences from Settings (2026-05-02)**: Added `settings.foodPreferences` (dietary preference + allergies) in `User` schema/types/UI and wired both `POST /api/ai/daily-plan/food` and nightly cron generation to include these preferences in AI prompts so generated meal plans respect vegetarian/non-vegetarian/vegan preferences and allergy constraints.
+- **AI model routing via env controls (2026-05-02)**: Added `lib/aiModel.ts` and switched non-orchestrator AI calls to configurable `OPENAI_MODEL_BEST` while keeping orchestrator intent classification on `OPENAI_MODEL_ORCHESTRATOR`; updated `.env.example` to document both vars and aligned debug metadata to report the active model.
+- **Daily food-plan protein-floor hardening (2026-05-02)**: Updated food-plan prompt inputs to include user macro targets and added a low-protein retry path in `POST /api/ai/daily-plan/food` that automatically regenerates when total suggested protein falls below a target-based floor.
+- **Chat-completions token-parameter compatibility fix (2026-05-02)**: Replaced `max_tokens` with `max_completion_tokens` in shared OpenAI chat-completions call sites (`lib/openaiJson.ts`, recommendations, meal ideas, health-check, and AI health-plan services) so `gpt-5.4-mini` requests no longer fail with unsupported-parameter errors.
 
 ## Active Focus Areas
 

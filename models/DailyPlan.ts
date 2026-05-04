@@ -35,6 +35,8 @@ export interface IDailyPlanDocument extends Document {
   workoutPlan?: {
     name: string;
     description: string;
+    strategyUsed?: 'full_body_fat_loss' | 'upper_lower' | 'push_pull_legs';
+    readinessAdjustment?: string;
     progressionTip?: string;
     exercises: {
       name: string;
@@ -45,6 +47,7 @@ export interface IDailyPlanDocument extends Document {
       restSeconds: number;
       intensity?: 'low' | 'medium' | 'high';
       category?: string;
+      muscleGroup?: 'legs' | 'push' | 'pull' | 'core';
     }[];
     estimatedCalories: number;
     durationMinutes: number;
@@ -103,6 +106,7 @@ const ExerciseSchema = new Schema(
     restSeconds: { type: Number, default: 60 },
     intensity: { type: String, enum: ['low', 'medium', 'high'] },
     category: { type: String },
+    muscleGroup: { type: String, enum: ['legs', 'push', 'pull', 'core'] },
   },
   { _id: false }
 );
@@ -125,6 +129,8 @@ const DailyPlanSchema = new Schema<IDailyPlanDocument>(
     workoutPlan: {
       name: { type: String },
       description: { type: String },
+      strategyUsed: { type: String, enum: ['full_body_fat_loss', 'upper_lower', 'push_pull_legs'] },
+      readinessAdjustment: { type: String },
       progressionTip: { type: String },
       exercises: { type: [ExerciseSchema], default: [] },
       estimatedCalories: { type: Number, default: 0 },

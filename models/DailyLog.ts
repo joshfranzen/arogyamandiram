@@ -38,7 +38,7 @@ const WorkoutEntrySchema = new Schema(
     exercise: { type: String, required: true },
     category: {
       type: String,
-      enum: ['cardio', 'strength', 'flexibility', 'sports', 'other'],
+      enum: ['cardio', 'strength', 'flexibility', 'core', 'sports', 'other'],
       default: 'other',
     },
     duration: { type: Number, required: true, min: 0 },  // minutes

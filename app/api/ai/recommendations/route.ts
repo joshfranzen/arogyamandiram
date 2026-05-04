@@ -13,6 +13,7 @@ import { maskedResponse, errorResponse } from '@/lib/apiMask';
 import { getAuthUserId, isUserId } from '@/lib/session';
 import { getToday, getYesterday, getAgeFromDateOfBirth, toLocalDateString } from '@/lib/utils';
 import { getLatestLoggedWeight } from '@/lib/latestWeight';
+import { OPENAI_BEST_MODEL } from '@/lib/aiModel';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,13 +45,13 @@ async function callOpenAI(
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
+      model: OPENAI_BEST_MODEL,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.7,
-      max_tokens: 1500,
+      max_completion_tokens: 1500,
       response_format: { type: 'json_object' },
     }),
   });
@@ -83,7 +84,7 @@ async function callOpenAI(
     rawText,
     usage: (data?.usage ?? {}) as OpenAIUsage,
     latencyMs: Math.max(0, Date.now() - startedAt),
-    model: typeof data?.model === 'string' ? data.model : 'gpt-4o-mini',
+    model: typeof data?.model === 'string' ? data.model : OPENAI_BEST_MODEL,
     timestamp: new Date().toISOString(),
   };
 }

@@ -148,6 +148,28 @@ export async function PUT(req: NextRequest) {
           for (const [nKey, nVal] of Object.entries(value as Record<string, boolean>)) {
             updateData[`settings.notifications.${nKey}`] = nVal;
           }
+        } else if (key === 'foodPreferences' && typeof value === 'object' && value !== null) {
+          const prefs = value as Record<string, unknown>;
+          const rawDietaryPreference = typeof prefs.dietaryPreference === 'string'
+            ? prefs.dietaryPreference.trim()
+            : '';
+          const allowedDietaryPreferences = new Set(['no_preference', 'vegetarian', 'non_vegetarian', 'vegan']);
+          if (rawDietaryPreference && !allowedDietaryPreferences.has(rawDietaryPreference)) {
+            return errorResponse('Invalid dietary preference', 400);
+          }
+          if (rawDietaryPreference) {
+            updateData['settings.foodPreferences.dietaryPreference'] = rawDietaryPreference;
+          }
+
+          if (prefs.allergies !== undefined) {
+            if (!Array.isArray(prefs.allergies)) {
+              return errorResponse('Allergies must be an array of strings', 400);
+            }
+            updateData['settings.foodPreferences.allergies'] = prefs.allergies
+              .map((entry) => String(entry).trim())
+              .filter(Boolean)
+              .slice(0, 20);
+          }
         } else if (key === 'customizations' && typeof value === 'object' && value !== null) {
           const customizations = value as Record<string, unknown>;
           const water = customizations.water as Record<string, unknown> | undefined;

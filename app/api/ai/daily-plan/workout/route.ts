@@ -9,7 +9,13 @@ import { maskedResponse, errorResponse } from '@/lib/apiMask';
 import { getAuthUserId, isUserId } from '@/lib/session';
 import { getToday } from '@/lib/utils';
 import { writeDebugLog } from '@/lib/debugLogWriter';
-import { buildWorkoutPrompt, type WorkoutRequestBody, normalizeWorkoutPlan } from '../shared';
+import { OPENAI_BEST_MODEL } from '@/lib/aiModel';
+import {
+  buildWorkoutPrompt,
+  deriveWorkoutPlanConstraints,
+  type WorkoutRequestBody,
+  normalizeWorkoutPlan,
+} from '../shared';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,12 +50,17 @@ export async function POST(req: NextRequest) {
 
     await connectDB();
     const today = getToday();
-    const systemPrompt = `You are a practical fitness coach. Create a simple workout plan for TODAY based on the user's last-week details.
-Return JSON only with this shape:
+    const systemPrompt = `You are building a production-grade AI fitness planning system.
+Your goal is not to generate a random workout.
+Your goal is to understand physiology and behavior, choose the right training strategy, and generate a scientifically valid daily plan.
+
+Return JSON only with this exact shape:
 {
   "workoutPlan": {
     "name": "string",
     "description": "string",
+    "strategyUsed": "full_body_fat_loss | upper_lower | push_pull_legs",
+    "readinessAdjustment": "string",
     "exercises": [
       {
         "name": "string",
@@ -57,8 +68,9 @@ Return JSON only with this shape:
         "reps": "string",
         "durationMinutes": number,
         "restSeconds": number,
-        "category": "cardio" | "strength" | "flexibility" | "sports" | "other",
-        "intensity": "low" | "medium" | "high"
+        "category": "cardio | strength | flexibility | core",
+        "intensity": "low | medium | high",
+        "muscleGroup": "legs | push | pull | core"
       }
     ],
     "estimatedCalories": number,
@@ -67,14 +79,31 @@ Return JSON only with this shape:
     "durationMinutes": number
   }
 }
+
+Mandatory architecture:
+1) Strategy engine (weekly logic): classify using bodyFatPct, fitnessLevel, activityLevel
+2) Recovery/readiness adjustment: use protein intake, sleep, and steps logs
+3) Daily workout generation
+4) Fat-loss intelligence
+5) MET-based calorie estimation
+
 Rules:
-- Order exercises as: warm-up first, then main work, then cool-down stretches.
-- Include a true warm-up block (3-5 min, low intensity) before strength/cardio.
-- Include at least 2 flexibility/cool-down stretches at the end (not just one).
-- Keep total planned exercise time + typical rest transitions reasonably aligned with durationMinutes.
-- If recent protein intake appears below 70% of protein target, mention recovery constraints in reasoning and avoid excessive high-volume programming.
-- If recent daily steps exceed the target (or 8,000 when target is unavailable), acknowledge the user is already active and avoid stacking extra cardio volume unnecessarily.
-- Keep it realistic, beginner-friendly when unclear, and aligned to the user's details.`;
+- Beginner + bodyFatPct > 20 => full_body_fat_loss.
+- Intermediate => upper_lower or push_pull_legs.
+- Never assign body-part split to beginners.
+- Always include at least 1 lower-body, 1 push, 1 pull, and 1 core movement.
+- Order strictly: warm-up -> strength -> cardio -> core -> cooldown.
+- Warm-up must be 3-5 minutes at low intensity.
+- Cooldown must include at least 2 stretches.
+- Keep total duration within +/-3 minutes of target duration.
+- If protein < 70% of target: reduce volume.
+- If steps > 8000 (or above target): reduce extra cardio.
+- If steps < 3000: include light cardio.
+- If sleep < 6h: avoid high intensity.
+- If bodyFatPct >= 25: prioritize full-body structure, moderate cardio, and core every session.
+- Do not use spot-reduction logic.
+- Keep exercises beginner friendly and with low equipment dependency.
+- Do not overestimate calories.`;
     const user = await User.findById(userId)
       .select('profile.gender profile.age profile.dateOfBirth profile.height profile.weight profile.activityLevel profile.goal profile.targetWeight profile.bodyType profile.bodyFat profile.fatFocusAreas profile.fitnessLevelDerived profile.fitnessLevelUser targets')
       .lean() as {
@@ -152,13 +181,20 @@ Rules:
       recentLogs,
       recentFeedback,
     });
+    const constraints = deriveWorkoutPlanConstraints(body, {
+      profile: user?.profile ?? null,
+      targets: user?.targets ?? null,
+      recentLogs,
+      recentFeedback,
+    });
+
     const ai = await createOpenAiJson<{ workoutPlan?: Record<string, unknown> }>({
       apiKey,
       systemPrompt,
       userPrompt,
       maxTokens: 1500,
     });
-    const workoutPlan = normalizeWorkoutPlan(ai.workoutPlan ?? ai);
+    const workoutPlan = normalizeWorkoutPlan(ai.workoutPlan ?? ai, constraints);
 
     const plan = await DailyPlan.findOneAndUpdate(
       { userId, date: today },
@@ -182,7 +218,7 @@ Rules:
         parsedResult: { workoutPlan },
         metadata: {
           status: 'success',
-          model: 'gpt-4o-mini',
+          model: OPENAI_BEST_MODEL,
         },
       },
     });

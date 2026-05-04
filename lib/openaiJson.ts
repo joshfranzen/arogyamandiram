@@ -1,3 +1,5 @@
+import { OPENAI_BEST_MODEL } from '@/lib/aiModel';
+
 type OpenAiJsonParams = {
   apiKey: string;
   systemPrompt: string;
@@ -40,7 +42,7 @@ export async function createOpenAiJson<T extends Record<string, unknown>>({
   apiKey,
   systemPrompt,
   userPrompt,
-  model = 'gpt-4o-mini',
+  model = OPENAI_BEST_MODEL,
   temperature = 0.7,
   maxTokens = 1200,
   onDebug,
@@ -53,7 +55,7 @@ export async function createOpenAiJson<T extends Record<string, unknown>>({
       { role: 'user', content: userPrompt },
     ],
     temperature,
-    max_tokens: maxTokens,
+    max_completion_tokens: maxTokens,
     response_format: { type: 'json_object' },
   } satisfies Record<string, unknown>;
 

@@ -9,6 +9,7 @@ import { getAuthUserId, isUserId } from '@/lib/session';
 import { getToday, getYesterday } from '@/lib/utils';
 import { writeDebugLog } from '@/lib/debugLogWriter';
 import { buildOverviewPrompt, type OverviewRequestBody, normalizeOverview } from '../shared';
+import { OPENAI_BEST_MODEL } from '@/lib/aiModel';
 
 export const dynamic = 'force-dynamic';
 
@@ -124,7 +125,7 @@ Keep it short and realistic.`;
         parsedResult: overview,
         metadata: {
           status: 'success',
-          model: 'gpt-4o-mini',
+          model: OPENAI_BEST_MODEL,
         },
       },
     });

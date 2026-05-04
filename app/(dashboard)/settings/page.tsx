@@ -56,6 +56,13 @@ const goals = [
   { value: 'gain',     label: 'Gain Weight', desc: 'Calorie surplus' },
 ];
 
+const dietaryPreferenceOptions = [
+  { value: 'no_preference', label: 'No preference' },
+  { value: 'vegetarian', label: 'Vegetarian' },
+  { value: 'non_vegetarian', label: 'Non-vegetarian' },
+  { value: 'vegan', label: 'Vegan' },
+] as const;
+
 const bodyTypeOptions = [
   {
     value: 'ectomorph',
@@ -161,6 +168,8 @@ function SettingsInner() {
   const [bodyType, setBodyType] = useState('');
   const [bodyFat, setBodyFat] = useState('');
   const [fatFocusAreas, setFatFocusAreas] = useState<string[]>([]);
+  const [dietaryPreference, setDietaryPreference] = useState<'no_preference' | 'vegetarian' | 'non_vegetarian' | 'vegan'>('no_preference');
+  const [allergiesInput, setAllergiesInput] = useState('');
 
   // ── Targets state ──────────────────────────────────────────────────────────
   const [targetsSaving, setTargetsSaving] = useState(false);
@@ -318,6 +327,13 @@ function SettingsInner() {
         ? savedQuickAmounts
         : DEFAULT_WATER_QUICK_AMOUNTS;
       setCustomWaterAmounts(normalizedQuickAmounts.map((value) => String(value)));
+      const savedDietaryPreference = s.foodPreferences?.dietaryPreference;
+      const normalizedDietaryPreference: 'no_preference' | 'vegetarian' | 'non_vegetarian' | 'vegan' =
+        dietaryPreferenceOptions.some((option) => option.value === savedDietaryPreference)
+          ? (savedDietaryPreference as 'no_preference' | 'vegetarian' | 'non_vegetarian' | 'vegan')
+          : 'no_preference';
+      setDietaryPreference(normalizedDietaryPreference);
+      setAllergiesInput((s.foodPreferences?.allergies ?? []).join(', '));
       const lsa = s.reminderSchedule?.lastSentAt ?? {};
       setLastSentAt({
         water: String(lsa.water ?? ''), breakfast: String(lsa.breakfast ?? ''),
@@ -431,15 +447,34 @@ function SettingsInner() {
       if (dateOfBirth) profilePayload.dateOfBirth = dateOfBirth;
       else if (age) profilePayload.age = parseInt(age, 10);
       const normalizedUsername = username.trim() ? username.trim().toLowerCase().replace(/\s+/g, '_') : undefined;
-      const res = await api.updateUser({ profile: profilePayload, ...(normalizedUsername && { username: normalizedUsername }) });
-      if (res.success) {
-        showToast('Profile updated', 'success');
-        const updated = res.data as { username?: string } | undefined;
-        if (updated?.username) setUsername(updated.username);
-        await refetch();
-      } else {
-        showToast(res.error || 'Failed to save', 'error');
+      const profileRes = await api.updateUser({ profile: profilePayload, ...(normalizedUsername && { username: normalizedUsername }) });
+      if (!profileRes.success) {
+        showToast(profileRes.error || 'Failed to save', 'error');
+        return;
       }
+
+      const allergies = Array.from(
+        new Set(
+          allergiesInput
+            .split(/[\n,]/)
+            .map((entry) => entry.trim())
+            .filter(Boolean)
+        )
+      );
+      const foodPreferencesRes = await api.updateSettings({
+        foodPreferences: {
+          dietaryPreference,
+          allergies,
+        },
+      });
+      if (!foodPreferencesRes.success) {
+        showToast(foodPreferencesRes.error || 'Failed to save food preferences', 'error');
+        return;
+      }
+      showToast('Profile updated', 'success');
+      const updated = profileRes.data as { username?: string } | undefined;
+      if (updated?.username) setUsername(updated.username);
+      await refetch();
     } catch { showToast('Failed to save profile', 'error'); }
     finally { setSaving(false); }
   };
@@ -969,6 +1004,42 @@ function SettingsInner() {
                     <p className="mt-0.5 text-[10px] text-zinc-400">{g.desc}</p>
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Food preferences */}
+            <div className="glass-card rounded-2xl p-6">
+              <div className="flex items-center gap-2">
+                <Utensils className="h-4 w-4 text-emerald-400" />
+                <h2 className="text-base font-semibold text-text-primary">Food preferences</h2>
+              </div>
+              <p className="mt-1 text-xs text-text-muted">Used automatically when AI creates your food plan.</p>
+              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="text-xs font-medium text-text-muted">Dietary preference</label>
+                  <select
+                    value={dietaryPreference}
+                    onChange={(e) => setDietaryPreference(e.target.value as 'no_preference' | 'vegetarian' | 'non_vegetarian' | 'vegan')}
+                    className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm bg-zinc-900 border border-zinc-800 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                  >
+                    {dietaryPreferenceOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-text-muted">Allergies / foods to avoid</label>
+                  <textarea
+                    value={allergiesInput}
+                    onChange={(e) => setAllergiesInput(e.target.value)}
+                    placeholder="e.g. peanuts, shellfish, lactose"
+                    rows={3}
+                    className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm bg-zinc-900 border border-zinc-800 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                  />
+                  <p className="mt-1 text-[11px] text-zinc-500">Separate values with commas or new lines.</p>
+                </div>
               </div>
             </div>
 

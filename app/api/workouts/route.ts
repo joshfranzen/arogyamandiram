@@ -197,7 +197,7 @@ export async function PUT(req: NextRequest) {
 
     await connectDB();
 
-    const category = ['cardio', 'strength', 'flexibility', 'sports', 'other'].includes(workoutPayload.category)
+    const category = ['cardio', 'strength', 'flexibility', 'core', 'sports', 'other'].includes(workoutPayload.category)
       ? workoutPayload.category
       : 'other';
     const updateFields: Record<string, unknown> = {

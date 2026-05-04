@@ -31,7 +31,7 @@ Parse all exercises mentioned. Normalize typos and common aliases:
 
 For each workout:
 - exercise: short standard name
-- category: cardio | strength | flexibility | sports | other
+- category: cardio | strength | flexibility | core | sports | other
 - duration: minutes (use explicit duration if provided)
 - sets/reps/weight: include when present, else null
 - notes: short clarification when useful, else null
@@ -74,7 +74,7 @@ const WORKOUT_LOG_TOOL = {
             category: {
               type: 'string',
               description:
-                'Workout category. One of: "cardio", "strength", "flexibility", "sports", "other".',
+                'Workout category. One of: "cardio", "strength", "flexibility", "core", "sports", "other".',
             },
             duration: {
               type: 'number',
@@ -212,7 +212,7 @@ function normalizeWorkout(raw: RawWorkout) {
   const exercise = str(raw.exercise) || 'Workout';
 
   const categoryRaw = str(raw.category).toLowerCase();
-  const allowedCategories = ['cardio', 'strength', 'flexibility', 'sports', 'other'] as const;
+  const allowedCategories = ['cardio', 'strength', 'flexibility', 'core', 'sports', 'other'] as const;
   const category = allowedCategories.includes(categoryRaw as (typeof allowedCategories)[number])
     ? categoryRaw
     : 'other';
