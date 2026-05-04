@@ -11,6 +11,7 @@ export const PAGE_LABELS: Record<string, string> = {
   sleep: 'Sleep',
   'ai-assistant': 'AI Assistant',
   email: 'Email',
+  settings: 'Settings',
   orchestrator: 'Orchestrator',
   'today-plan': "Today's Plan",
   'health-data': 'Health Data',
@@ -44,6 +45,7 @@ export const AGENT_LABELS: Record<string, string> = {
   'sync': 'Sync',
   'smtp': 'SMTP Sends',
   'imap': 'IMAP Polls',
+  'todos-food-parser': 'Todos Food Parser',
 };
 
 export const AGENT_DESCRIPTIONS: Record<string, string> = {
@@ -74,6 +76,7 @@ export const AGENT_DESCRIPTIONS: Record<string, string> = {
   'sync': 'Manual or automatic sync from an external health data endpoint.',
   'smtp': 'Outbound reminder emails sent via SMTP, by userId and type.',
   'imap': 'Inbound email reply polls, replies found, and what was logged.',
+  'todos-food-parser': 'Parses food todo templates in Settings into structured food items with nutrition.',
 };
 
 export function getPageLabel(slug: string): string {

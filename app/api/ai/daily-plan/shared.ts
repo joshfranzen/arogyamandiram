@@ -5,6 +5,9 @@ export type FoodRequestBody = {
   lastWeekFoodDetails?: string;
   goal?: string;
   dietaryPreference?: string;
+  allergies?: string[];
+  targetProteinG?: number;
+  targetCalories?: number;
 };
 
 export type OverviewRequestBody = {
@@ -68,6 +71,8 @@ export type WorkoutPromptContext = {
       sets?: number;
       reps?: number;
       source?: string;
+      notes?: string;
+      planExerciseName?: string;
     }>;
   }>;
   recentFeedback?: Array<{
@@ -81,7 +86,51 @@ export type WorkoutPromptContext = {
 
 const VALID_MEAL_TYPES = new Set(['breakfast', 'lunch', 'dinner', 'snack']);
 const VALID_INTENSITIES = new Set(['low', 'medium', 'high']);
-const VALID_CATEGORIES = new Set(['cardio', 'strength', 'flexibility', 'sports', 'other']);
+const VALID_CATEGORIES = new Set(['cardio', 'strength', 'flexibility', 'core']);
+const VALID_MUSCLE_GROUPS = new Set(['legs', 'push', 'pull', 'core']);
+const VALID_PHASES = new Set(['warmup', 'strength', 'cardio', 'core', 'mobility', 'cooldown']);
+
+/**
+ * Lightweight readiness signals derived from recent logs. The LLM decides the
+ * actual training strategy now; these are just hints about today's recovery.
+ */
+export type ReadinessSignals = {
+  targetDurationMinutes: number;
+  readinessAdjustment: string;
+  reduceVolume: boolean;
+  reduceExtraCardio: boolean;
+  includeLightCardio: boolean;
+  avoidHighIntensity: boolean;
+  bodyFatPct?: number;
+  weightKg?: number;
+};
+
+/** @deprecated alias for ReadinessSignals; kept for any external callers */
+export type WorkoutPlanConstraints = ReadinessSignals;
+
+export type GoalDirection = 'lose' | 'maintain' | 'gain';
+
+export type WeeklyWorkoutSummary = {
+  daysWithWorkout: number;
+  daysSkipped: number;
+  totalWorkouts: number;
+  categoriesTouched: Record<string, number>;
+  muscleGroupsTouched: Record<string, number>;
+  lastWorkoutDate: string | null;
+  lastWorkoutCategory: string | null;
+  byDay: Array<{
+    date: string;
+    entries: Array<{
+      exercise: string;
+      category: string;
+      durationMinutes: number;
+      caloriesBurnedKcal: number;
+      sets: number;
+      reps: number;
+      notes: string;
+    }>;
+  }>;
+};
 
 function asString(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value.trim() || fallback : fallback;
@@ -180,16 +229,18 @@ function sanitizeWorkoutContext(context?: WorkoutPromptContext) {
           workouts: Array.isArray(log.workouts)
             ? log.workouts.map((w) => ({
                 exercise: asString(w.exercise),
+                planExerciseName: asString(w.planExerciseName),
                 category: asString(w.category, 'other'),
                 durationMinutes: toFinite(w.duration) ?? 0,
                 caloriesBurnedKcal: toFinite(w.caloriesBurned) ?? 0,
                 sets: toFinite(w.sets) ?? 0,
                 reps: toFinite(w.reps) ?? 0,
                 source: asString(w.source, 'manual'),
+                notes: asString(w.notes),
               }))
             : [],
         }))
-        .slice(0, 3)
+        .slice(0, 7)
     : [];
 
   const recentFeedback = Array.isArray(context.recentFeedback)
@@ -206,14 +257,199 @@ function sanitizeWorkoutContext(context?: WorkoutPromptContext) {
   return { profile, targets, recentLogs, recentFeedback };
 }
 
+/**
+ * Derive readiness/recovery signals from recent logs.
+ *
+ * Note: this no longer chooses a training strategy or required muscle-group
+ * components — that decision is delegated to the LLM, which is given the full
+ * weekly history. Server-side here we only compute objective signals about
+ * recovery (protein deficit, sleep, steps) and the time budget for today.
+ */
+export function deriveReadinessSignals(
+  body: WorkoutRequestBody,
+  context?: WorkoutPromptContext
+): ReadinessSignals {
+  const sanitized = sanitizeWorkoutContext(context);
+  const bodyFatPct = toFinite(sanitized?.profile?.bodyFatPct);
+
+  const minutes = Number(body.todayAvailableMinutes);
+  const targetDurationMinutes = Number.isFinite(minutes) && minutes > 0
+    ? clamp(Math.round(minutes), 12, 120)
+    : clamp(Math.round(sanitized?.targets?.dailyWorkoutMinutes ?? 30), 12, 120);
+
+  const recentLogs = sanitized?.recentLogs ?? [];
+  const proteinTarget = sanitized?.targets?.proteinG;
+  const proteinRatios = recentLogs
+    .map((log) => {
+      const protein = toFinite(log.nutrition?.proteinG);
+      if (!proteinTarget || proteinTarget <= 0 || protein == null || protein < 0) return null;
+      return protein / proteinTarget;
+    })
+    .filter((v): v is number => typeof v === 'number');
+  const avgProteinRatio = proteinRatios.length > 0
+    ? proteinRatios.reduce((sum, ratio) => sum + ratio, 0) / proteinRatios.length
+    : 1;
+
+  const stepValues = recentLogs
+    .map((log) => toFinite(log.activity?.steps))
+    .filter((v): v is number => typeof v === 'number' && v >= 0);
+  const avgSteps = stepValues.length > 0
+    ? stepValues.reduce((sum, steps) => sum + steps, 0) / stepValues.length
+    : 0;
+
+  const sleepDurations = recentLogs
+    .map((log) => toFinite(log.recovery?.sleepDurationHours))
+    .filter((v): v is number => typeof v === 'number' && v > 0);
+  const avgSleepHours = sleepDurations.length > 0
+    ? sleepDurations.reduce((sum, hours) => sum + hours, 0) / sleepDurations.length
+    : (sanitized?.targets?.sleepHours ?? 7);
+
+  const stepsTarget = sanitized?.targets?.dailySteps ?? 8000;
+  const reduceVolume = avgProteinRatio < 0.7;
+  const reduceExtraCardio = avgSteps > stepsTarget || avgSteps > 8000;
+  const includeLightCardio = avgSteps > 0 && avgSteps < 3000;
+  const avoidHighIntensity = avgSleepHours < 6;
+
+  const readinessLines: string[] = [];
+  if (reduceVolume) readinessLines.push('reduced volume because recent protein intake is under 70% of target');
+  if (reduceExtraCardio) readinessLines.push('reduced extra cardio because recent steps already exceed target');
+  if (includeLightCardio) readinessLines.push('included light cardio because recent step count is low');
+  if (avoidHighIntensity) readinessLines.push('avoided high intensity because recent sleep is under 6 hours');
+  if (readinessLines.length === 0) readinessLines.push('normal volume and intensity based on current readiness');
+
+  return {
+    targetDurationMinutes,
+    readinessAdjustment: readinessLines.join('; '),
+    reduceVolume,
+    reduceExtraCardio,
+    includeLightCardio,
+    avoidHighIntensity,
+    bodyFatPct,
+    weightKg: toFinite(sanitized?.profile?.weightKg),
+  };
+}
+
+/** @deprecated kept as alias; new callers should use `deriveReadinessSignals` */
+export const deriveWorkoutPlanConstraints = deriveReadinessSignals;
+
+/**
+ * Derive the user's goal direction from current vs. target weight, falling back
+ * to the explicit `profile.goal` field only if weight data is missing.
+ *
+ * Uses a 0.5 kg deadband — wide enough to absorb day-to-day water-weight noise
+ * but tight enough that a 1 kg gap from target reads as a real intent to lose
+ * (e.g. weight 66, target 65 → "lose").
+ */
+export function deriveGoalDirection(
+  weightKg?: number,
+  targetWeightKg?: number,
+  profileGoal?: string
+): GoalDirection {
+  const weight = toFinite(weightKg);
+  const target = toFinite(targetWeightKg);
+  if (typeof weight === 'number' && typeof target === 'number' && target > 0) {
+    const delta = weight - target;
+    if (delta > 0.5) return 'lose';
+    if (delta < -0.5) return 'gain';
+    return 'maintain';
+  }
+  const fallback = asString(profileGoal).toLowerCase();
+  if (fallback === 'lose' || fallback === 'lose_weight' || fallback === 'fat_loss') return 'lose';
+  if (fallback === 'gain' || fallback === 'gain_weight' || fallback === 'muscle_gain' || fallback === 'bulk') return 'gain';
+  return 'maintain';
+}
+
+/**
+ * Build a compact summary of the last 7 days of workouts for the LLM. Today's
+ * logged workouts ARE included — they are real user-recorded execution data, not
+ * the plan we're about to generate.
+ */
+export function buildWeeklyWorkoutSummary(
+  context: WorkoutPromptContext | undefined,
+  _todayDate: string
+): WeeklyWorkoutSummary {
+  void _todayDate;
+  const sanitized = sanitizeWorkoutContext(context);
+  const logs = sanitized?.recentLogs ?? [];
+
+  const categoriesTouched: Record<string, number> = {};
+  const muscleGroupsTouched: Record<string, number> = {};
+  let totalWorkouts = 0;
+  let daysWithWorkout = 0;
+  let lastWorkoutDate: string | null = null;
+  let lastWorkoutCategory: string | null = null;
+
+  const byDay: WeeklyWorkoutSummary['byDay'] = [];
+
+  for (const log of logs) {
+    const date = asString(log.date);
+    const workouts = (log.workouts ?? []).map((w) => ({
+      exercise: asString(w.exercise),
+      category: asString(w.category, 'other'),
+      durationMinutes: toFinite(w.durationMinutes) ?? 0,
+      caloriesBurnedKcal: toFinite(w.caloriesBurnedKcal) ?? 0,
+      sets: toFinite(w.sets) ?? 0,
+      reps: toFinite(w.reps) ?? 0,
+      notes: asString(w.notes),
+    }));
+    byDay.push({ date, entries: workouts });
+    if (workouts.length > 0) {
+      daysWithWorkout += 1;
+      totalWorkouts += workouts.length;
+      for (const w of workouts) {
+        categoriesTouched[w.category] = (categoriesTouched[w.category] ?? 0) + 1;
+      }
+      if (!lastWorkoutDate || date > lastWorkoutDate) {
+        lastWorkoutDate = date;
+        lastWorkoutCategory = workouts[0]?.category ?? null;
+      }
+    }
+  }
+
+  // Oldest first for readability.
+  byDay.sort((a, b) => a.date.localeCompare(b.date));
+
+  return {
+    daysWithWorkout,
+    daysSkipped: byDay.length - daysWithWorkout,
+    totalWorkouts,
+    categoriesTouched,
+    muscleGroupsTouched,
+    lastWorkoutDate,
+    lastWorkoutCategory,
+    byDay,
+  };
+}
+
 export function buildFoodPrompt(body: FoodRequestBody, date: string): string {
   const details = body.lastWeekFoodDetails?.trim() || 'No previous food details provided.';
   const goal = body.goal?.trim() || 'Eat balanced meals for health';
-  const dietaryPreference = body.dietaryPreference?.trim() || 'No specific preference';
+  const dietaryPreferenceRaw = body.dietaryPreference?.trim() || 'no_preference';
+  const dietaryPreference = (() => {
+    if (dietaryPreferenceRaw === 'vegetarian') return 'Vegetarian';
+    if (dietaryPreferenceRaw === 'non_vegetarian') return 'Non-vegetarian';
+    if (dietaryPreferenceRaw === 'vegan') return 'Vegan';
+    return 'No specific preference';
+  })();
+  const allergies = Array.isArray(body.allergies)
+    ? body.allergies.map((entry) => entry.trim()).filter(Boolean)
+    : [];
+  const targetProtein = Number(body.targetProteinG);
+  const targetCalories = Number(body.targetCalories);
+  const proteinLine = Number.isFinite(targetProtein) && targetProtein > 0
+    ? `Daily protein target: ${Math.round(targetProtein)}g`
+    : 'Daily protein target: not provided';
+  const caloriesLine = Number.isFinite(targetCalories) && targetCalories > 0
+    ? `Daily calories target: ${Math.round(targetCalories)} kcal`
+    : 'Daily calories target: not provided';
   return [
     `Plan date: ${date}`,
     `Goal: ${goal}`,
     `Dietary preference: ${dietaryPreference}`,
+    `Allergies or avoid list: ${allergies.length > 0 ? allergies.join(', ') : 'None provided'}`,
+    proteinLine,
+    caloriesLine,
+    'Protein rule: Keep total daily protein close to the protein target and keep each main meal protein-forward.',
     `Last week food details from user: ${details}`,
   ].join('\n');
 }
@@ -234,44 +470,121 @@ export function buildOverviewPrompt(body: OverviewRequestBody, date: string): st
   ].join('\n');
 }
 
+const WEEKDAY_KEYS: Array<'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday'> = [
+  'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday',
+];
+
+/** Parse a "Planned: X | Executed: Y" notes string into structured fields. */
+function parsePlannedExecuted(notes: string): { planned?: string; executed?: string } {
+  if (!notes) return {};
+  const planned = notes.match(/Planned:\s*([^|]+?)\s*(?:\||$)/i);
+  const executed = notes.match(/Executed:\s*([\s\S]+?)\s*$/i);
+  const out: { planned?: string; executed?: string } = {};
+  if (planned && planned[1]) out.planned = planned[1].trim();
+  if (executed && executed[1]) out.executed = executed[1].trim();
+  return out;
+}
+
+/** Derive a per-day muscle-group / category summary string for lastWeekSplit. */
+function summarizeDaySplit(entries: WeeklyWorkoutSummary['byDay'][number]['entries']): string {
+  if (entries.length === 0) return 'rest';
+  const groups = new Set<string>();
+  for (const e of entries) {
+    const cat = (e.category || '').toLowerCase();
+    if (cat === 'cardio') { groups.add('cardio'); continue; }
+    if (cat === 'flexibility') { groups.add('mobility'); continue; }
+    groups.add(inferMuscleGroup(e.exercise || '', cat));
+  }
+  return Array.from(groups).join(', ') || 'rest';
+}
+
 export function buildWorkoutPrompt(
   body: WorkoutRequestBody,
   date: string,
   context?: WorkoutPromptContext
 ): string {
-  const details = body.lastWeekDetails?.trim() || 'No previous workout details provided.';
   const sanitized = sanitizeWorkoutContext(context);
-  const goal = body.goal?.trim() || sanitized?.profile?.goal || 'General fitness and consistency';
+  const signals = deriveReadinessSignals(body, context);
   const fitnessLevel = body.fitnessLevel?.trim() || sanitized?.profile?.fitnessLevel || 'beginner';
-  const minutes = Number(body.todayAvailableMinutes);
-  const durationTarget = Number.isFinite(minutes) && minutes > 0
-    ? Math.round(minutes)
-    : Math.round(sanitized?.targets?.dailyWorkoutMinutes ?? 30);
+  const weightKg = sanitized?.profile?.weightKg;
+  const targetWeightKg = sanitized?.profile?.targetWeightKg;
+  const goalDirection = deriveGoalDirection(weightKg, targetWeightKg, sanitized?.profile?.goal);
+  const weeklySummary = buildWeeklyWorkoutSummary(context, date);
 
-  const lines = [
-    `Plan date: ${date}`,
-    `Goal: ${goal}`,
-    `Fitness level: ${fitnessLevel}`,
-    `Today workout target minutes: ${durationTarget}`,
-    `Last week details from user: ${details}`,
-  ];
+  const profileForPrompt = sanitized?.profile
+    ? {
+        age: sanitized.profile.age,
+        gender: sanitized.profile.gender,
+        heightCm: sanitized.profile.heightCm,
+        weightKg: sanitized.profile.weightKg,
+        activityLevel: sanitized.profile.activityLevel,
+        goal: goalDirection,
+        targetWeightKg: sanitized.profile.targetWeightKg,
+        bodyType: sanitized.profile.bodyType,
+        bodyFatPct: sanitized.profile.bodyFatPct,
+        fitnessLevel: sanitized.profile.fitnessLevel,
+      }
+    : null;
 
-  if (sanitized?.profile) {
-    lines.push(`Anonymized profile: ${JSON.stringify(sanitized.profile)}`);
-  }
-  if (sanitized?.targets) {
-    lines.push(`Targets and constraints: ${JSON.stringify(sanitized.targets)}`);
-  }
-  if (sanitized?.recentLogs?.length) {
-    lines.push(`Recent 3-day health/activity logs: ${JSON.stringify(sanitized.recentLogs)}`);
-  } else {
-    lines.push('Recent 3-day health/activity logs: none available');
-  }
-  if (sanitized?.recentFeedback?.length) {
-    lines.push(`Recent workout-plan feedback: ${JSON.stringify(sanitized.recentFeedback)}`);
+  // Build Mon-Sun split map from the rolling 7 days.
+  const lastWeekSplit: Record<string, string> = {
+    monday: 'rest', tuesday: 'rest', wednesday: 'rest', thursday: 'rest',
+    friday: 'rest', saturday: 'rest', sunday: 'rest',
+  };
+  for (const day of weeklySummary.byDay) {
+    const d = new Date(day.date);
+    if (Number.isNaN(d.getTime())) continue;
+    const key = WEEKDAY_KEYS[d.getDay()];
+    lastWeekSplit[key] = summarizeDaySplit(day.entries);
   }
 
-  return lines.join('\n');
+  // Build full per-day recentLogs array with recovery / nutrition / hydration / activity / workouts.
+  const sanitizedLogs = sanitized?.recentLogs ?? [];
+  const logsByDate = new Map(sanitizedLogs.map((log) => [asString(log.date), log]));
+  const recentLogs = weeklySummary.byDay.map((day) => {
+    const log = logsByDate.get(day.date);
+    const workouts = day.entries.map((w) => {
+      const { planned, executed } = parsePlannedExecuted(w.notes);
+      const details: Record<string, unknown> = {
+        type: w.category,
+      };
+      if (w.sets > 0) details.sets = w.sets;
+      if (w.reps > 0) details.reps = w.reps;
+      if (w.durationMinutes > 0) details.durationMinutes = w.durationMinutes;
+      if (w.caloriesBurnedKcal > 0) details.caloriesKcal = Math.round(w.caloriesBurnedKcal);
+      if (planned) details.planned = planned;
+      if (executed) details.executed = executed;
+      return { exercise: w.exercise, details };
+    });
+    return {
+      date: day.date,
+      recovery: log?.recovery ?? { sleepStatus: 'not_recorded' },
+      nutrition: log?.nutrition,
+      hydration: log?.hydration,
+      activity: log?.activity,
+      workouts,
+    };
+  });
+
+  const userPrompt = {
+    planDate: date,
+    goal: goalDirection,
+    fitnessLevel,
+    todayWorkoutTargetMinutes: signals.targetDurationMinutes,
+    readinessSignals: signals.readinessAdjustment,
+    lastWeekSplit,
+    profile: profileForPrompt,
+    targets: sanitized?.targets ?? null,
+    recentLogs,
+    ...(sanitized?.recentFeedback?.length ? { recentFeedback: sanitized.recentFeedback } : {}),
+  };
+
+  // The model gets a structured JSON object preceded by a one-line directive so
+  // it knows how to interpret it.
+  return [
+    'Inputs are provided as a JSON object below. Decide the weekly split, today\'s session structure, and per-exercise prescription. Use lastWeekSplit + today\'s workouts in recentLogs to avoid repeating body parts already trained in the last 1–2 days.',
+    JSON.stringify({ userPrompt }, null, 2),
+  ].join('\n');
 }
 
 export function normalizeFoodPlan(input: unknown): NonNullable<DailyPlanData['foodPlan']> {
@@ -304,41 +617,295 @@ export function normalizeFoodPlan(input: unknown): NonNullable<DailyPlanData['fo
   };
 }
 
-export function normalizeWorkoutPlan(input: unknown): AiWorkoutPlan {
-  const root = (input && typeof input === 'object') ? input as Record<string, unknown> : {};
+function inferMuscleGroup(name: string, category: string): 'legs' | 'push' | 'pull' | 'core' {
+  const n = name.toLowerCase();
+  if (category === 'core' || /core|plank|crunch|dead bug|bird dog|russian twist|hollow hold/.test(n)) return 'core';
+  if (/squat|lunge|glute|hamstring|calf|step-up|wall sit/.test(n)) return 'legs';
+  if (/push|press|dip|chest|shoulder|tricep/.test(n)) return 'push';
+  if (/row|pull|lat|rear delt|bicep/.test(n)) return 'pull';
+  return category === 'cardio' ? 'legs' : 'push';
+}
+
+type WorkoutExercise = AiWorkoutPlan['exercises'][number];
+const EQUIPMENT_MAP: Record<string, string> = {
+  'Bent Over Dumbbell Rows': 'Resistance Band Rows',
+  'Lat Pulldown': 'Towel Rows',
+  'Cable Row': 'Seated Resistance Band Rows',
+};
+
+function normalizeMuscleGroup(exercise: WorkoutExercise): WorkoutExercise {
+  if (exercise.category === 'cardio') {
+    return { ...exercise, muscleGroup: 'legs' };
+  }
+  if (exercise.category === 'flexibility') {
+    return { ...exercise, muscleGroup: 'core' };
+  }
+  return exercise;
+}
+
+function enforceBeginnerEquipment(exercise: WorkoutExercise): WorkoutExercise {
+  const replacement = EQUIPMENT_MAP[exercise.name];
+  if (!replacement) return exercise;
+  return { ...exercise, name: replacement };
+}
+
+function normalizeWarmup(exercise: WorkoutExercise): WorkoutExercise {
+  return {
+    ...exercise,
+    sets: 1,
+    reps: 'continuous',
+    durationMinutes: clamp(Math.round(asNumber(exercise.durationMinutes, 4)), 3, 5),
+    restSeconds: 0,
+    intensity: 'low',
+    category: 'cardio',
+    muscleGroup: 'legs',
+  };
+}
+
+function defaultWarmup(): WorkoutExercise {
+  return {
+    name: 'March in Place + Arm Circles',
+    sets: 1,
+    reps: 'continuous',
+    durationMinutes: 4,
+    restSeconds: 0,
+    category: 'cardio',
+    intensity: 'low',
+    muscleGroup: 'legs',
+  };
+}
+
+function isLikelyWarmup(exercise: WorkoutExercise): boolean {
+  const name = exercise.name.toLowerCase();
+  return /warm.?up|march in place|arm circles|mobility|joint rotation/.test(name)
+    || (exercise.category === 'flexibility' && exercise.intensity === 'low' && (exercise.durationMinutes ?? 0) <= 5);
+}
+
+function ensureMinCooldown(exercises: WorkoutExercise[]): WorkoutExercise[] {
+  const stretches = exercises.filter((exercise) => exercise.category === 'flexibility');
+  if (stretches.length >= 2) {
+    return stretches.slice(0, 4).map((stretch) => ({
+      ...stretch,
+      sets: Math.max(1, stretch.sets),
+      restSeconds: 0,
+      intensity: 'low',
+      muscleGroup: 'core',
+    }));
+  }
+  const required: WorkoutExercise[] = [
+    {
+      name: 'Standing Quad Stretch',
+      sets: 1,
+      reps: '30 seconds each leg',
+      durationMinutes: 2,
+      restSeconds: 0,
+      category: 'flexibility',
+      intensity: 'low',
+      muscleGroup: 'core',
+    },
+    {
+      name: 'Hamstring Stretch',
+      sets: 1,
+      reps: '30 seconds each leg',
+      durationMinutes: 2,
+      restSeconds: 0,
+      category: 'flexibility',
+      intensity: 'low',
+      muscleGroup: 'core',
+    },
+  ];
+  return [...stretches, ...required].slice(0, 2);
+}
+
+function enforceWorkoutOrder(exercises: WorkoutExercise[]): WorkoutExercise[] {
+  const warmupCandidates: WorkoutExercise[] = [];
+  const strength: WorkoutExercise[] = [];
+  const cardio: WorkoutExercise[] = [];
+  const core: WorkoutExercise[] = [];
+  const cooldownCandidates: WorkoutExercise[] = [];
+
+  for (const exercise of exercises) {
+    if (isLikelyWarmup(exercise)) {
+      warmupCandidates.push(exercise);
+    } else if (exercise.category === 'strength') {
+      strength.push(exercise);
+    } else if (exercise.category === 'cardio') {
+      cardio.push(exercise);
+    } else if (exercise.category === 'core') {
+      core.push(exercise);
+    } else if (exercise.category === 'flexibility') {
+      cooldownCandidates.push(exercise);
+    }
+  }
+
+  const warmup = warmupCandidates.length > 0
+    ? [normalizeWarmup(warmupCandidates[0])]
+    : [defaultWarmup()];
+  const cooldown = ensureMinCooldown([...warmupCandidates.slice(1), ...cooldownCandidates]);
+  return [...warmup, ...strength, ...cardio, ...core, ...cooldown];
+}
+
+function dedupeExercises(exercises: WorkoutExercise[]): WorkoutExercise[] {
+  const seen = new Set<string>();
+  const deduped: WorkoutExercise[] = [];
+  for (const exercise of exercises) {
+    const key = `${exercise.name.toLowerCase()}|${exercise.category}|${exercise.muscleGroup}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(exercise);
+  }
+  return deduped;
+}
+
+function estimateCaloriesFromMet(exercises: AiWorkoutPlan['exercises'], weightKg?: number): number {
+  const weight = clamp(Math.round((weightKg ?? 70) * 10) / 10, 40, 160);
+  const total = exercises.reduce((sum, exercise) => {
+    const minutes = clamp(Math.round(asNumber(exercise.durationMinutes, 0)), 0, 180);
+    const intensity = exercise.intensity ?? 'medium';
+    const met = (() => {
+      if (exercise.category === 'cardio') return intensity === 'low' ? 4.2 : intensity === 'high' ? 6 : 5;
+      if (exercise.category === 'strength') return intensity === 'low' ? 3.5 : intensity === 'high' ? 6 : 4.8;
+      if (exercise.category === 'core') return intensity === 'low' ? 3 : intensity === 'high' ? 4.5 : 3.8;
+      return 2.5;
+    })();
+    return sum + ((met * 3.5 * weight) / 200) * minutes;
+  }, 0);
+  return clamp(Math.round(total), 40, 1200);
+}
+
+function generateProgression(exercises: WorkoutExercise[]): string {
+  const push = exercises.find((exercise) => exercise.muscleGroup === 'push');
+  const core = exercises.find((exercise) => exercise.muscleGroup === 'core');
+  return `Next session: add +2 reps to ${push?.name || 'your push exercise'} and +5 sec to ${core?.name || 'your core holds'}`;
+}
+
+function alignDuration(exercises: AiWorkoutPlan['exercises'], targetMinutes: number): AiWorkoutPlan['exercises'] {
+  const target = clamp(targetMinutes, 12, 120);
+  const current = exercises.reduce((sum, ex) => sum + clamp(Math.round(asNumber(ex.durationMinutes, 0)), 0, 180), 0);
+  if (Math.abs(current - target) <= 3) return exercises;
+  const updated = exercises.map((exercise) => ({ ...exercise }));
+  let delta = target - current;
+  const priorities = delta > 0
+    ? updated
+    : updated.filter((exercise) => exercise.category === 'cardio' || exercise.category === 'strength');
+  for (const exercise of priorities) {
+    if (Math.abs(delta) <= 3) break;
+    const currentDuration = clamp(Math.round(asNumber(exercise.durationMinutes, 5)), 1, 180);
+    if (delta > 0) {
+      const add = Math.min(4, delta);
+      exercise.durationMinutes = currentDuration + add;
+      delta -= add;
+    } else {
+      const removable = Math.max(0, currentDuration - 3);
+      const remove = Math.min(removable, Math.abs(delta));
+      exercise.durationMinutes = currentDuration - remove;
+      delta += remove;
+    }
+  }
+  return updated;
+}
+
+export function normalizeWorkoutPlan(input: unknown, signals?: ReadinessSignals): AiWorkoutPlan {
+  const parsedRoot = (input && typeof input === 'object') ? input as Record<string, unknown> : {};
+  const root = (parsedRoot.workoutPlan && typeof parsedRoot.workoutPlan === 'object')
+    ? parsedRoot.workoutPlan as Record<string, unknown>
+    : parsedRoot;
   const rawExercises = Array.isArray(root.exercises) ? root.exercises : [];
 
-  const exercises: AiWorkoutPlan['exercises'] = rawExercises
+  let exercises: AiWorkoutPlan['exercises'] = rawExercises
     .map((raw) => {
       const ex = (raw && typeof raw === 'object') ? raw as Record<string, unknown> : {};
       const intensity = asString(ex.intensity, 'medium').toLowerCase();
-      const category = asString(ex.category, 'other').toLowerCase();
+      const category = asString(ex.category, 'strength').toLowerCase();
+      const muscleGroupRaw = asString(ex.muscleGroup).toLowerCase();
+      const phaseRaw = asString(ex.phase).toLowerCase();
+      const name = asString(ex.name, 'Exercise');
       const steps = Array.isArray(ex.steps)
         ? ex.steps.map((step) => String(step).trim()).filter(Boolean).slice(0, 10)
         : [];
+      const safeCategory = (VALID_CATEGORIES.has(category) ? category : 'strength') as AiWorkoutPlan['exercises'][number]['category'];
+      const inferredMuscleGroup = inferMuscleGroup(name, safeCategory);
+      const phase = VALID_PHASES.has(phaseRaw) ? (phaseRaw as NonNullable<AiWorkoutPlan['exercises'][number]['phase']>) : undefined;
 
       return {
-        name: asString(ex.name, 'Exercise'),
+        name,
         ...(steps.length > 0 ? { steps } : {}),
+        ...(phase ? { phase } : {}),
         sets: clamp(Math.round(asNumber(ex.sets, 3)), 1, 20),
         reps: asString(ex.reps, '10-12'),
         durationMinutes: clamp(Math.round(asNumber(ex.durationMinutes, 5)), 1, 180),
         restSeconds: clamp(Math.round(asNumber(ex.restSeconds, 60)), 0, 600),
         intensity: (VALID_INTENSITIES.has(intensity) ? intensity : 'medium') as 'low' | 'medium' | 'high',
-        category: (VALID_CATEGORIES.has(category) ? category : 'other') as AiWorkoutPlan['exercises'][number]['category'],
+        category: safeCategory,
+        muscleGroup: (VALID_MUSCLE_GROUPS.has(muscleGroupRaw) ? muscleGroupRaw : inferredMuscleGroup) as 'legs' | 'push' | 'pull' | 'core',
       };
     })
     .filter((exercise) => exercise.name.length > 0)
     .slice(0, 20);
 
+  exercises = exercises.map(normalizeMuscleGroup).map(enforceBeginnerEquipment);
+  exercises = dedupeExercises(exercises);
+
+  // Honour readiness signals (volume/intensity/cardio adjustments). We deliberately
+  // do NOT inject "required" body-part components anymore — the LLM decides.
+  if (signals?.reduceVolume) {
+    exercises = exercises.map((exercise) => ({
+      ...exercise,
+      sets: exercise.category === 'flexibility' ? exercise.sets : Math.max(2, Math.min(exercise.sets, 3)),
+    }));
+  }
+
+  if (signals?.avoidHighIntensity) {
+    exercises = exercises.map((exercise) => ({
+      ...exercise,
+      intensity: exercise.intensity === 'high' ? 'medium' : exercise.intensity,
+    }));
+  }
+
+  if (signals?.reduceExtraCardio) {
+    exercises = exercises.map((exercise) => ({
+      ...exercise,
+      durationMinutes: exercise.category === 'cardio' && !isLikelyWarmup(exercise)
+        ? Math.min(exercise.durationMinutes ?? 5, 10)
+        : exercise.durationMinutes,
+    }));
+  }
+
+  if (signals?.includeLightCardio && !exercises.some((exercise) => exercise.category === 'cardio' && (exercise.durationMinutes ?? 0) >= 6)) {
+    exercises.push({
+      name: 'Brisk Walk',
+      sets: 1,
+      reps: 'steady pace',
+      durationMinutes: 8,
+      restSeconds: 0,
+      category: 'cardio',
+      intensity: 'low',
+      muscleGroup: 'legs',
+      phase: 'cardio',
+    });
+  }
+
+  exercises = enforceWorkoutOrder(exercises);
+  exercises = alignDuration(exercises, signals?.targetDurationMinutes ?? Math.round(asNumber(root.durationMinutes, 30)));
+
+  const durationMinutes = exercises.reduce((sum, exercise) => sum + (exercise.durationMinutes ?? 0), 0);
+  const readinessAdjustment = signals?.readinessAdjustment ?? 'normal volume and intensity based on current readiness';
+  const weeklyStrategyChosen = asString(root.weeklyStrategyChosen) || asString(root.strategyUsed) || undefined;
+  const whyToday = asString(root.whyToday) || undefined;
+
   return {
     name: asString(root.name, 'Today Workout'),
-    description: asString(root.description, 'A balanced session based on your recent activity.'),
-    progressionTip: asString(root.progressionTip) || undefined,
-    reasoning: asString(root.reasoning) || undefined,
+    description: asString(root.description, 'Daily training designed from your profile, behavior, and recovery signals.'),
+    weeklyStrategyChosen,
+    whyToday,
+    readinessAdjustment,
+    progressionTip: asString(root.progressionTip) || generateProgression(exercises),
+    reasoning: asString(root.reasoning, `Plan built from profile, weekly history, and readiness. Readiness: ${readinessAdjustment}.`),
     exercises,
-    estimatedCalories: clamp(Math.round(asNumber(root.estimatedCalories, 220)), 0, 3000),
-    durationMinutes: clamp(Math.round(asNumber(root.durationMinutes, 30)), 1, 240),
+    estimatedCalories: Number.isFinite(asNumber(root.estimatedCalories, NaN))
+      ? clamp(Math.round(asNumber(root.estimatedCalories, 0)), 40, 1200)
+      : estimateCaloriesFromMet(exercises, signals?.weightKg),
+    durationMinutes: clamp(Math.round(durationMinutes), 12, 180),
   };
 }
 

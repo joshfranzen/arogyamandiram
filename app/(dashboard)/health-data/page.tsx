@@ -50,11 +50,12 @@ export default function HealthDataPage() {
   const [loading, setLoading]   = useState(true);
   const [syncing, setSyncing]   = useState(false);
   const [configured, setConfigured] = useState(false);
+  const [period, setPeriod] = useState(7);
 
-  const fetchMetrics = useCallback(async () => {
+  const fetchMetrics = useCallback(async (days: number) => {
     setLoading(true);
     try {
-      const res = await api.getHealthMetricsHistory(7);
+      const res = await api.getHealthMetricsHistory(days);
       if (res.success && res.data) {
         setHistory(res.data.history);
         setToday(res.data.today);
@@ -75,12 +76,13 @@ export default function HealthDataPage() {
     }).catch(() => {});
   }, []);
 
-  useEffect(() => { void fetchMetrics(); }, [fetchMetrics]);
+  useEffect(() => { void fetchMetrics(period); }, [fetchMetrics, period]);
 
   useEffect(() => {
-    window.addEventListener('orchestrator:log-updated', fetchMetrics);
-    return () => window.removeEventListener('orchestrator:log-updated', fetchMetrics);
-  }, [fetchMetrics]);
+    const handler = () => fetchMetrics(period);
+    window.addEventListener('orchestrator:log-updated', handler);
+    return () => window.removeEventListener('orchestrator:log-updated', handler);
+  }, [fetchMetrics, period]);
 
   const handleSync = async () => {
     setSyncing(true);
@@ -89,7 +91,7 @@ export default function HealthDataPage() {
       if (res.success && res.data) {
         const logged = res.data.syncActions.filter((a) => a.status === 'logged').length;
         showToast(`Synced — ${logged} field${logged !== 1 ? 's' : ''} updated`, 'success');
-        await fetchMetrics();
+        await fetchMetrics(period);
       } else {
         showToast((res as { error?: string }).error || 'Sync failed', 'error');
       }
@@ -242,15 +244,38 @@ export default function HealthDataPage() {
 
 
 
-      {/* 7-day trend charts */}
+      {/* Trend charts */}
       {hasData ? (
         <div className="mobile-fade-up mobile-dash-px lg:px-0" style={{ animationDelay: '160ms' }}>
+          <div className="mb-3 flex items-center justify-end gap-1.5">
+            {[
+              { key: 7, label: '7D' },
+              { key: 14, label: '2W' },
+              { key: 30, label: '1M' },
+              { key: 90, label: '3M' },
+            ].map((opt) => (
+              <button
+                key={opt.key}
+                type="button"
+                onClick={() => setPeriod(opt.key)}
+                className={
+                  'rounded-lg px-3 py-1.5 text-xs font-medium transition-all ' +
+                  (period === opt.key
+                    ? 'bg-white/[0.08] text-text-primary'
+                    : 'bg-white/[0.02] text-text-muted hover:bg-white/[0.06]')
+                }
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
 
             <div className="dashboard-unified-card rounded-2xl border p-5">
               <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-text-primary">
                 <HeartPulse className="h-4 w-4 text-accent-rose" />
-                Heart Rate (7d)
+                Heart Rate
               </h2>
               <MetricChart data={toChartData('heartRate')} color="#f43f5e" gradientId="hrGrad" unit=" bpm" height={200} />
             </div>
@@ -258,7 +283,7 @@ export default function HealthDataPage() {
             <div className="dashboard-unified-card rounded-2xl border p-5">
               <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-text-primary">
                 <Footprints className="h-4 w-4 text-accent-emerald" />
-                Steps (7d)
+                Steps
               </h2>
               <MetricChart data={toChartData('steps')} color="#10b981" gradientId="stepsGrad" unit=" steps" height={200}
                 formatY={(v) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v)} />
@@ -267,7 +292,7 @@ export default function HealthDataPage() {
             <div className="dashboard-unified-card rounded-2xl border p-5">
               <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-text-primary">
                 <Flame className="h-4 w-4 text-accent-amber" />
-                Active Calories (7d)
+                Active Calories
               </h2>
               <MetricChart data={toChartData('activeCalories')} color="#f59e0b" gradientId="calGrad" unit=" kcal" height={200} />
             </div>
@@ -275,7 +300,7 @@ export default function HealthDataPage() {
             <div className="dashboard-unified-card rounded-2xl border p-5">
               <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-text-primary">
                 <MapPin className="h-4 w-4 text-accent-cyan" />
-                Distance (7d)
+                Distance
               </h2>
               <MetricChart data={toChartData('distanceKm')} color="#06b6d4" gradientId="distGrad" unit=" km" height={200}
                 formatY={(v) => v.toFixed(1)} />

@@ -8,6 +8,7 @@ import { NextRequest } from 'next/server';
 import { maskedResponse, errorResponse } from '@/lib/apiMask';
 import { getAuthUserId, isUserId } from '@/lib/session';
 import { resolveOpenAIKey } from '@/lib/openaiKey';
+import { OPENAI_ORCHESTRATOR_MODEL } from '@/lib/aiModel';
 
 export const dynamic = 'force-dynamic';
 
@@ -202,7 +203,7 @@ export async function POST(req: NextRequest) {
         Authorization: `Bearer ${openaiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: OPENAI_ORCHESTRATOR_MODEL,
         instructions: classifySystemPrompt,
         input: imageBase64
           ? [
@@ -391,7 +392,7 @@ export async function POST(req: NextRequest) {
         responseBody: toolResponseBody,
       },
       metadata: {
-        model: 'gpt-4o-mini',
+        model: OPENAI_ORCHESTRATOR_MODEL,
         usage: {
           prompt_tokens: classifyData.usage?.input_tokens,
           completion_tokens: classifyData.usage?.output_tokens,

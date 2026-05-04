@@ -33,7 +33,7 @@ export default function ConversationHistory({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div className="hide-scrollbar flex-1 overflow-y-auto">
       <div className="flex flex-col pb-2">
         {entries.map((entry) => (
           <MessageBubble

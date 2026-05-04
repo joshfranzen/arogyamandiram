@@ -30,6 +30,7 @@ const DEBUG_TREE: { page: string; agents: string[] }[] = [
   { page: 'orchestrator', agents: ['water', 'weight', 'sleep', 'food-ai-logger', 'meal-ideas', 'workout-ai-logger', 'workout-plan', 'custom-food', 'unknown'] },
   { page: 'today-plan', agents: ['overview', 'food', 'workout'] },
   { page: 'targets', agents: ['health-plan'] },
+  { page: 'settings', agents: ['todos-food-parser'] },
   { page: 'health-data', agents: ['sync'] },
   { page: 'email', agents: ['smtp', 'imap'] },
 ];

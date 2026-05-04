@@ -50,6 +50,9 @@ async function generateForUser(
     fat?: number; idealWeight?: number; dailyWorkoutMinutes?: number;
     dailyCalorieBurn?: number; sleepHours?: number;
   };
+  const foodPreferences = (user.settings as { foodPreferences?: { dietaryPreference?: string; allergies?: string[] } } | undefined)?.foodPreferences;
+  const dietaryPreference = foodPreferences?.dietaryPreference || 'no_preference';
+  const allergies = Array.isArray(foodPreferences?.allergies) ? foodPreferences.allergies : [];
 
   const age = profile.dateOfBirth
     ? getAgeFromDateOfBirth(profile.dateOfBirth)
@@ -150,6 +153,8 @@ Rules: 4-6 food suggestions across multiple meal types, avoid disliked foods, ad
     profileContext,
     recentContext,
     `Today's intake: ${todayCalories} kcal, ${todayProtein}g protein. Protein gap: ${proteinGap}g.`,
+    `Dietary preference: ${dietaryPreference}.`,
+    `Allergies or foods to avoid: ${allergies.length > 0 ? allergies.join(', ') : 'None provided'}.`,
     dislikedFoods.length > 0 ? `Avoid foods: ${dislikedFoods.join(', ')}.` : '',
     lastDifficulty === 'too_hard' ? 'Last workout was too hard — suggest lighter/recovery session.' : '',
     lastDifficulty === 'too_easy' ? 'Last workout was too easy — increase difficulty slightly.' : '',

@@ -12,6 +12,7 @@ import { resolveOpenAIKey } from '@/lib/openaiKey';
 import { maskedResponse, errorResponse } from '@/lib/apiMask';
 import { getAuthUserId, isUserId } from '@/lib/session';
 import { getToday } from '@/lib/utils';
+import { OPENAI_BEST_MODEL } from '@/lib/aiModel';
 
 export const dynamic = 'force-dynamic';
 
@@ -128,13 +129,13 @@ Respond ONLY with valid JSON in this exact shape (no markdown, no extra text):
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: OPENAI_BEST_MODEL,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: contextLines },
         ],
         temperature: 0.4,
-        max_tokens: 800,
+        max_completion_tokens: 800,
         response_format: { type: 'json_object' },
       }),
     });

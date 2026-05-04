@@ -38,7 +38,7 @@ const WorkoutEntrySchema = new Schema(
     exercise: { type: String, required: true },
     category: {
       type: String,
-      enum: ['cardio', 'strength', 'flexibility', 'sports', 'other'],
+      enum: ['cardio', 'strength', 'flexibility', 'core', 'sports', 'other'],
       default: 'other',
     },
     duration: { type: Number, required: true, min: 0 },  // minutes
@@ -49,6 +49,9 @@ const WorkoutEntrySchema = new Schema(
     notes: { type: String, default: '' },
     // 'device' = came from health-data sync; 'manual' = user-entered
     source: { type: String, enum: ['manual', 'device'], default: 'manual' },
+    // When this log entry was logged from a planned exercise card, this stores
+    // the canonical plan exercise name so the UI can re-hydrate "Logged" state.
+    planExerciseName: { type: String },
   },
   { _id: true }
 );

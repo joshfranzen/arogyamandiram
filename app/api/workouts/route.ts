@@ -96,12 +96,28 @@ export async function POST(req: NextRequest) {
       return errorResponse('Exercise name and either duration (min) or reps (number) are required', 400);
     }
 
+    // Whitelist persisted fields so client cannot inject arbitrary keys.
+    const persisted: Record<string, unknown> = {
+      exercise: String(workout.exercise),
+      category: workout.category,
+      duration: workout.duration,
+      caloriesBurned: workout.caloriesBurned,
+      sets: workout.sets,
+      reps: workout.reps,
+      weight: workout.weight,
+      notes: workout.notes,
+      source: workout.source,
+    };
+    if (typeof workout.planExerciseName === 'string' && workout.planExerciseName.trim()) {
+      persisted.planExerciseName = workout.planExerciseName.trim();
+    }
+
     await connectDB();
 
     const log = await DailyLog.findOneAndUpdate(
       { userId, date: logDate },
       {
-        $push: { workouts: workout },
+        $push: { workouts: persisted },
         $setOnInsert: { userId, date: logDate },
       },
       { new: true, upsert: true, runValidators: true }
@@ -197,7 +213,7 @@ export async function PUT(req: NextRequest) {
 
     await connectDB();
 
-    const category = ['cardio', 'strength', 'flexibility', 'sports', 'other'].includes(workoutPayload.category)
+    const category = ['cardio', 'strength', 'flexibility', 'core', 'sports', 'other'].includes(workoutPayload.category)
       ? workoutPayload.category
       : 'other';
     const updateFields: Record<string, unknown> = {
@@ -210,6 +226,9 @@ export async function PUT(req: NextRequest) {
     if (workoutPayload.sets != null) updateFields['workouts.$.sets'] = Math.max(0, Math.round(Number(workoutPayload.sets)));
     if (workoutPayload.reps != null) updateFields['workouts.$.reps'] = Math.max(0, Math.round(Number(workoutPayload.reps)));
     if (workoutPayload.weight != null) updateFields['workouts.$.weight'] = Math.max(0, Number(workoutPayload.weight));
+    if (typeof workoutPayload.planExerciseName === 'string' && workoutPayload.planExerciseName.trim()) {
+      updateFields['workouts.$.planExerciseName'] = workoutPayload.planExerciseName.trim();
+    }
 
     const log = await DailyLog.findOneAndUpdate(
       { userId, date: logDate, 'workouts._id': workoutId },

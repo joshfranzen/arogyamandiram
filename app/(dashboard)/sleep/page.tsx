@@ -9,15 +9,8 @@ import {
   Star,
   Clock,
 } from 'lucide-react';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  ResponsiveContainer,
-} from 'recharts';
 import DashboardPageShell from '@/components/layout/DashboardPageShell';
+import MetricChart from '@/components/ui/MetricChart';
 import ProgressRing from '@/components/ui/ProgressRing';
 import { CardSkeleton } from '@/components/ui/Skeleton';
 import { showToast } from '@/components/ui/Toast';
@@ -32,6 +25,13 @@ interface SleepHistoryItem {
   date: string;
   sleep?: SleepEntryType;
 }
+
+const SLEEP_PERIOD_OPTIONS = [
+  { key: 7, label: '7D' },
+  { key: 14, label: '2W' },
+  { key: 30, label: '1M' },
+  { key: 90, label: '3M' },
+];
 
 function parseTimeToMinutes(timeStr: string): number {
   const [h, m] = (timeStr || '0:0').split(':').map((x) => parseInt(x, 10) || 0);
@@ -64,14 +64,15 @@ export default function SleepPage() {
   const [quality, setQuality] = useState<1 | 2 | 3 | 4 | 5>(3);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [period, setPeriod] = useState(7);
 
   const currentSleep = log?.sleep;
   const durationHours = computeDurationHours(bedtime, wakeTime);
 
-  const fetchHistory = useCallback(async () => {
+  const fetchHistory = useCallback(async (days: number) => {
     setHistoryLoading(true);
     try {
-      const res = await api.getSleepHistory(7);
+      const res = await api.getSleepHistory(days);
       if (res.success && res.data) {
         const data = res.data as { history: SleepHistoryItem[] };
         setHistory(data.history || []);
@@ -84,13 +85,14 @@ export default function SleepPage() {
   }, []);
 
   useEffect(() => {
-    fetchHistory();
-  }, [fetchHistory]);
+    fetchHistory(period);
+  }, [fetchHistory, period]);
 
   useEffect(() => {
-    window.addEventListener('orchestrator:log-updated', fetchHistory);
-    return () => window.removeEventListener('orchestrator:log-updated', fetchHistory);
-  }, [fetchHistory]);
+    const handler = () => fetchHistory(period);
+    window.addEventListener('orchestrator:log-updated', handler);
+    return () => window.removeEventListener('orchestrator:log-updated', handler);
+  }, [fetchHistory, period]);
 
   // Pre-fill form from today's log
   useEffect(() => {
@@ -120,7 +122,7 @@ export default function SleepPage() {
       if (res.success) {
         showToast('Sleep logged successfully', 'success');
         refetch();
-        fetchHistory();
+        fetchHistory(period);
       } else {
         showToast(res.error || 'Failed to log sleep', 'error');
       }
@@ -147,8 +149,7 @@ export default function SleepPage() {
       date: h.date,
       value: h.sleep!.duration,
       label: `${h.sleep!.duration.toFixed(1)}h`,
-    }))
-    .slice(-7);
+    }));
 
   const loading = userLoading || logLoading;
 
@@ -295,55 +296,74 @@ export default function SleepPage() {
         </div>
 
         {/* Right: Chart + Recent (match vertical gaps with left) */}
-        <div className="flex flex-col gap-2.5">
-          {/* Weekly Sleep Chart – hidden on mobile, match card shape */}
+        <div className="flex flex-col gap-2.5 lg:relative">
+          <div className="flex flex-col gap-2.5 lg:absolute lg:inset-0 lg:min-h-0">
+          {/* Sleep Trend Chart – hidden on mobile, match card shape */}
           <div className="dashboard-unified-card hidden overflow-visible rounded-2xl border p-6 lg:block">
-            <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-[#a3a3a3]">
-              <Sunrise className="h-4 w-4 text-[#a3a3a3]" />
-              Last 7 Days
-            </h2>
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2">
+                <Sunrise className="h-5 w-5 text-accent-violet" />
+                <h2 className="text-base font-semibold text-[#a3a3a3]">Sleep Trend</h2>
+              </div>
+              <div className="flex gap-1.5">
+                {SLEEP_PERIOD_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.key}
+                    onClick={() => setPeriod(opt.key)}
+                    className={cn(
+                      'rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
+                      period === opt.key
+                        ? 'bg-white/[0.08] text-[#a3a3a3]'
+                        : 'bg-white/[0.02] text-[#a3a3a3]/70 hover:bg-white/[0.06]',
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {historyLoading ? (
-              <div className="flex min-h-[220px] items-center justify-center">
+              <div className="flex h-60 items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-[#a3a3a3]" />
               </div>
-            ) : chartData.length > 0 ? (
-              <div className="min-h-[220px] w-full">
-                <ResponsiveContainer width="100%" height={220} minHeight={220}>
-                  <BarChart data={chartData} margin={{ top: 8, right: 8, left: 4, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(163,163,163,0.15)" />
-                  <XAxis
-                    dataKey="date"
-                    tickFormatter={(d) => {
-                      const p = d.split('-');
-                      return `${p[1]}/${p[2]}`;
-                    }}
-                    stroke="#a3a3a3"
-                    tick={{ fill: '#a3a3a3', fontSize: 11 }}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    domain={[0, 12]}
-                    stroke="#a3a3a3"
-                    tick={{ fill: '#a3a3a3', fontSize: 12 }}
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(v) => `${v}h`}
-                    width={36}
-                    tickMargin={8}
-                  />
-                  <Bar
-                    dataKey="value"
-                    fill="rgba(139, 92, 246, 0.7)"
-                    radius={[6, 6, 0, 0]}
-                  />
-                </BarChart>
-                </ResponsiveContainer>
-              </div>
             ) : (
-              <div className="flex min-h-[220px] items-center justify-center text-sm text-[#a3a3a3]">
-                Log sleep to see your weekly trend
-              </div>
+              <>
+                <MetricChart
+                  data={chartData}
+                  color="#8b5cf6"
+                  gradientId="sleepGrad"
+                  gradientFrom="#1e1b4b"
+                  gradientTo="#020617"
+                  unit="h"
+                  height={240}
+                  targetValue={targetHours}
+                  targetLabel={`Goal: ${targetHours}h`}
+                  formatY={(v) => `${v}h`}
+                />
+                {chartData.length > 0 && (() => {
+                  const values = chartData.map((d) => d.value);
+                  const avg = values.reduce((a, b) => a + b, 0) / values.length;
+                  const onTarget = values.filter((v) => v >= targetHours).length;
+                  const best = Math.max(...values);
+                  return (
+                    <div className="mt-4 grid grid-cols-3 gap-3">
+                      <div className="rounded-xl bg-black/40 p-3 text-center shadow-lg">
+                        <p className="text-lg font-semibold text-[#a3a3a3]">{avg.toFixed(1)}h</p>
+                        <p className="text-[11px] text-[#a3a3a3]/70">Daily Average</p>
+                      </div>
+                      <div className="rounded-xl bg-black/40 p-3 text-center shadow-lg">
+                        <p className="text-lg font-semibold text-[#a3a3a3]">{`${onTarget}/${values.length}`}</p>
+                        <p className="text-[11px] text-[#a3a3a3]/70">Days Goal Met</p>
+                      </div>
+                      <div className="rounded-xl bg-black/40 p-3 text-center shadow-lg">
+                        <p className="text-lg font-semibold text-[#a3a3a3]">{best.toFixed(1)}h</p>
+                        <p className="text-[11px] text-[#a3a3a3]/70">Best Night</p>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </>
             )}
           </div>
 
@@ -356,7 +376,7 @@ export default function SleepPage() {
             {history.filter((h) => h.sleep).length === 0 ? (
               <p className="py-4 text-center text-xs text-[#a3a3a3]">No sleep entries yet</p>
             ) : (
-              <div className="hide-scrollbar min-h-0 flex-1 space-y-2 max-h-[200px] overflow-y-auto pr-1">
+              <div className="hide-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                 {history
                   .filter((h) => h.sleep)
                   .slice(-7)
@@ -394,6 +414,7 @@ export default function SleepPage() {
                   ))}
               </div>
             )}
+          </div>
           </div>
         </div>
         </div>

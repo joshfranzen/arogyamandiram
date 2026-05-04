@@ -30,8 +30,8 @@ export default function TodaysPlanPage() {
                 className={cn(
                   'flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors',
                   activeTab === tab.key
-                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                    : 'bg-zinc-900/50 text-zinc-400 border border-transparent hover:bg-zinc-800 hover:text-zinc-300'
+                    ? 'bg-emerald-500/10 text-emerald-400'
+                    : 'bg-zinc-900/50 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-300'
                 )}>
                 <tab.icon className="h-4 w-4" />
                 {tab.label}

@@ -9,7 +9,13 @@ import { maskedResponse, errorResponse } from '@/lib/apiMask';
 import { getAuthUserId, isUserId } from '@/lib/session';
 import { getToday } from '@/lib/utils';
 import { writeDebugLog } from '@/lib/debugLogWriter';
-import { buildWorkoutPrompt, type WorkoutRequestBody, normalizeWorkoutPlan } from '../shared';
+import { OPENAI_BEST_MODEL } from '@/lib/aiModel';
+import {
+  buildWorkoutPrompt,
+  deriveReadinessSignals,
+  type WorkoutRequestBody,
+  normalizeWorkoutPlan,
+} from '../shared';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,14 +25,22 @@ export async function GET() {
     if (!isUserId(userId)) return userId;
     await connectDB();
 
-    const plan = await DailyPlan.findOne({ userId, date: getToday() })
-      .select('workoutPlan status feedback')
-      .lean() as { workoutPlan?: unknown; status?: string; feedback?: { workoutDifficulty?: string } } | null;
+    const today = getToday();
+    const [plan, todayLog] = await Promise.all([
+      DailyPlan.findOne({ userId, date: today })
+        .select('workoutPlan status feedback')
+        .lean() as Promise<{ workoutPlan?: unknown; status?: string; feedback?: { workoutDifficulty?: string } } | null>,
+      DailyLog.findOne({ userId, date: today })
+        .select('workouts')
+        .lean() as Promise<{ workouts?: Array<Record<string, unknown>> } | null>,
+    ]);
 
     return maskedResponse({
       workoutPlan: plan?.workoutPlan ?? null,
       status: plan?.status ?? null,
       feedback: plan?.feedback ? { workoutDifficulty: plan.feedback.workoutDifficulty } : null,
+      // Used by WorkoutTab to re-hydrate the "Logged" pill across page reloads.
+      loggedToday: Array.isArray(todayLog?.workouts) ? todayLog!.workouts : [],
     });
   } catch (err) {
     return errorResponse(err instanceof Error ? err.message : 'Failed to fetch workout plan', 500);
@@ -44,37 +58,53 @@ export async function POST(req: NextRequest) {
 
     await connectDB();
     const today = getToday();
-    const systemPrompt = `You are a practical fitness coach. Create a simple workout plan for TODAY based on the user's last-week details.
-Return JSON only with this shape:
+    const systemPrompt = `You are an evidence-based fitness coach generating ONE user's daily workout plan as JSON.
+
+Your responsibilities, in order:
+1. Read the user's last 7 days of workouts (provided in the user message). Decide the right training split for THIS user THIS week. Choices include — but you may also blend or invent — full body, upper/lower, push-pull-legs, or single-body-part-per-day. Pick what fits their fitness level, recovery state, and what's already been trained this week. Do NOT fall back to a default rule like "always full body for beginners" — use the data.
+2. For today, choose body parts the user has NOT trained in the last 1–2 days. Aim for full-body weekly coverage.
+3. Apply the readiness signals provided (protein deficit, sleep, steps).
+4. Use the DERIVED goalDirection (lose / maintain / gain), NOT the raw profile.goal field. If goalDirection is "lose": lean toward higher total work and moderate cardio. If "maintain": balanced. If "gain": more strength volume, longer rests, less cardio.
+5. Estimate calories burned with MET × bodyweight × time. Use these ranges; do NOT under- or over-estimate:
+   - cardio:           low 3.5–4.5 · medium 5.0–7.0 · high 7.0–10.0
+   - strength:         low 3.0–4.0 · medium 4.5–6.0 · high 6.0–8.0
+   - core:             low 2.5–3.5 · medium 3.5–4.5 · high 4.5–6.0
+   - flexibility:      2.0–2.5 (any intensity)
+
+Hard constraints (always):
+- Total session duration must be within ±3 minutes of "Today target minutes".
+- The first exercise must have phase="warmup" (3–5 min, low intensity).
+- The last 1–2 exercises must have phase="cooldown" or "mobility".
+- Pick beginner-friendly, low-equipment exercises unless the user is intermediate or advanced.
+- Never recommend spot reduction.
+
+Return JSON only with this exact shape:
 {
   "workoutPlan": {
     "name": "string",
     "description": "string",
+    "weeklyStrategyChosen": "string — one sentence: which split you picked for the week and why",
+    "whyToday": "string — one sentence: why today's session looks the way it does given recent days",
+    "readinessAdjustment": "string — how today reflects the readiness signals",
     "exercises": [
       {
         "name": "string",
+        "phase": "warmup | strength | cardio | core | mobility | cooldown",
         "sets": number,
-        "reps": "string",
+        "reps": "string — e.g. '10', '10-12', '30 seconds', or 'continuous'",
         "durationMinutes": number,
         "restSeconds": number,
-        "category": "cardio" | "strength" | "flexibility" | "sports" | "other",
-        "intensity": "low" | "medium" | "high"
+        "category": "cardio | strength | flexibility | core",
+        "intensity": "low | medium | high",
+        "muscleGroup": "legs | push | pull | core"
       }
     ],
     "estimatedCalories": number,
-    "progressionTip": "string",
-    "reasoning": "string",
+    "progressionTip": "string — one specific increase for next session",
+    "reasoning": "string — short paragraph explaining the choices",
     "durationMinutes": number
   }
-}
-Rules:
-- Order exercises as: warm-up first, then main work, then cool-down stretches.
-- Include a true warm-up block (3-5 min, low intensity) before strength/cardio.
-- Include at least 2 flexibility/cool-down stretches at the end (not just one).
-- Keep total planned exercise time + typical rest transitions reasonably aligned with durationMinutes.
-- If recent protein intake appears below 70% of protein target, mention recovery constraints in reasoning and avoid excessive high-volume programming.
-- If recent daily steps exceed the target (or 8,000 when target is unavailable), acknowledge the user is already active and avoid stacking extra cardio volume unnecessarily.
-- Keep it realistic, beginner-friendly when unclear, and aligned to the user's details.`;
+}`;
     const user = await User.findById(userId)
       .select('profile.gender profile.age profile.dateOfBirth profile.height profile.weight profile.activityLevel profile.goal profile.targetWeight profile.bodyType profile.bodyFat profile.fatFocusAreas profile.fitnessLevelDerived profile.fitnessLevelUser targets')
       .lean() as {
@@ -106,10 +136,19 @@ Rules:
         };
       } | null;
 
-    const recentLogs = await DailyLog.find({ userId, date: { $lte: today } })
+    // 7-day window ending today. We include today's recovery / nutrition / hydration
+    // data so readiness signals are accurate, but the buildWeeklyWorkoutSummary
+    // helper drops today's *workouts* from the LLM prompt to avoid feeding the model
+    // the workout it's about to generate.
+    const sevenDaysAgo = (() => {
+      const d = new Date(today);
+      d.setDate(d.getDate() - 6);
+      return d.toISOString().slice(0, 10);
+    })();
+    const recentLogs = await DailyLog.find({ userId, date: { $gte: sevenDaysAgo, $lte: today } })
       .sort({ date: -1 })
-      .limit(3)
-      .select('date totalCalories totalProtein totalCarbs totalFat waterIntake caloriesBurned heartRate steps activeCalories distanceKm sleep.duration sleep.quality workouts.exercise workouts.category workouts.duration workouts.caloriesBurned workouts.sets workouts.reps workouts.source')
+      .limit(7)
+      .select('date totalCalories totalProtein totalCarbs totalFat waterIntake caloriesBurned heartRate steps activeCalories distanceKm sleep.duration sleep.quality workouts.exercise workouts.planExerciseName workouts.category workouts.duration workouts.caloriesBurned workouts.sets workouts.reps workouts.source workouts.notes')
       .lean() as Array<{
         date?: string;
         totalCalories?: number;
@@ -125,12 +164,14 @@ Rules:
         sleep?: { duration?: number; quality?: number };
         workouts?: Array<{
           exercise?: string;
+          planExerciseName?: string;
           category?: string;
           duration?: number;
           caloriesBurned?: number;
           sets?: number;
           reps?: number;
           source?: string;
+          notes?: string;
         }>;
       }>;
 
@@ -146,19 +187,22 @@ Rules:
         };
       }>;
 
-    const userPrompt = buildWorkoutPrompt(body, today, {
+    const promptContext = {
       profile: user?.profile ?? null,
       targets: user?.targets ?? null,
       recentLogs,
       recentFeedback,
-    });
+    };
+    const userPrompt = buildWorkoutPrompt(body, today, promptContext);
+    const signals = deriveReadinessSignals(body, promptContext);
+
     const ai = await createOpenAiJson<{ workoutPlan?: Record<string, unknown> }>({
       apiKey,
       systemPrompt,
       userPrompt,
       maxTokens: 1500,
     });
-    const workoutPlan = normalizeWorkoutPlan(ai.workoutPlan ?? ai);
+    const workoutPlan = normalizeWorkoutPlan(ai.workoutPlan ?? ai, signals);
 
     const plan = await DailyPlan.findOneAndUpdate(
       { userId, date: today },
@@ -182,7 +226,7 @@ Rules:
         parsedResult: { workoutPlan },
         metadata: {
           status: 'success',
-          model: 'gpt-4o-mini',
+          model: OPENAI_BEST_MODEL,
         },
       },
     });
