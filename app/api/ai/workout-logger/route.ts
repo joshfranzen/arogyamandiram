@@ -32,7 +32,7 @@ Parse all exercises mentioned. Normalize typos and common aliases:
 For each workout:
 - exercise: short standard name
 - category: cardio | strength | flexibility | core | sports | other
-- duration: minutes (use explicit duration if provided)
+- duration: minutes (use explicit duration if provided). For sub-minute durations given in seconds, output a decimal value: 30 seconds = 0.5, 45 seconds = 0.75, 15 seconds = 0.25. Never round seconds down to 0.
 - sets/reps/weight: include when present, else null
 - notes: short clarification when useful, else null
 
@@ -79,7 +79,7 @@ const WORKOUT_LOG_TOOL = {
             duration: {
               type: 'number',
               description:
-                'Duration of this exercise in minutes. Use 0 for purely rep-based strength sets when no time is given.',
+                'Duration of this exercise in minutes. May be a decimal for sub-minute durations (e.g. 30 seconds = 0.5, 45 seconds = 0.75). Use 0 only for purely rep-based strength sets when no time is given.',
             },
             caloriesBurned: {
               type: 'number',

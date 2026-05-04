@@ -3,13 +3,10 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Droplets,
   GlassWater,
-  Target,
-  TrendingUp,
   BarChart3,
 } from 'lucide-react';
 import DashboardPageShell from '@/components/layout/DashboardPageShell';
 import WaterGlass from '@/components/water/WaterGlass';
-import ProgressRing from '@/components/ui/ProgressRing';
 import MetricChart from '@/components/ui/MetricChart';
 import { CardSkeleton } from '@/components/ui/Skeleton';
 import { showToast } from '@/components/ui/Toast';
@@ -54,7 +51,7 @@ export default function WaterPage() {
 
   const [waterHistory, setWaterHistory] = useState<WaterEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
-  const [period, setPeriod] = useState(14);
+  const [period, setPeriod] = useState(7);
 
   const today = getToday();
   const target = getTargetsForUser(user ?? undefined).dailyWater;
@@ -191,57 +188,45 @@ export default function WaterPage() {
 
         {/* Right half: Stats (15 glasses, 100% goal, 2.5L, 0ml), Glass Tracker, Recent Water */}
         <div className="flex min-h-[420px] flex-col justify-center space-y-3 lg:h-full lg:min-h-0 lg:overflow-y-auto">
-          {/* Stats Grid – on mobile show simpler stats, full set on larger screens */}
-          <div className="grid grid-cols-2 gap-3">
-            <WaterCard className="flex flex-col items-center justify-center p-4">
-              <GlassWater className="h-5 w-5 text-[#A3A3A3]" />
-              <p className="mt-1 text-2xl font-semibold text-[#A3A3A3]">{glasses}</p>
-              <p className="text-xs text-[#94A3B8]">of {targetGlasses} glasses</p>
-            </WaterCard>
-            {/* Hide percent ring on mobile; keep on larger screens */}
-            <WaterCard className="hidden flex-col items-center justify-center p-4 lg:flex">
-              <ProgressRing
-                progress={percent}
-                size={80}
-                strokeWidth={6}
-                color="stroke-[#4FC3F7]"
-                value={`${Math.round(percent)}%`}
-                label="hydrated"
-                valueClassName="text-lg font-bold text-[#A3A3A3]"
-                labelClassName="text-[10px] font-medium text-[#A3A3A3]"
-              />
-            </WaterCard>
-            <WaterCard className="flex flex-col items-center justify-center p-4">
-              <Target className="h-5 w-5 text-[#A3A3A3]" />
-              <p className="mt-1 text-lg font-semibold text-[#A3A3A3]">{formatWater(target)}</p>
-              <p className="text-xs text-[#94A3B8]">daily goal</p>
-            </WaterCard>
-            {/* Hide remaining / exceeded card on mobile; keep on larger screens */}
-            <WaterCard className="hidden flex-col items-center justify-center p-4 lg:flex">
-              <TrendingUp className="h-5 w-5 text-[#A3A3A3]" />
-              <p className="mt-1 text-lg font-semibold text-[#A3A3A3]">{formatWater(remaining)}</p>
-              <p className="text-xs text-[#A3A3A3]">{percent >= 100 ? 'exceeded by' : 'remaining'}</p>
-            </WaterCard>
-          </div>
-
           {/* Glass Indicators – hide on mobile, keep on larger screens */}
-          <WaterCard className="hidden p-4 lg:block">
-            <h3 className="mb-3 text-sm font-semibold text-[#A3A3A3]">Glass Tracker</h3>
-            <div className="flex flex-wrap justify-center gap-2">
-              {Array.from({ length: targetGlasses }, (_, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    'flex h-8 w-8 items-center justify-center rounded-lg text-xs font-medium transition-all duration-300',
-                    i < glasses
-                      ? 'bg-[#4FC3F7]/20 text-[#4FC3F7]'
-                      : 'bg-white/[0.04] text-[#94A3B8]'
-                  )}
-                  style={{ transitionDelay: `${i * 30}ms` }}
-                >
-                  {i < glasses ? '💧' : i + 1}
-                </div>
-              ))}
+          <WaterCard className="hidden p-5 lg:block">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <GlassWater className="h-4 w-4 text-[#4FC3F7]" />
+                <h3 className="text-sm font-semibold text-[#A3A3A3]">Glass Tracker</h3>
+              </div>
+              <div className="flex items-baseline gap-1.5 text-xs">
+                <span className="font-semibold text-[#A3A3A3]">{glasses}</span>
+                <span className="text-[#94A3B8]">/ {targetGlasses} glasses</span>
+                <span className="text-[#4FC3F7]">· {Math.round(percent)}%</span>
+              </div>
+            </div>
+
+            <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-white/[0.04]">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[#4FC3F7] to-[#06b6d4] transition-all duration-500"
+                style={{ width: `${Math.min(percent, 100)}%` }}
+              />
+            </div>
+
+            <div className="flex flex-wrap justify-between gap-1.5">
+              {Array.from({ length: targetGlasses }, (_, i) => {
+                const filled = i < glasses;
+                return (
+                  <div
+                    key={i}
+                    className={cn(
+                      'flex h-9 flex-1 min-w-[28px] items-center justify-center rounded-lg text-[11px] font-medium transition-all duration-300',
+                      filled
+                        ? 'bg-[#4FC3F7]/15 text-[#4FC3F7] ring-1 ring-[#4FC3F7]/30'
+                        : 'bg-white/[0.03] text-[#94A3B8] ring-1 ring-white/[0.04]',
+                    )}
+                    style={{ transitionDelay: `${i * 30}ms` }}
+                  >
+                    {filled ? '💧' : i + 1}
+                  </div>
+                );
+              })}
             </div>
           </WaterCard>
 
@@ -258,7 +243,7 @@ export default function WaterPage() {
             ) : waterHistory.length === 0 ? (
               <p className="py-4 text-xs text-[#94A3B8]">No water entries yet</p>
             ) : (
-              <div className="hide-scrollbar w-full min-h-0 flex-1 space-y-2 max-h-[200px] overflow-y-auto pr-1">
+              <div className="hide-scrollbar w-full min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                 {waterHistory
                   .slice(-7)
                   .reverse()

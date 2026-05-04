@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Sparkles, Loader2, Dumbbell, Lightbulb, CheckCircle2, Pencil,
+  ChevronDown, ChevronUp, ExternalLink, Flame, Clock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { showToast } from '@/components/ui/Toast';
@@ -157,6 +158,7 @@ export default function WorkoutTab() {
   const [skippedWorkoutReason, setSkippedWorkoutReason] = useState<string | null>(null);
   const [feedbackSaving, setFeedbackSaving] = useState(false);
   const [feedbackSaved, setFeedbackSaved] = useState(false);
+  const [rationaleOpen, setRationaleOpen] = useState(false);
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -395,37 +397,90 @@ export default function WorkoutTab() {
     );
   }
 
+  // Progress: how many exercises are logged.
+  const totalExercises = currentWorkoutPlan.exercises.length;
+  const loggedExercises = currentWorkoutPlan.exercises.filter((ex, i) => {
+    return workoutDrafts[getExerciseDraftKey(ex, i)]?.saved;
+  }).length;
+
+  const hasRationale = !!(
+    currentWorkoutPlan.weeklyStrategyChosen ||
+    currentWorkoutPlan.whyToday ||
+    currentWorkoutPlan.reasoning
+  );
+
   return (
     <div className="space-y-4">
-      {currentWorkoutPlan.weeklyStrategyChosen && (
-        <div className="flex items-start gap-2 rounded-xl border border-sky-500/20 bg-sky-500/5 px-4 py-2.5">
-          <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-sky-400" />
-          <p className="text-xs text-sky-200">
-            <span className="font-semibold">This week: </span>{currentWorkoutPlan.weeklyStrategyChosen}
-          </p>
-        </div>
-      )}
-      {currentWorkoutPlan.whyToday && (
-        <div className="flex items-start gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-2.5">
-          <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400" />
-          <p className="text-xs text-emerald-200">
-            <span className="font-semibold">Today: </span>{currentWorkoutPlan.whyToday}
-          </p>
-        </div>
-      )}
-      {currentWorkoutPlan.reasoning && (
-        <div className="flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-2.5">
-          <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
-          <p className="text-xs text-amber-200">{currentWorkoutPlan.reasoning}</p>
+      {/* Collapsible rationale */}
+      {hasRationale && (
+        <div className="rounded-xl border border-zinc-800 bg-emerald-500/[0.03]">
+          <button
+            type="button"
+            onClick={() => setRationaleOpen((v) => !v)}
+            className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <Lightbulb className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+              <p className="truncate text-xs text-emerald-200">
+                <span className="font-semibold">Why this plan today</span>
+                {currentWorkoutPlan.whyToday && (
+                  <span className="ml-2 text-emerald-300/70">— {currentWorkoutPlan.whyToday}</span>
+                )}
+              </p>
+            </div>
+            {rationaleOpen
+              ? <ChevronUp className="h-3.5 w-3.5 shrink-0 text-emerald-400/70" />
+              : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-emerald-400/70" />}
+          </button>
+          {rationaleOpen && (
+            <div className="space-y-2 border-t border-emerald-500/10 px-4 py-3">
+              {currentWorkoutPlan.weeklyStrategyChosen && (
+                <p className="text-xs text-sky-200">
+                  <span className="font-semibold text-sky-300">This week: </span>
+                  {currentWorkoutPlan.weeklyStrategyChosen}
+                </p>
+              )}
+              {currentWorkoutPlan.whyToday && (
+                <p className="text-xs text-emerald-200">
+                  <span className="font-semibold text-emerald-300">Today: </span>
+                  {currentWorkoutPlan.whyToday}
+                </p>
+              )}
+              {currentWorkoutPlan.reasoning && (
+                <p className="text-xs text-amber-200/90">{currentWorkoutPlan.reasoning}</p>
+              )}
+            </div>
+          )}
         </div>
       )}
 
       <div className="dashboard-unified-card rounded-2xl border p-5 sm:p-6">
-      {/* Header */}
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Dumbbell className="h-4 w-4 text-emerald-400" />
-          <h2 className="text-base font-semibold text-text-primary">Today&apos;s Workout Plan</h2>
+      {/* Header with progress */}
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <Dumbbell className="h-4 w-4 text-emerald-400" />
+            <h2 className="text-base font-semibold text-text-primary">Today&apos;s Workout</h2>
+            {totalExercises > 0 && (
+              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
+                {loggedExercises}/{totalExercises} logged
+              </span>
+            )}
+          </div>
+          <p className="mt-1.5 text-sm font-semibold text-text-primary">{currentWorkoutPlan.name}</p>
+          {currentWorkoutPlan.description && (
+            <p className="mt-0.5 text-xs text-text-muted">{currentWorkoutPlan.description}</p>
+          )}
+          <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-zinc-400">
+            <span className="inline-flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              {currentWorkoutPlan.durationMinutes} min
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <Flame className="h-3 w-3 text-rose-400" />
+              ~{currentWorkoutPlan.estimatedCalories} kcal
+            </span>
+          </div>
         </div>
         <button onClick={handleGenerate} disabled={generating}
           className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors disabled:opacity-50">
@@ -434,17 +489,6 @@ export default function WorkoutTab() {
         </button>
       </div>
 
-      {/* Plan meta */}
-      <div className="mb-4">
-          <p className="text-sm font-semibold text-text-primary">{currentWorkoutPlan.name}</p>
-        {currentWorkoutPlan.description && (
-          <p className="mt-0.5 text-xs text-text-muted">{currentWorkoutPlan.description}</p>
-        )}
-        <div className="mt-2 flex gap-2">
-          <span className="rounded-full bg-zinc-800 px-2.5 py-1 text-[10px] text-zinc-300">{currentWorkoutPlan.durationMinutes} min</span>
-          <span className="rounded-full bg-zinc-800 px-2.5 py-1 text-[10px] text-zinc-300">~{currentWorkoutPlan.estimatedCalories} kcal</span>
-        </div>
-      </div>
 
       {/* Exercises */}
       <div className="space-y-2">
@@ -453,13 +497,31 @@ export default function WorkoutTab() {
           const draft = workoutDrafts[key];
           const aiTarget = formatAiTarget(ex);
           const showForm = !draft?.saved || draft?.editing;
+          const isLogged = draft?.saved && !draft?.editing;
           return (
-            <div key={i} className="rounded-xl border border-zinc-800 bg-zinc-900/30 px-4 py-3">
+            <div
+              key={i}
+              className="rounded-xl border border-zinc-800 bg-zinc-900/30 px-4 py-3 transition-colors"
+            >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-text-primary">{ex.name}</p>
-                  {ex.steps && ex.steps.length > 0 && (
-                    <ul className="mt-1.5 space-y-0.5 list-none pl-0">
+                  <div className="flex items-center gap-2">
+                    {isLogged && <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />}
+                    <p className="truncate text-sm font-medium text-text-primary">{ex.name}</p>
+                    <a
+                      href={`https://www.google.com/search?q=${encodeURIComponent('how to perform ' + ex.name)}`}
+                      target="_blank" rel="noopener noreferrer"
+                      title="How to perform"
+                      className="shrink-0 text-zinc-500 hover:text-emerald-400 transition-colors"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                  {aiTarget && (
+                    <p className="mt-1 text-[11px] text-zinc-500">{aiTarget}</p>
+                  )}
+                  {ex.steps && ex.steps.length > 0 && showForm && (
+                    <ul className="mt-2 space-y-0.5 list-none pl-0">
                       {ex.steps.map((step, si) => (
                         <li key={si} className="flex items-start gap-1.5 text-[11px] text-text-muted leading-relaxed">
                           <span className="mt-0.5 shrink-0 text-emerald-500">•</span>
@@ -468,18 +530,6 @@ export default function WorkoutTab() {
                       ))}
                     </ul>
                   )}
-                  {aiTarget && (
-                    <p className="mt-2 text-[11px] text-zinc-500">
-                      <span className="text-zinc-400">AI target:</span> {aiTarget}
-                    </p>
-                  )}
-                  <a
-                    href={`https://www.google.com/search?q=${encodeURIComponent('how to perform ' + ex.name)}`}
-                    target="_blank" rel="noopener noreferrer"
-                    className="mt-1 inline-flex items-center gap-1 text-[10px] text-zinc-500 hover:text-emerald-400 transition-colors underline underline-offset-2"
-                  >
-                    Search &ldquo;{ex.name}&rdquo; on Google
-                  </a>
                 </div>
                 {ex.intensity && (
                   <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[10px] capitalize font-medium whitespace-nowrap', INTENSITY_BADGE[ex.intensity] ?? INTENSITY_BADGE.medium)}>
@@ -490,41 +540,33 @@ export default function WorkoutTab() {
 
               {/* You did — free-text comment */}
               {showForm ? (
-                <div className="mt-3 space-y-2">
-                  <label className="block text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
-                    You did
-                  </label>
-                  <textarea
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    type="text"
                     value={draft?.comment ?? defaultDidText(ex)}
                     onChange={(e) => setDraft(key, { comment: e.target.value, error: null })}
-                    rows={2}
                     placeholder="e.g. 2 sets × 12 reps"
-                    className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-text-primary placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none"
+                    className="flex-1 min-w-0 rounded-lg bg-black/40 px-3 py-1.5 text-xs text-text-primary placeholder:text-zinc-600 focus:outline-none"
                   />
-                  <div className="flex items-center justify-end gap-2">
-                    {draft?.editing && (
-                      <button type="button" onClick={() => handleCancelEdit(ex, i)}
-                        className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors">
-                        Cancel
-                      </button>
-                    )}
-                    <button type="button"
-                      onClick={() => (draft?.editing ? handleSaveEdit(ex, i) : handleLog(ex, i))}
-                      disabled={draft?.saving}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-50">
-                      {draft?.saving ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-                      {draft?.saving ? 'Saving…' : draft?.editing ? 'Save' : 'Log'}
+                  {draft?.editing && (
+                    <button type="button" onClick={() => handleCancelEdit(ex, i)}
+                      className="shrink-0 rounded-lg border border-zinc-700 px-2.5 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors">
+                      Cancel
                     </button>
-                  </div>
+                  )}
+                  <button type="button"
+                    onClick={() => (draft?.editing ? handleSaveEdit(ex, i) : handleLog(ex, i))}
+                    disabled={draft?.saving}
+                    className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-50">
+                    {draft?.saving ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                    {draft?.saving ? 'Saving…' : draft?.editing ? 'Save' : 'Log'}
+                  </button>
                 </div>
               ) : (
-                <div className="mt-3 flex items-start justify-between gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
-                  <div className="flex items-start gap-2 min-w-0">
-                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400" />
-                    <p className="text-xs text-emerald-200 break-words">
-                      <span className="font-semibold">Logged: </span>{draft?.savedComment || draft?.comment}
-                    </p>
-                  </div>
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <p className="text-xs text-emerald-300/90 truncate">
+                    {draft?.savedComment || draft?.comment}
+                  </p>
                   <button type="button" onClick={() => handleEdit(ex, i)}
                     className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-zinc-700 px-2 py-1 text-[11px] text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors">
                     <Pencil className="h-3 w-3" /> Edit
@@ -542,7 +584,7 @@ export default function WorkoutTab() {
       {/* Progression tip */}
       {currentWorkoutPlan.progressionTip && (
         <div className="mt-2">
-          <div className="flex items-start gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2.5">
+          <div className="flex items-start gap-2 rounded-xl border border-zinc-800 bg-emerald-500/[0.03] px-3 py-2.5">
           <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400" />
           <p className="text-xs text-emerald-200">{currentWorkoutPlan.progressionTip}</p>
           </div>
@@ -556,10 +598,10 @@ export default function WorkoutTab() {
           <div className="flex flex-wrap gap-2">
             {(['too_easy', 'just_right', 'too_hard'] as const).map((d) => (
               <button key={d} type="button" onClick={() => { setWorkoutDifficulty(d); setFeedbackSaved(false); }}
-                className={cn('rounded-full border px-3 py-1.5 text-xs capitalize transition-all',
+                className={cn('rounded-full px-3 py-1.5 text-xs capitalize transition-all',
                   workoutDifficulty === d
-                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
-                    : 'border-zinc-700 text-zinc-400 hover:border-zinc-500')}>
+                    ? 'bg-emerald-500/10 text-emerald-300'
+                    : 'bg-white/[0.02] text-zinc-400 hover:bg-white/[0.06]')}>
                 {d.replace('_', ' ')}
               </button>
             ))}
@@ -570,17 +612,17 @@ export default function WorkoutTab() {
           <div className="flex flex-wrap gap-2">
             {(['no_time', 'tired', 'injury', 'other'] as const).map((r) => (
               <button key={r} type="button" onClick={() => { setSkippedWorkoutReason(skippedWorkoutReason === r ? null : r); setFeedbackSaved(false); }}
-                className={cn('rounded-full border px-3 py-1.5 text-xs capitalize transition-all',
+                className={cn('rounded-full px-3 py-1.5 text-xs capitalize transition-all',
                   skippedWorkoutReason === r
-                    ? 'border-rose-500 bg-rose-500/10 text-rose-400'
-                    : 'border-zinc-700 text-zinc-400 hover:border-zinc-500')}>
+                    ? 'bg-rose-500/10 text-rose-300'
+                    : 'bg-white/[0.02] text-zinc-400 hover:bg-white/[0.06]')}>
                 {r.replace('_', ' ')}
               </button>
             ))}
           </div>
           {hasFeedbackChanges && (
             <button onClick={handleSaveFeedback} disabled={feedbackSaving || feedbackSaved}
-              className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-50">
+              className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-50">
               {feedbackSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : feedbackSaved ? <CheckCircle2 className="h-3 w-3" /> : null}
               {feedbackSaved ? 'Saved!' : 'Save feedback'}
             </button>

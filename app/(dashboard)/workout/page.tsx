@@ -14,18 +14,10 @@ import {
   TrendingUp,
   Timer,
   Zap,
+  BarChart3,
 } from 'lucide-react';
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ReferenceLine,
-} from 'recharts';
 import DashboardPageShell from '@/components/layout/DashboardPageShell';
+import MetricChart from '@/components/ui/MetricChart';
 import ProgressRing from '@/components/ui/ProgressRing';
 import StatCard from '@/components/ui/StatCard';
 import WorkoutCard from '@/components/ui/workout-card';
@@ -40,6 +32,7 @@ import { getTargetsForUser } from '@/lib/health';
 import {
   cn,
   formatNumber,
+  formatDuration,
   getToday,
   getAgeFromDateOfBirth,
 } from '@/lib/utils';
@@ -47,6 +40,7 @@ import {
 const categoryIcons: Record<string, typeof Dumbbell> = {
   cardio: Heart,
   strength: Dumbbell,
+  core: Zap,
   flexibility: Waves,
   sports: Footprints,
   other: Bike,
@@ -55,6 +49,7 @@ const categoryIcons: Record<string, typeof Dumbbell> = {
 const categoryColors: Record<string, string> = {
   cardio: 'text-accent-rose bg-accent-rose/10',
   strength: 'text-accent-violet bg-accent-violet/10',
+  core: 'text-orange-400 bg-orange-400/10',
   flexibility: 'text-accent-cyan bg-accent-cyan/10',
   sports: 'text-accent-emerald bg-accent-emerald/10',
   other: 'text-accent-amber bg-accent-amber/10',
@@ -63,6 +58,7 @@ const categoryColors: Record<string, string> = {
 const categoryTextColors: Record<string, string> = {
   cardio: 'text-accent-rose',
   strength: 'text-accent-violet',
+  core: 'text-orange-400',
   flexibility: 'text-accent-cyan',
   sports: 'text-accent-emerald',
   other: 'text-accent-amber',
@@ -83,6 +79,7 @@ export default function WorkoutPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [history, setHistory] = useState<WorkoutHistoryPoint[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [period, setPeriod] = useState(7);
 
   const today = getToday();
   const workouts = log?.workouts || [];
@@ -90,16 +87,16 @@ export default function WorkoutPage() {
   const totalDuration = workouts.reduce((s, w) => s + (w.duration || 0), 0);
   const totalSets = workouts.reduce((s, w) => s + (w.sets || 0), 0);
 
-  // Fetch workout history (last 7 days)
+  // Fetch workout history for selected period
   useEffect(() => {
     setHistoryLoading(true);
-    api.getWorkoutHistory(7).then((res) => {
+    api.getWorkoutHistory(period).then((res) => {
       if (res.success && res.data) {
         const data = res.data as { history: WorkoutHistoryPoint[] };
         setHistory(data.history || []);
       }
     }).finally(() => setHistoryLoading(false));
-  }, [log]);
+  }, [log, period]);
 
   // Group by category
   const categoryBreakdown = workouts.reduce<Record<string, { count: number; calories: number; duration: number }>>((acc, w) => {
@@ -194,18 +191,16 @@ export default function WorkoutPage() {
   const burnPer30Min = burnPerMinute * 30;
   const burnPerHour = burnPerMinute * 60;
 
-  // Chart data: fill in missing days in the last 7
+  // Chart data: fill in missing days across the selected period
   const chartData = (() => {
     const map = new Map(history.map((h) => [h.date, h]));
-    const result: { label: string; date: string; calories: number; duration: number }[] = [];
-    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    for (let i = 6; i >= 0; i--) {
+    const result: { date: string; calories: number; duration: number }[] = [];
+    for (let i = period - 1; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       const entry = map.get(dateStr);
       result.push({
-        label: i === 0 ? 'Today' : dayNames[d.getDay()],
         date: dateStr,
         calories: entry?.caloriesBurned || 0,
         duration: entry?.duration || 0,
@@ -265,8 +260,8 @@ export default function WorkoutPage() {
       <div className="mobile-fade-up mobile-dash-px lg:px-0">
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-3 lg:gap-4">
         {/* Workout List */}
-        <div className="flex flex-col lg:col-span-2">
-          <WorkoutCard className="flex flex-1 flex-col p-6">
+        <div className="flex flex-col lg:relative lg:col-span-2">
+          <WorkoutCard className="flex flex-1 flex-col p-6 lg:absolute lg:inset-0 lg:min-h-0">
             <h2 className="mb-4 text-base font-semibold text-neutral-400">Today&apos;s Sessions</h2>
 
             {workouts.length === 0 ? (
@@ -278,7 +273,7 @@ export default function WorkoutPage() {
                 <p className="text-xs text-text-muted">Use the AI Assistant to log workouts</p>
               </div>
             ) : (
-              <div className="flex-1 space-y-3 overflow-y-auto hide-scrollbar">
+              <div className="flex-1 space-y-3 overflow-y-auto min-h-0 hide-scrollbar">
                 {workouts.map((workout, i) => {
                   const cat = workout.category || 'other';
                   const CatIcon = categoryIcons[cat] || Dumbbell;
@@ -338,7 +333,7 @@ export default function WorkoutPage() {
                             {workout.duration > 0 ? (
                               <div className="flex items-center gap-1.5">
                                 <Clock className="h-3 w-3 text-text-muted" />
-                                <span className="text-xs text-text-secondary">{workout.duration} min</span>
+                                <span className="text-xs text-text-secondary">{formatDuration(workout.duration)}</span>
                               </div>
                             ) : workout.reps != null && workout.reps > 0 ? (
                               <div className="flex items-center gap-1.5">
@@ -431,7 +426,7 @@ export default function WorkoutPage() {
                 {Object.entries(categoryBreakdown).map(([cat, data]) => {
                   const CatIcon = categoryIcons[cat] || Dumbbell;
                   const textColor = categoryTextColors[cat] || 'text-text-secondary';
-                  const pct = totalBurned > 0 ? Math.round((data.calories / totalBurned) * 100) : 0;
+                  const pct = data.calories > 0 || data.duration > 0 ? 100 : 0;
 
                   return (
                     <div key={cat}>
@@ -441,7 +436,7 @@ export default function WorkoutPage() {
                           <span className="text-xs font-medium capitalize text-neutral-400">{cat}</span>
                         </div>
                         <span className="text-xs text-neutral-400">
-                          {data.calories} kcal · {data.duration}min
+                          {data.calories} kcal
                         </span>
                       </div>
                       <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
@@ -449,6 +444,7 @@ export default function WorkoutPage() {
                           className={cn('h-full rounded-full transition-all duration-500', {
                             'bg-accent-rose': cat === 'cardio',
                             'bg-accent-violet': cat === 'strength',
+                            'bg-orange-400': cat === 'core',
                             'bg-accent-cyan': cat === 'flexibility',
                             'bg-accent-emerald': cat === 'sports',
                             'bg-accent-amber': cat === 'other',
@@ -497,99 +493,78 @@ export default function WorkoutPage() {
 
       {/* Workout History Chart – hidden on mobile, visible on laptop/desktop */}
       <WorkoutCard className="hidden lg:block p-6 lg:mt-4">
-        <h2 className="mb-4 text-base font-semibold text-neutral-400">Last 7 Days</h2>
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-accent-rose" />
+            <h2 className="text-base font-semibold text-neutral-400">Daily Calories Burned</h2>
+          </div>
+          <div className="flex gap-1.5">
+            {[
+              { key: 7, label: '7D' },
+              { key: 14, label: '2W' },
+              { key: 30, label: '1M' },
+              { key: 90, label: '3M' },
+            ].map((opt) => (
+              <button
+                key={opt.key}
+                type="button"
+                onClick={() => setPeriod(opt.key)}
+                className={cn(
+                  'rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
+                  period === opt.key
+                    ? 'bg-white/[0.08] text-neutral-400'
+                    : 'bg-white/[0.02] text-neutral-400/70 hover:bg-white/[0.06]',
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {historyLoading ? (
-          <div className="flex h-[200px] items-center justify-center">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent-violet border-t-transparent" />
+          <div className="flex h-60 items-center justify-center">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent-rose border-t-transparent" />
           </div>
         ) : (
-          <div className="flex flex-col gap-4 sm:flex-row sm:gap-6">
-            <div className="min-w-0 flex-1">
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                  <XAxis
-                    dataKey="label"
-                    stroke="rgba(255,255,255,0.15)"
-                    tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    stroke="rgba(255,255,255,0.15)"
-                    tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }}
-                    tickLine={false}
-                    axisLine={false}
-                    width={50}
-                    tickFormatter={(v: number) => `${v}`}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      background: 'rgba(15, 15, 24, 0.95)',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                      borderRadius: '12px',
-                      padding: '8px 12px',
-                      fontSize: '12px',
-                      color: '#f0f0f5',
-                      backdropFilter: 'blur(12px)',
-                    }}
-                    formatter={(value: number, name: string) => [
-                      `${Math.round(value)} ${name === 'calories' ? 'kcal' : 'min'}`,
-                      name === 'calories' ? 'Burned' : 'Duration',
-                    ]}
-                    cursor={{ fill: 'rgba(255,255,255,0.03)' }}
-                  />
-                  {burnGoal > 0 && (
-                    <ReferenceLine
-                      y={burnGoal}
-                      stroke="#f43f5e"
-                      strokeDasharray="6 4"
-                      strokeOpacity={0.4}
-                      label={{
-                        value: `Goal: ${formatNumber(burnGoal)}`,
-                        fill: 'rgba(255,255,255,0.35)',
-                        fontSize: 10,
-                        position: 'insideTopRight',
-                      }}
-                    />
-                  )}
-                  <Bar
-                    dataKey="calories"
-                    fill="#f43f5e"
-                    radius={[6, 6, 0, 0]}
-                    maxBarSize={40}
-                    fillOpacity={0.8}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-              <p className="mt-1 text-center text-[10px] text-neutral-400">Calories burned from exercise</p>
-            </div>
-
-            {/* Weekly summary chips */}
-            <div className="flex flex-row items-stretch gap-2 sm:flex-col sm:justify-center sm:gap-3">
-              {(() => {
-                const weekCals = chartData.reduce((s, d) => s + d.calories, 0);
-                const weekDuration = chartData.reduce((s, d) => s + d.duration, 0);
-                const activeDays = chartData.filter((d) => d.calories > 0).length;
-                return (
-                  <>
-                    <div className="flex-1 rounded-xl bg-white/[0.03] px-3 py-2 text-center sm:flex-none">
-                      <p className="text-lg font-bold text-neutral-400">{formatNumber(Math.round(weekCals))}</p>
-                      <p className="text-[10px] text-neutral-400">kcal this week</p>
-                    </div>
-                    <div className="flex-1 rounded-xl bg-white/[0.03] px-3 py-2 text-center sm:flex-none">
-                      <p className="text-lg font-bold text-neutral-400">{weekDuration}</p>
-                      <p className="text-[10px] text-neutral-400">min this week</p>
-                    </div>
-                    <div className="flex-1 rounded-xl bg-white/[0.03] px-3 py-2 text-center sm:flex-none">
-                      <p className="text-lg font-bold text-neutral-400">{activeDays}/7</p>
-                      <p className="text-[10px] text-neutral-400">active days</p>
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-          </div>
+          <>
+            <MetricChart
+              data={chartData.map((d) => ({ date: d.date, value: d.calories }))}
+              color="#f43f5e"
+              gradientId="workoutGrad"
+              gradientFrom="#7f1d1d"
+              gradientTo="#020617"
+              unit=""
+              tooltipUnit=" kcal"
+              formatY={(v) => formatNumber(Math.round(v))}
+              height={240}
+              targetValue={burnGoal > 0 ? burnGoal : undefined}
+              targetLabel={burnGoal > 0 ? `Goal: ${formatNumber(burnGoal)} kcal` : undefined}
+            />
+            {chartData.length > 0 && (() => {
+              const active = chartData.filter((d) => d.calories > 0);
+              const avg = active.length > 0
+                ? Math.round(active.reduce((s, d) => s + d.calories, 0) / active.length)
+                : 0;
+              const best = active.length > 0 ? Math.max(...active.map((d) => d.calories)) : 0;
+              return (
+                <div className="mt-4 grid grid-cols-3 gap-3">
+                  <div className="rounded-xl bg-black/40 p-3 text-center shadow-lg">
+                    <p className="text-lg font-semibold text-neutral-400">{formatNumber(avg)} kcal</p>
+                    <p className="text-[11px] text-neutral-400/70">Daily Average</p>
+                  </div>
+                  <div className="rounded-xl bg-black/40 p-3 text-center shadow-lg">
+                    <p className="text-lg font-semibold text-neutral-400">{`${active.length}/${chartData.length}`}</p>
+                    <p className="text-[11px] text-neutral-400/70">Active Days</p>
+                  </div>
+                  <div className="rounded-xl bg-black/40 p-3 text-center shadow-lg">
+                    <p className="text-lg font-semibold text-neutral-400">{formatNumber(Math.round(best))} kcal</p>
+                    <p className="text-[11px] text-neutral-400/70">Best Day</p>
+                  </div>
+                </div>
+              );
+            })()}
+          </>
         )}
       </WorkoutCard>
       </div>

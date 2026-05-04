@@ -24,18 +24,20 @@ export default function OrchestratorSidebar() {
     <>
       <aside
         className={[
-          'fixed right-0 top-0 z-[51] flex h-[100dvh] flex-col',
+          'fixed right-0 top-0 z-[51] flex h-[100dvh] max-w-[100vw] flex-col',
           'transition-transform duration-300 ease-in-out',
           isOpen ? 'translate-x-0' : 'translate-x-full',
         ].join(' ')}
         style={{
           width: `${sidebarWidth}px`,
           background: 'linear-gradient(160deg, #111712 0%, #0c1410 100%)',
+          paddingTop: 'env(safe-area-inset-top)',
+          paddingBottom: 'env(safe-area-inset-bottom)',
         }}
       >
         <div className="flex h-full flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 pb-3 pt-6">
+          <div className="flex items-center justify-between px-4 pb-3 pt-4">
             <div className="flex items-center gap-2">
               <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
               <span className="text-sm font-semibold text-neutral-200">Health Assistant</span>
