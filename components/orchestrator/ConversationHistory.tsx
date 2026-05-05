@@ -21,11 +21,15 @@ export default function ConversationHistory({
   onCancel,
   onConfirmSuccess,
 }: ConversationHistoryProps) {
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll the conversation container itself to the bottom on new messages.
+  // Using scrollTop on the known container avoids scrollIntoView walking up to an
+  // ancestor (which on mobile could scroll the page instead of the list).
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
   }, [entries.length, entries[entries.length - 1]?.status]);
 
   if (entries.length === 0) {
@@ -33,7 +37,11 @@ export default function ConversationHistory({
   }
 
   return (
-    <div className="hide-scrollbar flex-1 overflow-y-auto">
+    <div
+      ref={scrollRef}
+      className="hide-scrollbar flex-1 overflow-y-auto"
+      style={{ touchAction: 'pan-y', WebkitOverflowScrolling: 'touch', overscrollBehaviorY: 'contain' }}
+    >
       <div className="flex flex-col pb-2">
         {entries.map((entry) => (
           <MessageBubble
@@ -55,7 +63,6 @@ export default function ConversationHistory({
           />
         ))}
       </div>
-      <div ref={bottomRef} />
     </div>
   );
 }
