@@ -120,7 +120,7 @@ function DashboardLayoutInner({ children }: { children: ReactNode }) {
   return (
     <div
       className={cn(
-        'app-viewport hide-scrollbar fixed inset-0 overscroll-y-contain',
+        'app-viewport hide-scrollbar fixed inset-0 overflow-x-hidden overscroll-y-contain',
         !isFullViewport && 'overflow-y-auto',
         isFullViewport && 'flex flex-col',
       )}
@@ -139,7 +139,7 @@ function DashboardLayoutInner({ children }: { children: ReactNode }) {
           children
         ) : (
           <div
-            className="w-full px-4 pt-3 pb-0 sm:px-6 sm:pt-8 sm:pb-4 lg:px-6 lg:pt-8"
+            className="w-full max-w-full overflow-x-hidden px-4 pt-3 pb-0 sm:px-6 sm:pt-8 sm:pb-4 lg:px-6 lg:pt-8"
             style={{ paddingTop: 'calc(var(--sat, env(safe-area-inset-top, 0px)) + 0.75rem)' }}
           >
             <GuestUpgradeBanner isGuest={isGuest} />
