@@ -762,14 +762,17 @@ function StreakCard({
         </p>
       </div>
 
-      {/* Streak items or empty state — fixed height so card never changes size */}
-      <div className="flex-1 min-w-0 h-16 sm:h-14 flex items-center overflow-hidden">
+      {/* Streak items or empty state */}
+      <div className="flex-1 min-w-0 h-14 flex items-center overflow-hidden">
         {activeItems.length === 0 ? (
           <p className="text-sm text-text-muted/60 italic">Log today to start a streak.</p>
         ) : (
-          <div className="flex gap-3 overflow-x-auto hide-scrollbar w-full h-full items-center">
+          <div className="flex gap-2.5 overflow-x-auto hide-scrollbar w-full h-full items-center snap-x snap-mandatory sm:snap-none">
             {activeItems.map((item) => (
-              <div key={item.key} className="w-[140px] sm:w-[160px] shrink-0 h-full">
+              <div
+                key={item.key}
+                className="w-[150px] sm:w-[160px] shrink-0 h-full snap-start"
+              >
                 <AchievementStreakCard
                   label={item.label}
                   current={s.current[item.key]}
@@ -782,9 +785,9 @@ function StreakCard({
       </div>
 
       {/* Day dots — full-width row on mobile, shrunk column on desktop */}
-      <div className="flex gap-1.5 sm:shrink-0">
+      <div className="grid w-full grid-cols-7 gap-1.5 sm:flex sm:w-auto sm:shrink-0">
         {DAY_LABELS.map((lbl, i) => (
-          <div key={i} className={`sdot ${i === displayDayIndex ? 'sdot-today' : ''}`}>
+          <div key={i} className={`sdot !w-auto ${i === displayDayIndex ? 'sdot-today' : ''}`}>
             {lbl}
           </div>
         ))}
