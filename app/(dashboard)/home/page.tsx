@@ -738,7 +738,7 @@ function StreakCard({
   const items = [
     { key: 'logging' as const, label: 'Active days' },
     { key: 'healthy' as const, label: 'Healthy days' },
-    { key: 'calories' as const, label: 'Food log' },
+    { key: 'calories' as const, label: 'Food' },
     { key: 'water' as const, label: 'Water' },
     { key: 'weight' as const, label: 'Weight' },
     { key: 'workout' as const, label: 'Workouts' },
@@ -787,7 +787,7 @@ function StreakCard({
       {/* Day dots — full-width row on mobile, shrunk column on desktop */}
       <div className="grid w-full grid-cols-7 gap-1.5 sm:flex sm:w-auto sm:shrink-0">
         {DAY_LABELS.map((lbl, i) => (
-          <div key={i} className={`sdot !w-auto ${i === displayDayIndex ? 'sdot-today' : ''}`}>
+          <div key={i} className={`sdot !w-full sm:!w-9 ${i === displayDayIndex ? 'sdot-today' : ''}`}>
             {lbl}
           </div>
         ))}

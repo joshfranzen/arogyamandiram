@@ -21,7 +21,7 @@ const FLAME_PATH = 'M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.
 const STREAKS = [
   { label: 'Active days', current: 14, best: 21 },
   { label: 'Healthy days', current: 9,  best: 14 },
-  { label: 'Food log',    current: 14, best: 18 },
+  { label: 'Food',    current: 14, best: 18 },
   { label: 'Water',       current: 6,  best: 11 },
   { label: 'Workouts',    current: 4,  best: 9  },
   { label: 'Sleep',       current: 3,  best: 8  },

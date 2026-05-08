@@ -92,11 +92,38 @@ function isWeightSuccess(log: IDailyLog): boolean {
   return typeof log.weight === 'number';
 }
 
-function isStepsSuccess(log: IDailyLog, targets: UserTargets): boolean {
-  const steps = log.steps ?? 0;
-  if (steps <= 0) return false; // no device data — don't penalize
-  const goal = targets.dailySteps && targets.dailySteps > 0 ? targets.dailySteps : 8000;
-  return steps >= goal;
+// Per-habit "logged at all" predicates — used by streak counters so any
+// logged activity for a habit keeps that habit's streak alive. Distinct
+// from the strict isXxxSuccess goal checks, which still gate isPerfectDay.
+function hasCaloriesLog(log: IDailyLog): boolean {
+  return (log.totalCalories ?? 0) > 0 || (log.meals?.length ?? 0) > 0;
+}
+function hasWaterLog(log: IDailyLog): boolean {
+  return (log.waterIntake ?? 0) > 0 || (log.waterEntries?.length ?? 0) > 0;
+}
+function hasSleepLog(log: IDailyLog): boolean {
+  return !!log.sleep;
+}
+function hasWorkoutLog(log: IDailyLog): boolean {
+  return (log.workouts?.length ?? 0) > 0 || (log.caloriesBurned ?? 0) > 0;
+}
+function hasWeightLog(log: IDailyLog): boolean {
+  return typeof log.weight === 'number';
+}
+function hasStepsLog(log: IDailyLog): boolean {
+  return (log.steps ?? 0) > 0;
+}
+
+// "Active day" check for the logging streak: any logged activity counts.
+function hasAnyActivity(log: IDailyLog): boolean {
+  return (
+    hasCaloriesLog(log) ||
+    hasWaterLog(log) ||
+    hasSleepLog(log) ||
+    hasWorkoutLog(log) ||
+    hasWeightLog(log) ||
+    hasStepsLog(log)
+  );
 }
 
 function isPerfectDay(log: IDailyLog, targets: UserTargets): boolean {
@@ -201,28 +228,27 @@ export async function calculateStreaks(
       break; // past day with no log = streak broken
     }
 
-    const caloriesSuccess = isCalorieSuccess(log, targets);
-    const waterSuccess = isWaterSuccess(log, targets);
-    const sleepSuccess = isSleepSuccess(log, targets);
-    const workoutSuccess = isWorkoutSuccess(log, targets);
-    const weightSuccess = isWeightSuccess(log);
-    const stepsSuccess = isStepsSuccess(log, targets);
+    const caloriesLogged = hasCaloriesLog(log);
+    const waterLogged = hasWaterLog(log);
+    const sleepLogged = hasSleepLog(log);
+    const workoutLogged = hasWorkoutLog(log);
+    const weightLogged = hasWeightLog(log);
+    const stepsLogged = hasStepsLog(log);
 
-    const healthySuccess =
-      caloriesSuccess || waterSuccess || sleepSuccess || workoutSuccess || weightSuccess;
+    const activeDay = hasAnyActivity(log);
     const perfectDay = isPerfectDay(log, targets);
 
     // If today has a log but failed, still give grace (don't break until tomorrow)
-    const effectiveLoggingOk = healthySuccess || isToday;
+    const effectiveLoggingOk = activeDay || isToday;
     const effectiveHealthyOk = perfectDay || isToday;
-    const effectiveCaloriesOk = caloriesSuccess || isToday;
-    const effectiveWaterOk = waterSuccess || isToday;
-    const effectiveWorkoutOk = workoutSuccess || isToday;
-    const effectiveSleepOk = sleepSuccess || isToday;
-    const effectiveWeightOk = weightSuccess || isToday;
-    const effectiveStepsOk = stepsSuccess || isToday;
+    const effectiveCaloriesOk = caloriesLogged || isToday;
+    const effectiveWaterOk = waterLogged || isToday;
+    const effectiveWorkoutOk = workoutLogged || isToday;
+    const effectiveSleepOk = sleepLogged || isToday;
+    const effectiveWeightOk = weightLogged || isToday;
+    const effectiveStepsOk = stepsLogged || isToday;
 
-    if (keepLogging && healthySuccess) {
+    if (keepLogging && activeDay) {
       streaks.current.logging += 1;
       startLogging = dateKey;
     } else if (!effectiveLoggingOk) {
@@ -236,42 +262,42 @@ export async function calculateStreaks(
       keepHealthy = false;
     }
 
-    if (keepCalories && caloriesSuccess) {
+    if (keepCalories && caloriesLogged) {
       streaks.current.calories += 1;
       startCalories = dateKey;
     } else if (!effectiveCaloriesOk) {
       keepCalories = false;
     }
 
-    if (keepWater && waterSuccess) {
+    if (keepWater && waterLogged) {
       streaks.current.water += 1;
       startWater = dateKey;
     } else if (!effectiveWaterOk) {
       keepWater = false;
     }
 
-    if (keepWorkout && workoutSuccess) {
+    if (keepWorkout && workoutLogged) {
       streaks.current.workout += 1;
       startWorkout = dateKey;
     } else if (!effectiveWorkoutOk) {
       keepWorkout = false;
     }
 
-    if (keepSleep && sleepSuccess) {
+    if (keepSleep && sleepLogged) {
       streaks.current.sleep += 1;
       startSleep = dateKey;
     } else if (!effectiveSleepOk) {
       keepSleep = false;
     }
 
-    if (keepWeight && weightSuccess) {
+    if (keepWeight && weightLogged) {
       streaks.current.weight += 1;
       startWeight = dateKey;
     } else if (!effectiveWeightOk) {
       keepWeight = false;
     }
 
-    if (keepSteps && stepsSuccess) {
+    if (keepSteps && stepsLogged) {
       streaks.current.steps = (streaks.current.steps ?? 0) + 1;
       startSteps = dateKey;
     } else if (!effectiveStepsOk) {
@@ -293,25 +319,24 @@ export async function calculateStreaks(
   let runSteps = 0;
 
   for (const log of logs) {
-    const caloriesSuccess = isCalorieSuccess(log, targets);
-    const waterSuccess = isWaterSuccess(log, targets);
-    const sleepSuccess = isSleepSuccess(log, targets);
-    const workoutSuccess = isWorkoutSuccess(log, targets);
-    const weightSuccess = isWeightSuccess(log);
-    const stepsSuccess = isStepsSuccess(log, targets);
+    const caloriesLogged = hasCaloriesLog(log);
+    const waterLogged = hasWaterLog(log);
+    const sleepLogged = hasSleepLog(log);
+    const workoutLogged = hasWorkoutLog(log);
+    const weightLogged = hasWeightLog(log);
+    const stepsLogged = hasStepsLog(log);
 
-    const healthySuccess =
-      caloriesSuccess || waterSuccess || sleepSuccess || workoutSuccess || weightSuccess;
+    const activeDay = hasAnyActivity(log);
     const perfectDay = isPerfectDay(log, targets);
 
-    runLogging = healthySuccess ? runLogging + 1 : 0;
+    runLogging = activeDay ? runLogging + 1 : 0;
     runHealthy = perfectDay ? runHealthy + 1 : 0;
-    runCalories = caloriesSuccess ? runCalories + 1 : 0;
-    runWater = waterSuccess ? runWater + 1 : 0;
-    runWorkout = workoutSuccess ? runWorkout + 1 : 0;
-    runSleep = sleepSuccess ? runSleep + 1 : 0;
-    runWeight = weightSuccess ? runWeight + 1 : 0;
-    runSteps = stepsSuccess ? runSteps + 1 : 0;
+    runCalories = caloriesLogged ? runCalories + 1 : 0;
+    runWater = waterLogged ? runWater + 1 : 0;
+    runWorkout = workoutLogged ? runWorkout + 1 : 0;
+    runSleep = sleepLogged ? runSleep + 1 : 0;
+    runWeight = weightLogged ? runWeight + 1 : 0;
+    runSteps = stepsLogged ? runSteps + 1 : 0;
 
     streaks.best.logging = Math.max(streaks.best.logging, runLogging);
     streaks.best.healthy = Math.max(streaks.best.healthy, runHealthy);
@@ -447,17 +472,16 @@ export async function calculateAchievements(
   let runStartWeight: string | undefined;
 
   for (const log of logsList) {
-    const caloriesSuccess = isCalorieSuccess(log, targets);
-    const waterSuccess = isWaterSuccess(log, targets);
-    const sleepSuccess = isSleepSuccess(log, targets);
-    const workoutSuccess = isWorkoutSuccess(log, targets);
-    const weightSuccess = isWeightSuccess(log);
+    const caloriesLogged = hasCaloriesLog(log);
+    const waterLogged = hasWaterLog(log);
+    const sleepLogged = hasSleepLog(log);
+    const workoutLogged = hasWorkoutLog(log);
+    const weightLogged = hasWeightLog(log);
 
-    const healthySuccess =
-      caloriesSuccess || waterSuccess || sleepSuccess || workoutSuccess || weightSuccess;
+    const activeDay = hasAnyActivity(log);
 
-    // Logging (any healthy success)
-    if (healthySuccess) {
+    // Logging streak: any logged activity counts as an active day.
+    if (activeDay) {
       if (runLogging === 0) runStartLogging = log.date;
       runLogging += 1;
     } else {
@@ -465,8 +489,9 @@ export async function calculateAchievements(
       runStartLogging = undefined;
     }
 
-    // Per-habit runs – set start date when entering a new run
-    if (caloriesSuccess) {
+    // Per-habit runs – set start date when entering a new run.
+    // Any logged entry for the habit keeps its streak alive.
+    if (caloriesLogged) {
       if (runCalories === 0) runStartCalories = log.date;
       runCalories += 1;
     } else {
@@ -474,7 +499,7 @@ export async function calculateAchievements(
       runStartCalories = undefined;
     }
 
-    if (waterSuccess) {
+    if (waterLogged) {
       if (runWater === 0) runStartWater = log.date;
       runWater += 1;
     } else {
@@ -482,7 +507,7 @@ export async function calculateAchievements(
       runStartWater = undefined;
     }
 
-    if (workoutSuccess) {
+    if (workoutLogged) {
       if (runWorkout === 0) runStartWorkout = log.date;
       runWorkout += 1;
     } else {
@@ -490,7 +515,7 @@ export async function calculateAchievements(
       runStartWorkout = undefined;
     }
 
-    if (sleepSuccess) {
+    if (sleepLogged) {
       if (runSleep === 0) runStartSleep = log.date;
       runSleep += 1;
     } else {
@@ -498,7 +523,7 @@ export async function calculateAchievements(
       runStartSleep = undefined;
     }
 
-    if (weightSuccess) {
+    if (weightLogged) {
       if (runWeight === 0) runStartWeight = log.date;
       runWeight += 1;
     } else {

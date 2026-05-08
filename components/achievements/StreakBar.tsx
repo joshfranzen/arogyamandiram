@@ -35,7 +35,7 @@ export function StreakBar({ streaks }: StreakBarProps) {
   const items = [
     { key: 'logging' as const, label: 'Active days' },
     { key: 'healthy' as const, label: 'Healthy days' },
-    { key: 'calories' as const, label: 'Food log' },
+    { key: 'calories' as const, label: 'Food' },
     { key: 'water' as const, label: 'Water' },
     { key: 'weight' as const, label: 'Weight' },
     { key: 'workout' as const, label: 'Workouts' },
