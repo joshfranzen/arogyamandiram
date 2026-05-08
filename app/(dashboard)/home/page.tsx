@@ -406,13 +406,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Water Ring card – mobile */}
-        <div className={cn('mobile-fade-up mobile-dash-px')} style={{ animationDelay: '120ms' }}>
-          <WaterRingCard waterIntake={log?.waterIntake || 0} dailyWater={targets.dailyWater} />
-        </div>
-
         {/* Quick stats 2x2 – two-line value + label on mobile (each with section shade) */}
-        <div className={cn('mobile-fade-up mobile-dash-px')} style={{ animationDelay: '160ms' }}>
+        <div className={cn('mobile-fade-up mobile-dash-px')} style={{ animationDelay: '120ms' }}>
           <div className="m-stats-grid">
             <div className="stat-card-water">
               <StatMini
@@ -463,6 +458,11 @@ export default function DashboardPage() {
               />
             </div>
           </div>
+        </div>
+
+        {/* Water Ring card – mobile (centered between the two stat grids) */}
+        <div className={cn('mobile-fade-up mobile-dash-px')} style={{ animationDelay: '160ms' }}>
+          <WaterRingCard waterIntake={log?.waterIntake || 0} dailyWater={targets.dailyWater} />
         </div>
 
         {/* Wearable metrics 2x2 – mobile */}
