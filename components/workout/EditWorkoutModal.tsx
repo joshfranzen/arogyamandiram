@@ -21,6 +21,7 @@ interface EditWorkoutModalProps {
   onClose: () => void;
   onSave: (updated: Omit<WorkoutEntryForEdit, 'id'>) => void;
   loading?: boolean;
+  mode?: 'edit' | 'add';
 }
 
 const workoutCategories = [
@@ -31,7 +32,7 @@ const workoutCategories = [
   { key: 'other', label: 'Other', icon: Bike },
 ];
 
-export default function EditWorkoutModal({ workout, onClose, onSave, loading }: EditWorkoutModalProps) {
+export default function EditWorkoutModal({ workout, onClose, onSave, loading, mode = 'edit' }: EditWorkoutModalProps) {
   const [exercise, setExercise] = useState(workout.exercise);
   const [category, setCategory] = useState(workout.category || 'other');
   const [duration, setDuration] = useState(String(workout.duration ?? 0));
@@ -81,7 +82,7 @@ export default function EditWorkoutModal({ workout, onClose, onSave, loading }: 
 
       <div className="relative z-10 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-3xl sm:rounded-2xl border border-neutral-800 bg-workout-bg p-6 shadow-lg animate-slide-up">
         <div className="flex items-start justify-between">
-          <h3 className="text-lg font-semibold text-text-primary">Edit Workout</h3>
+          <h3 className="text-lg font-semibold text-text-primary">{mode === 'add' ? 'Add Workout' : 'Edit Workout'}</h3>
           <button
             onClick={onClose}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-white/[0.06]"
