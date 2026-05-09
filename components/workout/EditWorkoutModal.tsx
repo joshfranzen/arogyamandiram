@@ -76,11 +76,17 @@ export default function EditWorkoutModal({ workout, onClose, onSave, loading, mo
     exercise.trim() &&
     ((parseInt(duration, 10) || 0) > 0 || (parseInt(reps, 10) || 0) > 0);
 
+  const inputClass =
+    'mt-1 w-full rounded-xl border border-transparent bg-white/[0.04] px-3 py-2 text-sm text-text-primary placeholder-text-muted/60 transition-colors focus:bg-white/[0.06] focus:outline-none';
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative z-10 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-3xl sm:rounded-2xl border border-neutral-800 bg-workout-bg p-6 shadow-lg animate-slide-up">
+      <div
+        className="relative z-10 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-3xl sm:rounded-2xl p-6 shadow-card animate-slide-up"
+        style={{ background: 'linear-gradient(160deg, #111712 0%, #0c1410 100%)' }}
+      >
         <div className="flex items-start justify-between">
           <h3 className="text-lg font-semibold text-text-primary">{mode === 'add' ? 'Add Workout' : 'Edit Workout'}</h3>
           <button
@@ -98,7 +104,7 @@ export default function EditWorkoutModal({ workout, onClose, onSave, loading, mo
               type="text"
               value={exercise}
               onChange={(e) => setExercise(e.target.value)}
-              className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm"
+              className={inputClass}
               placeholder="e.g. Running, Push-ups"
             />
           </div>
@@ -114,7 +120,7 @@ export default function EditWorkoutModal({ workout, onClose, onSave, loading, mo
                   className={cn(
                     'flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-medium transition-all',
                     category === cat.key
-                      ? 'bg-accent-rose/15 text-accent-rose ring-1 ring-accent-rose/30'
+                      ? 'bg-white text-black'
                       : 'bg-white/[0.04] text-text-muted hover:bg-white/[0.06]'
                   )}
                 >
@@ -134,7 +140,7 @@ export default function EditWorkoutModal({ workout, onClose, onSave, loading, mo
                   type="number"
                   value={duration}
                   onChange={(e) => setDuration(e.target.value)}
-                  className="glass-input w-full rounded-xl px-3 py-2 text-sm"
+                  className={cn(inputClass, 'mt-0')}
                   min={0}
                 />
               </div>
@@ -147,7 +153,7 @@ export default function EditWorkoutModal({ workout, onClose, onSave, loading, mo
                   type="number"
                   value={caloriesBurned}
                   onChange={(e) => setCaloriesBurned(e.target.value)}
-                  className="glass-input w-full rounded-xl px-3 py-2 text-sm"
+                  className={cn(inputClass, 'mt-0')}
                   min={0}
                 />
               </div>
@@ -161,7 +167,7 @@ export default function EditWorkoutModal({ workout, onClose, onSave, loading, mo
                 type="number"
                 value={sets}
                 onChange={(e) => setSets(e.target.value)}
-                className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm"
+                className={inputClass}
                 min={0}
                 placeholder="—"
               />
@@ -172,7 +178,7 @@ export default function EditWorkoutModal({ workout, onClose, onSave, loading, mo
                 type="number"
                 value={reps}
                 onChange={(e) => setReps(e.target.value)}
-                className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm"
+                className={inputClass}
                 min={0}
                 placeholder="—"
               />
@@ -183,7 +189,7 @@ export default function EditWorkoutModal({ workout, onClose, onSave, loading, mo
                 type="number"
                 value={weightUsed}
                 onChange={(e) => setWeightUsed(e.target.value)}
-                className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm"
+                className={inputClass}
                 min={0}
                 step={0.5}
                 placeholder="—"
@@ -196,7 +202,7 @@ export default function EditWorkoutModal({ workout, onClose, onSave, loading, mo
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="glass-input mt-1 w-full resize-none rounded-xl px-3 py-2 text-sm"
+              className={cn(inputClass, 'resize-none')}
               rows={2}
               placeholder="How did it feel?"
             />
@@ -207,14 +213,14 @@ export default function EditWorkoutModal({ workout, onClose, onSave, loading, mo
           <button
             type="button"
             onClick={onClose}
-            className="glass-button-secondary flex-1 rounded-xl px-4 py-3 text-sm font-medium"
+            className="flex-1 rounded-xl bg-white/[0.04] px-4 py-3 text-sm font-medium text-text-muted transition-colors hover:bg-white/[0.08] hover:text-text-primary"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={loading || !canSave}
-            className="glass-button-primary flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold disabled:opacity-50"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-black transition-colors hover:bg-white/90 disabled:opacity-50"
           >
             {loading ? (
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />

@@ -146,7 +146,10 @@ export default function AddMealModal({ food, onClose, onAdd, loading }: AddMealM
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
-      <div className="relative z-10 w-full max-w-md rounded-t-3xl sm:rounded-2xl border border-white/[0.06] bg-bg-surface p-6 shadow-2xl animate-slide-up">
+      <div
+        className="relative z-10 w-full max-w-md rounded-t-3xl sm:rounded-2xl p-6 shadow-card animate-slide-up"
+        style={{ background: 'linear-gradient(160deg, #111712 0%, #0c1410 100%)' }}
+      >
         {/* Header */}
         <div className="flex items-start justify-between">
           <div>
@@ -177,7 +180,7 @@ export default function AddMealModal({ food, onClose, onAdd, loading }: AddMealM
                         className={cn(
                           'rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
                           measureIdx === i
-                            ? 'bg-accent-violet/20 text-accent-violet ring-1 ring-accent-violet/30'
+                            ? 'bg-white text-black'
                             : 'bg-white/[0.04] text-text-muted hover:bg-white/[0.08]'
                         )}
                       >
@@ -193,34 +196,33 @@ export default function AddMealModal({ food, onClose, onAdd, loading }: AddMealM
               <label className="text-xs font-medium text-text-muted">
                 {isBaseGrams ? `Amount (${food.servingUnit})` : 'Quantity'}
               </label>
-              <div className="mt-2 flex items-center gap-4">
+              <div className="mt-2 flex items-center gap-2">
                 <button
                   onClick={() => adjustQty(-stepQty)}
-                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.06] text-text-secondary hover:bg-white/[0.1]"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.06] text-text-secondary hover:bg-white/[0.1]"
                 >
-                  <Minus className="h-4 w-4" />
+                  <Minus className="h-3.5 w-3.5" />
                 </button>
                 <div className="text-center">
                   <input
                     type="number"
                     value={quantity}
                     onChange={(e) => setQuantity(Math.max(minQty, parseFloat(e.target.value) || minQty))}
-                    className="glass-input w-24 rounded-xl px-3 py-2 text-center text-lg font-bold"
+                    className="w-16 rounded-lg bg-white/[0.04] px-2 py-1.5 text-center text-sm font-semibold text-text-primary focus:bg-white/[0.06] focus:outline-none"
                     min={minQty}
                     step={stepQty}
                   />
-                  {/* Show effective grams for natural measures */}
                   {!isBaseGrams && (
-                    <p className="mt-1 text-[10px] text-text-muted">
+                    <p className="mt-0.5 text-[10px] text-text-muted">
                       = {Math.round(effectiveGrams)}{food.servingUnit}
                     </p>
                   )}
                 </div>
                 <button
                   onClick={() => adjustQty(stepQty)}
-                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.06] text-text-secondary hover:bg-white/[0.1]"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.06] text-text-secondary hover:bg-white/[0.1]"
                 >
-                  <Plus className="h-4 w-4" />
+                  <Plus className="h-3.5 w-3.5" />
                 </button>
               </div>
 
@@ -233,7 +235,7 @@ export default function AddMealModal({ food, onClose, onAdd, loading }: AddMealM
                     className={cn(
                       'rounded-lg px-3 py-1 text-xs font-medium transition-all',
                       Math.abs(quantity - val) < 0.01
-                        ? 'bg-accent-violet/20 text-accent-violet'
+                        ? 'bg-white text-black'
                         : 'bg-white/[0.04] text-text-muted hover:bg-white/[0.08]'
                     )}
                   >
@@ -252,7 +254,7 @@ export default function AddMealModal({ food, onClose, onAdd, loading }: AddMealM
                   type="number"
                   value={quantity}
                   onChange={(e) => setQuantity(Math.max(0.25, parseFloat(e.target.value) || 0.25))}
-                  className="glass-input w-20 rounded-xl px-3 py-2 text-center text-lg font-bold"
+                  className="w-20 rounded-xl bg-white/[0.04] px-3 py-2 text-center text-lg font-bold text-text-primary focus:bg-white/[0.06] focus:outline-none"
                   min={0.25}
                   step={0.25}
                 />
@@ -263,7 +265,7 @@ export default function AddMealModal({ food, onClose, onAdd, loading }: AddMealM
                       onClick={() => setQuantity(val)}
                       className={cn(
                         'rounded-lg px-2.5 py-1 text-xs font-medium transition-all',
-                        Math.abs(quantity - val) < 0.01 ? 'bg-accent-violet/20 text-accent-violet' : 'bg-white/[0.04] text-text-muted hover:bg-white/[0.08]'
+                        Math.abs(quantity - val) < 0.01 ? 'bg-white text-black' : 'bg-white/[0.04] text-text-muted hover:bg-white/[0.08]'
                       )}
                     >
                       {val === 0.25 ? '¼' : val === 1.5 ? '1½' : val}
@@ -278,7 +280,7 @@ export default function AddMealModal({ food, onClose, onAdd, loading }: AddMealM
                     type="number"
                     value={milkMl}
                     onChange={(e) => setMilkMl(Math.max(0, parseInt(e.target.value, 10) || 0))}
-                    className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm"
+                    className="mt-1 w-full rounded-xl bg-white/[0.04] px-3 py-2 text-sm text-text-primary focus:bg-white/[0.06] focus:outline-none"
                     min={0}
                   />
                 </div>
@@ -288,7 +290,7 @@ export default function AddMealModal({ food, onClose, onAdd, loading }: AddMealM
                     type="number"
                     value={waterMl}
                     onChange={(e) => setWaterMl(Math.max(0, parseInt(e.target.value, 10) || 0))}
-                    className="glass-input mt-1 w-full rounded-xl px-3 py-2 text-sm"
+                    className="mt-1 w-full rounded-xl bg-white/[0.04] px-3 py-2 text-sm text-text-primary focus:bg-white/[0.06] focus:outline-none"
                     min={0}
                   />
                 </div>
@@ -328,7 +330,7 @@ export default function AddMealModal({ food, onClose, onAdd, loading }: AddMealM
                 className={cn(
                   'flex flex-col items-center gap-1 rounded-xl px-2 py-2.5 text-xs font-medium transition-all',
                   mealType === mt.key
-                    ? 'bg-accent-violet/15 text-accent-violet ring-1 ring-accent-violet/30'
+                    ? 'bg-white text-black'
                     : 'bg-white/[0.04] text-text-muted hover:bg-white/[0.06]'
                 )}
               >
@@ -346,7 +348,7 @@ export default function AddMealModal({ food, onClose, onAdd, loading }: AddMealM
             type="time"
             value={time}
             onChange={(e) => setTime(e.target.value)}
-            className="glass-input mt-2 w-full rounded-xl px-3 py-2 text-sm"
+            className="mt-2 w-full rounded-xl bg-white/[0.04] px-3 py-2 text-sm text-text-primary focus:bg-white/[0.06] focus:outline-none"
           />
         </div>
 
@@ -354,10 +356,10 @@ export default function AddMealModal({ food, onClose, onAdd, loading }: AddMealM
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className="glass-button-primary mt-6 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold disabled:opacity-50"
+          className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-black transition-colors hover:bg-white/90 disabled:opacity-50"
         >
           {loading ? (
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-black border-t-transparent" />
           ) : (
             <>
               <Plus className="h-4 w-4" />
