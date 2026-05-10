@@ -743,9 +743,10 @@ function StreakCard({
     { key: 'weight' as const, label: 'Weight' },
     { key: 'workout' as const, label: 'Workouts' },
     { key: 'sleep' as const, label: 'Sleep' },
+    { key: 'steps' as const, label: 'Steps' },
   ];
 
-  const activeItems = items.filter((item) => s.current[item.key] > 0);
+  const activeItems = items.filter((item) => (s.current[item.key] ?? 0) > 0);
   const daysToSeven = Math.max(1, 7 - loggingStreak);
 
   return (
@@ -775,8 +776,8 @@ function StreakCard({
               >
                 <AchievementStreakCard
                   label={item.label}
-                  current={s.current[item.key]}
-                  best={s.best[item.key]}
+                  current={s.current[item.key] ?? 0}
+                  best={s.best[item.key] ?? 0}
                 />
               </div>
             ))}
