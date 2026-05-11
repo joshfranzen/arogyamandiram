@@ -18,6 +18,10 @@ export interface HealthSyncResult {
   error?: string;
 }
 
+const MAX_BATCH_DAYS = 8;
+const MAX_BACKFILL_DAYS = 90;
+const DAY_MS = 86_400_000;
+
 function deriveWorkoutCategory(type: string): 'cardio' | 'strength' | 'flexibility' | 'sports' | 'other' {
   const t = type.toLowerCase();
   if (/walk|run|jog|cycl|bike|swim|row|elliptic|treadmill|hik|cardio|jump|aerobic|dance|zumba|stair/.test(t)) return 'cardio';
@@ -80,19 +84,190 @@ function getEventTimestamp(record: Record<string, unknown>): number {
   return Number.NEGATIVE_INFINITY;
 }
 
-function pickLatestRecord(rawData: unknown): Record<string, unknown> | null {
+// Normalize the response into a list of day-records, oldest → newest, capped at MAX_BATCH_DAYS.
+// Accepts: a bare array, a bare day-object, or an envelope like {days: [...]} / {records: [...]} / {data: [...]}.
+function iterateRecords(rawData: unknown): Record<string, unknown>[] {
+  let arr: unknown = rawData;
+
   if (rawData && typeof rawData === 'object' && !Array.isArray(rawData)) {
-    return rawData as Record<string, unknown>;
+    const env = rawData as Record<string, unknown>;
+    // Unwrap common envelope shapes. First array-valued key wins.
+    for (const key of ['days', 'records', 'data', 'items', 'entries']) {
+      if (Array.isArray(env[key])) {
+        arr = env[key];
+        break;
+      }
+    }
+    // No envelope detected → treat the object itself as a single day-record.
+    if (arr === rawData) {
+      return [env];
+    }
   }
-  if (!Array.isArray(rawData) || rawData.length === 0) return null;
 
-  const records = rawData.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object');
-  if (records.length === 0) return null;
+  if (!Array.isArray(arr)) return [];
 
-  // Use the newest payload entry so dashboard numbers match latest device sample.
-  return records.reduce((latest, current) =>
-    getEventTimestamp(current) > getEventTimestamp(latest) ? current : latest
+  const records = arr.filter(
+    (item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object'
   );
+  records.sort((a, b) => getEventTimestamp(a) - getEventTimestamp(b));
+  return records.slice(-MAX_BATCH_DAYS);
+}
+
+function resolveLogDate(record: Record<string, unknown>, timezone?: string): string {
+  const recordDateStr = typeof record.date === 'string' ? record.date : '';
+  const recordReceivedAtStr = typeof record.receivedAt === 'string' ? record.receivedAt : '';
+  const primaryTimestamp = recordDateStr || recordReceivedAtStr;
+  const parsed = primaryTimestamp ? new Date(primaryTimestamp) : null;
+  return parsed && !Number.isNaN(parsed.getTime())
+    ? toDateKey(parsed, timezone)
+    : toDateKey(new Date(), timezone);
+}
+
+interface MapperResult {
+  mutated: boolean;
+  actions: HealthSyncAction[];
+}
+
+async function applySleep(
+  record: Record<string, unknown>,
+  logDate: string,
+  userId: string
+): Promise<MapperResult> {
+  const actions: HealthSyncAction[] = [];
+  const sleepBlock = record.sleep && typeof record.sleep === 'object' ? (record.sleep as Record<string, unknown>) : null;
+  const sleepHours = sleepBlock && typeof sleepBlock.totalHours === 'number' ? sleepBlock.totalHours : null;
+  if (sleepHours === null || sleepHours <= 0 || sleepHours > 24) {
+    return { mutated: false, actions };
+  }
+  try {
+    const rawBedtime = typeof sleepBlock?.bedtime === 'string' ? sleepBlock.bedtime : null;
+    const rawWake = typeof sleepBlock?.wake === 'string' ? sleepBlock.wake : null;
+    const wakeDate = rawWake ? new Date(rawWake) : null;
+    const bedDate = rawBedtime ? new Date(rawBedtime) : null;
+    const safeWake = wakeDate && !Number.isNaN(wakeDate.getTime()) ? wakeDate : new Date();
+    const safeBed = bedDate && !Number.isNaN(bedDate.getTime())
+      ? bedDate
+      : new Date(safeWake.getTime() - sleepHours * 60 * 60 * 1000);
+    const wakeTime = to24hTime(safeWake);
+    const bedtime = to24hTime(safeBed);
+    await DailyLog.findOneAndUpdate(
+      { userId, date: logDate },
+      {
+        $set: { sleep: { bedtime, wakeTime, duration: sleepHours, quality: 3, notes: '' } },
+        $setOnInsert: { userId, date: logDate },
+      },
+      { new: true, upsert: true }
+    );
+    actions.push({
+      field: 'sleep',
+      status: 'logged',
+      detail: `${logDate}: ${sleepHours}h sleep logged (bed ${bedtime} → wake ${wakeTime})`,
+    });
+    return { mutated: true, actions };
+  } catch (err) {
+    actions.push({
+      field: 'sleep',
+      status: 'error',
+      detail: `${logDate}: ${err instanceof Error ? err.message : String(err)}`,
+    });
+    return { mutated: false, actions };
+  }
+}
+
+async function applyDeviceWorkouts(
+  record: Record<string, unknown>,
+  logDate: string,
+  userId: string
+): Promise<MapperResult> {
+  const actions: HealthSyncAction[] = [];
+  const rawDeviceWorkouts = Array.isArray(record.workouts) ? record.workouts : [];
+  const mappedDeviceWorkouts = rawDeviceWorkouts
+    .filter((w) => w && typeof w === 'object')
+    .map((w) => {
+      const dw = w as Record<string, unknown>;
+      return {
+        exercise: typeof dw.type === 'string' ? dw.type.trim() : '',
+        duration: typeof dw.durationMin === 'number' ? dw.durationMin : 0,
+        caloriesBurned: typeof dw.calories === 'number' ? dw.calories : 0,
+        category: deriveWorkoutCategory(typeof dw.type === 'string' ? dw.type : ''),
+        source: 'device' as const,
+      };
+    })
+    .filter((w) => w.exercise && w.duration > 0);
+
+  if (mappedDeviceWorkouts.length === 0) {
+    return { mutated: false, actions };
+  }
+
+  try {
+    const existingLog = await DailyLog.findOne({ userId, date: logDate }).lean();
+    type StoredWorkout = { source?: string; exercise: string; duration: number; caloriesBurned: number; category: string };
+    const manualWorkouts = existingLog
+      ? (existingLog.workouts as StoredWorkout[]).filter((w) => w.source !== 'device')
+      : [];
+
+    const log = await DailyLog.findOneAndUpdate(
+      { userId, date: logDate },
+      {
+        $set: { workouts: [...manualWorkouts, ...mappedDeviceWorkouts] },
+        $setOnInsert: { userId, date: logDate },
+      },
+      { new: true, upsert: true }
+    );
+    if (log) await log.save();
+    actions.push({
+      field: 'workouts',
+      status: 'logged',
+      detail: `${logDate}: ${mappedDeviceWorkouts.length} workout${mappedDeviceWorkouts.length !== 1 ? 's' : ''} replaced (${manualWorkouts.length} manual kept)`,
+    });
+    return { mutated: true, actions };
+  } catch (err) {
+    actions.push({
+      field: 'workouts',
+      status: 'error',
+      detail: `${logDate}: ${err instanceof Error ? err.message : String(err)}`,
+    });
+    return { mutated: false, actions };
+  }
+}
+
+async function applyMetrics(
+  record: Record<string, unknown>,
+  logDate: string,
+  userId: string
+): Promise<MapperResult> {
+  const actions: HealthSyncAction[] = [];
+  const heartBlock = record.heart && typeof record.heart === 'object' ? (record.heart as Record<string, unknown>) : null;
+  const activityBlock = record.activity && typeof record.activity === 'object' ? (record.activity as Record<string, unknown>) : null;
+
+  const metricsUpdate: Record<string, number> = {};
+  if (heartBlock && typeof heartBlock.avgBpm === 'number') metricsUpdate.heartRate = heartBlock.avgBpm;
+  if (activityBlock && typeof activityBlock.steps === 'number') metricsUpdate.steps = activityBlock.steps;
+  if (activityBlock && typeof activityBlock.activeCalories === 'number') metricsUpdate.activeCalories = activityBlock.activeCalories;
+  if (activityBlock && typeof activityBlock.distanceKm === 'number') metricsUpdate.distanceKm = activityBlock.distanceKm;
+
+  if (Object.keys(metricsUpdate).length === 0) {
+    return { mutated: false, actions };
+  }
+
+  try {
+    await DailyLog.findOneAndUpdate(
+      { userId, date: logDate },
+      { $set: metricsUpdate, $setOnInsert: { userId, date: logDate } },
+      { upsert: true, strict: false }
+    );
+    for (const [field, val] of Object.entries(metricsUpdate)) {
+      actions.push({ field, status: 'logged', detail: `${logDate}: ${field}=${val}` });
+    }
+    return { mutated: true, actions };
+  } catch (err) {
+    actions.push({
+      field: 'metrics',
+      status: 'error',
+      detail: `${logDate}: ${err instanceof Error ? err.message : String(err)}`,
+    });
+    return { mutated: false, actions };
+  }
 }
 
 export async function runHealthDataSync(input: {
@@ -162,122 +337,53 @@ export async function runHealthDataSync(input: {
   }
 
   const schema = getSchema(rawData);
-  const rowCount = Array.isArray(rawData) ? rawData.length : (rawData == null ? 0 : 1);
-  const record = pickLatestRecord(rawData);
+  const records = iterateRecords(rawData);
+  const rowCount = records.length;
 
-  if (!record) {
+  if (records.length === 0) {
     return { ok: true, schema, rowCount, syncActions };
   }
 
-  const recordDateStr = typeof record.date === 'string' ? record.date : '';
-  const recordReceivedAtStr = typeof record.receivedAt === 'string' ? record.receivedAt : '';
-  const primaryTimestamp = recordDateStr || recordReceivedAtStr;
-  const parsedPrimaryTimestamp = primaryTimestamp ? new Date(primaryTimestamp) : null;
-  const logDate = parsedPrimaryTimestamp && !Number.isNaN(parsedPrimaryTimestamp.getTime())
-    ? toDateKey(parsedPrimaryTimestamp, input.timezone)
-    : toDateKey(new Date(), input.timezone);
-  let mutatedLog = false;
+  const todayKey = toDateKey(new Date(), input.timezone);
+  const yesterdayKey = toDateKey(new Date(Date.now() - DAY_MS), input.timezone);
+  const cutoffKey = toDateKey(new Date(Date.now() - MAX_BACKFILL_DAYS * DAY_MS), input.timezone);
+  const seenDates = new Set<string>();
 
-  // New schema: record.sleep.totalHours / .bedtime / .wake
-  const sleepBlock = record.sleep && typeof record.sleep === 'object' ? record.sleep as Record<string, unknown> : null;
-  const sleepHours = sleepBlock && typeof sleepBlock.totalHours === 'number' ? sleepBlock.totalHours : null;
-  if (sleepHours !== null && sleepHours > 0 && sleepHours <= 24) {
-    try {
-      const rawBedtime = typeof sleepBlock?.bedtime === 'string' ? sleepBlock.bedtime : null;
-      const rawWake = typeof sleepBlock?.wake === 'string' ? sleepBlock.wake : null;
-      const wakeDate = rawWake ? new Date(rawWake) : null;
-      const bedDate = rawBedtime ? new Date(rawBedtime) : null;
-      const safeWake = wakeDate && !Number.isNaN(wakeDate.getTime()) ? wakeDate : new Date();
-      const safeBed = bedDate && !Number.isNaN(bedDate.getTime())
-        ? bedDate
-        : new Date(safeWake.getTime() - sleepHours * 60 * 60 * 1000);
-      const wakeTime = to24hTime(safeWake);
-      const bedtime = to24hTime(safeBed);
-      await DailyLog.findOneAndUpdate(
-        { userId: input.userId, date: logDate },
-        {
-          $set: { sleep: { bedtime, wakeTime, duration: sleepHours, quality: 3, notes: '' } },
-          $setOnInsert: { userId: input.userId, date: logDate },
-        },
-        { new: true, upsert: true }
-      );
-      mutatedLog = true;
-      syncActions.push({ field: 'sleep', status: 'logged', detail: `${sleepHours}h sleep logged (bed ${bedtime} → wake ${wakeTime})` });
-    } catch (err) {
-      syncActions.push({ field: 'sleep', status: 'error', detail: err instanceof Error ? err.message : String(err) });
-    }
-  }
+  for (const record of records) {
+    const logDate = resolveLogDate(record, input.timezone);
 
-  const rawDeviceWorkouts = Array.isArray(record.workouts) ? record.workouts : [];
-  const mappedDeviceWorkouts = rawDeviceWorkouts
-    .filter((w) => w && typeof w === 'object')
-    .map((w) => {
-      const dw = w as Record<string, unknown>;
-      return {
-        exercise: typeof dw.type === 'string' ? dw.type.trim() : '',
-        duration: typeof dw.durationMin === 'number' ? dw.durationMin : 0,
-        caloriesBurned: typeof dw.calories === 'number' ? dw.calories : 0,
-        category: deriveWorkoutCategory(typeof dw.type === 'string' ? dw.type : ''),
-        source: 'device' as const,
-      };
-    })
-    .filter((w) => w.exercise && w.duration > 0);
-
-  if (mappedDeviceWorkouts.length > 0) {
-    try {
-      const existingLog = await DailyLog.findOne({ userId: input.userId, date: logDate }).lean();
-      type StoredWorkout = { source?: string; exercise: string; duration: number; caloriesBurned: number; category: string };
-      const manualWorkouts = existingLog
-        ? (existingLog.workouts as StoredWorkout[]).filter((w) => w.source !== 'device')
-        : [];
-
-      const log = await DailyLog.findOneAndUpdate(
-        { userId: input.userId, date: logDate },
-        {
-          $set: { workouts: [...manualWorkouts, ...mappedDeviceWorkouts] },
-          $setOnInsert: { userId: input.userId, date: logDate },
-        },
-        { new: true, upsert: true }
-      );
-      if (log) await log.save();
-      mutatedLog = true;
+    if (logDate < cutoffKey) {
       syncActions.push({
-        field: 'workouts',
-        status: 'logged',
-        detail: `${mappedDeviceWorkouts.length} workout${mappedDeviceWorkouts.length !== 1 ? 's' : ''} replaced (${manualWorkouts.length} manual kept)`,
+        field: 'record',
+        status: 'error',
+        detail: `Skipped ${logDate}: older than ${MAX_BACKFILL_DAYS}d cutoff`,
       });
-    } catch (err) {
-      syncActions.push({ field: 'workouts', status: 'error', detail: err instanceof Error ? err.message : String(err) });
+      continue;
     }
-  }
 
-  // New schema: record.heart.avgBpm / record.activity.{steps,activeCalories,distanceKm}
-  const heartBlock = record.heart && typeof record.heart === 'object' ? record.heart as Record<string, unknown> : null;
-  const activityBlock = record.activity && typeof record.activity === 'object' ? record.activity as Record<string, unknown> : null;
-
-  const metricsUpdate: Record<string, number> = {};
-  if (heartBlock && typeof heartBlock.avgBpm === 'number') metricsUpdate.heartRate = heartBlock.avgBpm;
-  if (activityBlock && typeof activityBlock.steps === 'number') metricsUpdate.steps = activityBlock.steps;
-  if (activityBlock && typeof activityBlock.activeCalories === 'number') metricsUpdate.activeCalories = activityBlock.activeCalories;
-  if (activityBlock && typeof activityBlock.distanceKm === 'number') metricsUpdate.distanceKm = activityBlock.distanceKm;
-  if (Object.keys(metricsUpdate).length > 0) {
-    try {
-      await DailyLog.findOneAndUpdate(
-        { userId: input.userId, date: logDate },
-        { $set: metricsUpdate, $setOnInsert: { userId: input.userId, date: logDate } },
-        { upsert: true, strict: false }
-      );
-      mutatedLog = true;
-      for (const [field, val] of Object.entries(metricsUpdate)) {
-        syncActions.push({ field, status: 'logged', detail: `${field}=${val}` });
-      }
-    } catch (err) {
-      syncActions.push({ field: 'metrics', status: 'error', detail: err instanceof Error ? err.message : String(err) });
+    // If two records resolve to the same date, the later one (newer timestamp,
+    // since we sorted ascending) wins — but warn so callers know to dedupe upstream.
+    if (seenDates.has(logDate)) {
+      syncActions.push({
+        field: 'record',
+        status: 'error',
+        detail: `Duplicate ${logDate} in batch — later entry overwrites earlier`,
+      });
     }
-  }
+    seenDates.add(logDate);
 
-  if (mutatedLog) {
-    await awardDailyXp(input.userId, logDate).catch(() => {});
+    const sleepRes = await applySleep(record, logDate, input.userId);
+    const workoutRes = await applyDeviceWorkouts(record, logDate, input.userId);
+    const metricsRes = await applyMetrics(record, logDate, input.userId);
+
+    syncActions.push(...sleepRes.actions, ...workoutRes.actions, ...metricsRes.actions);
+
+    const mutated = sleepRes.mutated || workoutRes.mutated || metricsRes.mutated;
+    // XP cap: only today + yesterday earn XP from sync; older backfilled days
+    // are stored (and contribute to streaks via gamification recalc) but skip XP.
+    if (mutated && (logDate === todayKey || logDate === yesterdayKey)) {
+      await awardDailyXp(input.userId, logDate).catch(() => {});
+    }
   }
 
   return { ok: true, schema, rowCount, syncActions };
