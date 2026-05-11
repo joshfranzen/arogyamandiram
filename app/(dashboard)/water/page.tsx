@@ -195,22 +195,6 @@ export default function WaterPage() {
               />
             </div>
 
-            {/* Amount Display */}
-            <div className="text-center">
-              <p className="text-3xl font-semibold text-[#A3A3A3]">{formatWater(current)}</p>
-              <p className="text-sm text-[#94A3B8]">of {formatWater(target)} goal</p>
-              {remaining > 0 && (
-                <p className="mt-1 text-xs text-[#94A3B8]">
-                  {formatWater(remaining)} remaining
-                </p>
-              )}
-              {percent >= 100 && (
-                <div className="mt-2 inline-flex items-center gap-1 rounded-lg bg-emerald-500/10 px-3 py-1 text-xs font-medium text-[#A3A3A3]">
-                  🎉 Daily goal reached!
-                </div>
-              )}
-            </div>
-
             {/* Quick Add Buttons – visible gap between each button */}
             <div className="mt-6 grid w-full grid-cols-4 gap-3">
               {quickAmounts.map((amt) => {
