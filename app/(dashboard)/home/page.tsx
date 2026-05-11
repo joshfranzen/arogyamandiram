@@ -742,7 +742,7 @@ function StreakCard({
     { key: 'healthy' as const, label: 'Healthy days' },
     { key: 'calories' as const, label: 'Food' },
     { key: 'water' as const, label: 'Water' },
-    { key: 'waterGoal' as const, label: 'Water goal' },
+    { key: 'waterGoal' as const, label: 'Water' },
     { key: 'weight' as const, label: 'Weight' },
     { key: 'workout' as const, label: 'Workouts' },
     { key: 'sleep' as const, label: 'Sleep' },
