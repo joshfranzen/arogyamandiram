@@ -189,6 +189,7 @@ export interface UserStreaks {
     sleep: number;      // consecutive days meeting sleep target
     weight: number;     // consecutive days logging weight
     steps?: number;     // consecutive days meeting daily step goal
+    waterGoal?: number; // consecutive days hitting full daily water target
   };
   best: {
     logging: number;
@@ -199,6 +200,7 @@ export interface UserStreaks {
     sleep: number;
     weight: number;
     steps?: number;     // longest run of days meeting daily step goal
+    waterGoal?: number; // longest run of days hitting full daily water target
   };
   /**
    * Optional start dates (ISO YYYY-MM-DD) for the *current* streak run
@@ -214,6 +216,7 @@ export interface UserStreaks {
     sleep?: string;
     weight?: string;
     steps?: string;
+    waterGoal?: string;
   };
 }
 

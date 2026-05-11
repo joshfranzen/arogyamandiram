@@ -713,6 +713,7 @@ const EMPTY_STREAKS: UserStreaks = {
     workout: 0,
     sleep: 0,
     weight: 0,
+    waterGoal: 0,
   },
   best: {
     logging: 0,
@@ -722,6 +723,7 @@ const EMPTY_STREAKS: UserStreaks = {
     workout: 0,
     sleep: 0,
     weight: 0,
+    waterGoal: 0,
   },
 };
 
@@ -740,6 +742,7 @@ function StreakCard({
     { key: 'healthy' as const, label: 'Healthy days' },
     { key: 'calories' as const, label: 'Food' },
     { key: 'water' as const, label: 'Water' },
+    { key: 'waterGoal' as const, label: 'Water goal' },
     { key: 'weight' as const, label: 'Weight' },
     { key: 'workout' as const, label: 'Workouts' },
     { key: 'sleep' as const, label: 'Sleep' },
@@ -778,6 +781,7 @@ function StreakCard({
                   label={item.label}
                   current={s.current[item.key] ?? 0}
                   best={s.best[item.key] ?? 0}
+                  variant={item.key === 'waterGoal' ? 'water' : 'default'}
                 />
               </div>
             ))}

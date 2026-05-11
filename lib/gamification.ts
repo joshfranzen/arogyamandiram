@@ -41,6 +41,7 @@ function createEmptyStreaks(): UserStreaks {
       sleep: 0,
       weight: 0,
       steps: 0,
+      waterGoal: 0,
     },
     best: {
       logging: 0,
@@ -51,6 +52,7 @@ function createEmptyStreaks(): UserStreaks {
       sleep: 0,
       weight: 0,
       steps: 0,
+      waterGoal: 0,
     },
     starts: {},
   };
@@ -199,6 +201,7 @@ export async function calculateStreaks(
   let keepSleep = true;
   let keepWeight = true;
   let keepSteps = true;
+  let keepWaterGoal = true;
 
   // Track the first calendar day included in the *current* streak run
   // for each habit so the UI can say "Streak started Feb 12".
@@ -210,10 +213,11 @@ export async function calculateStreaks(
   let startSleep: string | undefined;
   let startWeight: string | undefined;
   let startSteps: string | undefined;
+  let startWaterGoal: string | undefined;
 
   // 24-hour grace: "today" never breaks the streak — user has until end of day.
   // Streak only breaks *tomorrow* if they didn't complete today (see e.g. Duolingo, Snapchat).
-  while (keepLogging || keepHealthy || keepCalories || keepWater || keepWorkout || keepSleep || keepWeight || keepSteps) {
+  while (keepLogging || keepHealthy || keepCalories || keepWater || keepWorkout || keepSleep || keepWeight || keepSteps || keepWaterGoal) {
     const dateKey = formatISO(currentDate, { representation: 'date' });
     const log = byDate.get(dateKey);
     const isToday = isSameDay(currentDate, today);
@@ -237,6 +241,7 @@ export async function calculateStreaks(
 
     const activeDay = hasAnyActivity(log);
     const perfectDay = isPerfectDay(log, targets);
+    const waterGoalMet = isWaterSuccess(log, targets);
 
     // If today has a log but failed, still give grace (don't break until tomorrow)
     const effectiveLoggingOk = activeDay || isToday;
@@ -247,6 +252,7 @@ export async function calculateStreaks(
     const effectiveSleepOk = sleepLogged || isToday;
     const effectiveWeightOk = weightLogged || isToday;
     const effectiveStepsOk = stepsLogged || isToday;
+    const effectiveWaterGoalOk = waterGoalMet || isToday;
 
     if (keepLogging && activeDay) {
       streaks.current.logging += 1;
@@ -304,6 +310,13 @@ export async function calculateStreaks(
       keepSteps = false;
     }
 
+    if (keepWaterGoal && waterGoalMet) {
+      streaks.current.waterGoal = (streaks.current.waterGoal ?? 0) + 1;
+      startWaterGoal = dateKey;
+    } else if (!effectiveWaterGoalOk) {
+      keepWaterGoal = false;
+    }
+
     currentDate = subDays(currentDate, 1);
     if (currentDate < fromDate) break;
   }
@@ -317,6 +330,7 @@ export async function calculateStreaks(
   let runSleep = 0;
   let runWeight = 0;
   let runSteps = 0;
+  let runWaterGoal = 0;
 
   for (const log of logs) {
     const caloriesLogged = hasCaloriesLog(log);
@@ -325,6 +339,7 @@ export async function calculateStreaks(
     const workoutLogged = hasWorkoutLog(log);
     const weightLogged = hasWeightLog(log);
     const stepsLogged = hasStepsLog(log);
+    const waterGoalMet = isWaterSuccess(log, targets);
 
     const activeDay = hasAnyActivity(log);
     const perfectDay = isPerfectDay(log, targets);
@@ -337,6 +352,7 @@ export async function calculateStreaks(
     runSleep = sleepLogged ? runSleep + 1 : 0;
     runWeight = weightLogged ? runWeight + 1 : 0;
     runSteps = stepsLogged ? runSteps + 1 : 0;
+    runWaterGoal = waterGoalMet ? runWaterGoal + 1 : 0;
 
     streaks.best.logging = Math.max(streaks.best.logging, runLogging);
     streaks.best.healthy = Math.max(streaks.best.healthy, runHealthy);
@@ -346,6 +362,7 @@ export async function calculateStreaks(
     streaks.best.sleep = Math.max(streaks.best.sleep, runSleep);
     streaks.best.weight = Math.max(streaks.best.weight, runWeight);
     streaks.best.steps = Math.max(streaks.best.steps ?? 0, runSteps);
+    streaks.best.waterGoal = Math.max(streaks.best.waterGoal ?? 0, runWaterGoal);
   }
 
   // Attach optional start dates only when the streak is non-zero.
@@ -358,6 +375,7 @@ export async function calculateStreaks(
     sleep: streaks.current.sleep > 0 ? startSleep : undefined,
     weight: streaks.current.weight > 0 ? startWeight : undefined,
     steps: (streaks.current.steps ?? 0) > 0 ? startSteps : undefined,
+    waterGoal: (streaks.current.waterGoal ?? 0) > 0 ? startWaterGoal : undefined,
   };
 
   return streaks;
@@ -595,7 +613,9 @@ export async function calculateAchievements(
   });
 
   const byDate = new Map<string, IDailyLog>();
+  const dateKeys: string[] = [];
   for (const log of logsList) {
+    if (!byDate.has(log.date)) dateKeys.push(log.date);
     byDate.set(log.date, log);
   }
 
@@ -730,7 +750,6 @@ export async function calculateAchievements(
 
   // Perfect week = 7 consecutive calendar days each with all five habits successful
   let perfectWeekFound = false;
-  const dateKeys = Array.from(byDate.keys());
   for (const dateKey of dateKeys) {
     const start = parseISO(dateKey);
     let allPerfect = true;

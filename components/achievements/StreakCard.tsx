@@ -7,14 +7,20 @@ interface StreakCardProps {
   label: string;
   current: number;
   best?: number;
+  variant?: 'default' | 'water';
 }
 
-export function StreakCard({ label, current, best }: StreakCardProps) {
+export function StreakCard({ label, current, best, variant = 'default' }: StreakCardProps) {
   const active = current > 0;
+  const isWater = variant === 'water';
+  const flameColor = isWater ? '#38bdf8' : '#f5d76e';
 
   return (
     <div
-      className="flex h-full w-full items-center gap-2.5 rounded-xl bg-black/40 px-3 py-2 text-left transition-all duration-200 sm:h-14 sm:gap-2 sm:p-2.5"
+      className={cn(
+        'flex h-full w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left transition-all duration-200 sm:h-14 sm:gap-2 sm:p-2.5',
+        isWater ? 'bg-sky-500/[0.08]' : 'bg-black/40'
+      )}
     >
       <div
         className={cn(
@@ -26,8 +32,8 @@ export function StreakCard({ label, current, best }: StreakCardProps) {
       >
         <Flame
           className="h-3.5 w-3.5"
-          color="#f5d76e"
-          fill="#f5d76e"
+          color={flameColor}
+          fill={flameColor}
           strokeWidth={1.8}
         />
       </div>
