@@ -201,9 +201,6 @@ export default function WaterGlass({
           strokeWidth={1}
           strokeLinejoin="round"
         />
-        <line x1={8} y1={82} x2={11} y2={82} stroke="rgba(255,255,255,0.12)" strokeWidth={0.6} />
-        <line x1={89} y1={82} x2={92} y2={82} stroke="rgba(255,255,255,0.12)" strokeWidth={0.6} />
-
         <AnimatePresence>
           {impactY !== null && (
             <motion.ellipse
