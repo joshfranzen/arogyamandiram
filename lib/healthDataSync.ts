@@ -115,6 +115,12 @@ function iterateRecords(rawData: unknown): Record<string, unknown>[] {
 
 function resolveLogDate(record: Record<string, unknown>, timezone?: string): string {
   const recordDateStr = typeof record.date === 'string' ? record.date : '';
+  // A bare YYYY-MM-DD is already the device's local calendar day. `new Date(str)`
+  // would parse it as UTC midnight, which then shifts back a day for any
+  // west-of-UTC timezone (e.g. America/New_York → off-by-one).
+  if (/^\d{4}-\d{2}-\d{2}$/.test(recordDateStr)) {
+    return recordDateStr;
+  }
   const recordReceivedAtStr = typeof record.receivedAt === 'string' ? record.receivedAt : '';
   const primaryTimestamp = recordDateStr || recordReceivedAtStr;
   const parsed = primaryTimestamp ? new Date(primaryTimestamp) : null;
@@ -195,16 +201,19 @@ async function applyDeviceWorkouts(
     })
     .filter((w) => w.exercise && w.duration > 0);
 
-  if (mappedDeviceWorkouts.length === 0) {
-    return { mutated: false, actions };
-  }
-
   try {
     const existingLog = await DailyLog.findOne({ userId, date: logDate }).lean();
     type StoredWorkout = { source?: string; exercise: string; duration: number; caloriesBurned: number; category: string };
-    const manualWorkouts = existingLog
-      ? (existingLog.workouts as StoredWorkout[]).filter((w) => w.source !== 'device')
-      : [];
+    const existingWorkouts = (existingLog?.workouts as StoredWorkout[] | undefined) ?? [];
+    const manualWorkouts = existingWorkouts.filter((w) => w.source !== 'device');
+    const existingDeviceCount = existingWorkouts.length - manualWorkouts.length;
+
+    // Always reconcile to mirror the device snapshot: replace device-source
+    // workouts with the new set (even if empty, which wipes stale entries when
+    // the user deletes a workout on-device).
+    if (existingDeviceCount === 0 && mappedDeviceWorkouts.length === 0) {
+      return { mutated: false, actions };
+    }
 
     const log = await DailyLog.findOneAndUpdate(
       { userId, date: logDate },
@@ -218,7 +227,7 @@ async function applyDeviceWorkouts(
     actions.push({
       field: 'workouts',
       status: 'logged',
-      detail: `${logDate}: ${mappedDeviceWorkouts.length} workout${mappedDeviceWorkouts.length !== 1 ? 's' : ''} replaced (${manualWorkouts.length} manual kept)`,
+      detail: `${logDate}: device workouts ${existingDeviceCount} → ${mappedDeviceWorkouts.length} (${manualWorkouts.length} manual kept)`,
     });
     return { mutated: true, actions };
   } catch (err) {
