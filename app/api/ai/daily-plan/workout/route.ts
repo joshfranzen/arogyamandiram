@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     const systemPrompt = `You are an evidence-based fitness coach generating ONE user's daily workout plan as JSON.
 
 Your responsibilities, in order:
-1. Read the user's last 7 days of workouts (provided in the user message). Decide the right training split for THIS user THIS week. Choices include — but you may also blend or invent — full body, upper/lower, push-pull-legs, or single-body-part-per-day. Pick what fits their fitness level, recovery state, and what's already been trained this week. Do NOT fall back to a default rule like "always full body for beginners" — use the data.
+1. Read the user's last 2 days of workouts (provided in the user message). Decide the right training split for THIS user right now. Choices include — but you may also blend or invent — full body, upper/lower, push-pull-legs, or single-body-part-per-day. Pick what fits their fitness level, recovery state, and what's already been trained recently. Do NOT fall back to a default rule like "always full body for beginners" — use the data.
 2. For today, choose body parts the user has NOT trained in the last 1–2 days. Aim for full-body weekly coverage.
 3. Apply the readiness signals provided (protein deficit, sleep, steps).
 4. Use the DERIVED goalDirection (lose / maintain / gain), NOT the raw profile.goal field. If goalDirection is "lose": lean toward higher total work and moderate cardio. If "maintain": balanced. If "gain": more strength volume, longer rests, less cardio.
@@ -136,18 +136,24 @@ Return JSON only with this exact shape:
         };
       } | null;
 
-    // 7-day window ending today. We include today's recovery / nutrition / hydration
-    // data so readiness signals are accurate, but the buildWeeklyWorkoutSummary
-    // helper drops today's *workouts* from the LLM prompt to avoid feeding the model
-    // the workout it's about to generate.
-    const sevenDaysAgo = (() => {
+    // 2-day window: yesterday + day-before-yesterday. We intentionally exclude
+    // today — today's workouts are the plan we're generating, and today's
+    // partial-day nutrition / steps would skew readiness averages downward
+    // (plans are usually generated in the morning before the user has eaten or
+    // moved much). Yesterday's log carries fresh enough sleep data.
+    const windowStart = (() => {
       const d = new Date(today);
-      d.setDate(d.getDate() - 6);
+      d.setDate(d.getDate() - 2);
       return d.toISOString().slice(0, 10);
     })();
-    const recentLogs = await DailyLog.find({ userId, date: { $gte: sevenDaysAgo, $lte: today } })
+    const windowEnd = (() => {
+      const d = new Date(today);
+      d.setDate(d.getDate() - 1);
+      return d.toISOString().slice(0, 10);
+    })();
+    const recentLogs = await DailyLog.find({ userId, date: { $gte: windowStart, $lte: windowEnd } })
       .sort({ date: -1 })
-      .limit(7)
+      .limit(2)
       .select('date totalCalories totalProtein totalCarbs totalFat waterIntake caloriesBurned heartRate steps activeCalories distanceKm sleep.duration sleep.quality workouts.exercise workouts.planExerciseName workouts.category workouts.duration workouts.caloriesBurned workouts.sets workouts.reps workouts.source workouts.notes')
       .lean() as Array<{
         date?: string;

@@ -360,9 +360,10 @@ export function deriveGoalDirection(
 }
 
 /**
- * Build a compact summary of the last 7 days of workouts for the LLM. Today's
- * logged workouts ARE included — they are real user-recorded execution data, not
- * the plan we're about to generate.
+ * Build a compact summary of the recent workout window (yesterday and the day
+ * before) for the LLM. Today is intentionally excluded — today's workouts are
+ * the plan we're about to generate, and today's partial-day nutrition / steps
+ * would skew readiness averages.
  */
 export function buildWeeklyWorkoutSummary(
   context: WorkoutPromptContext | undefined,
@@ -526,11 +527,10 @@ export function buildWorkoutPrompt(
       }
     : null;
 
-  // Build Mon-Sun split map from the rolling 7 days.
-  const lastWeekSplit: Record<string, string> = {
-    monday: 'rest', tuesday: 'rest', wednesday: 'rest', thursday: 'rest',
-    friday: 'rest', saturday: 'rest', sunday: 'rest',
-  };
+  // Build a per-weekday split map from the rolling window. Only includes days we
+  // have logs for — we don't pre-fill "rest" for missing days, since absent data
+  // is not the same as a confirmed rest day.
+  const lastWeekSplit: Record<string, string> = {};
   for (const day of weeklySummary.byDay) {
     const d = new Date(day.date);
     if (Number.isNaN(d.getTime())) continue;
@@ -566,7 +566,7 @@ export function buildWorkoutPrompt(
     };
   });
 
-  const userPrompt = {
+  const inputs = {
     planDate: date,
     goal: goalDirection,
     fitnessLevel,
@@ -582,8 +582,8 @@ export function buildWorkoutPrompt(
   // The model gets a structured JSON object preceded by a one-line directive so
   // it knows how to interpret it.
   return [
-    'Inputs are provided as a JSON object below. Decide the weekly split, today\'s session structure, and per-exercise prescription. Use lastWeekSplit + today\'s workouts in recentLogs to avoid repeating body parts already trained in the last 1–2 days.',
-    JSON.stringify({ userPrompt }, null, 2),
+    'Inputs are provided as a JSON object below. Decide today\'s session structure and per-exercise prescription. Use lastWeekSplit + today\'s workouts in recentLogs to avoid repeating body parts already trained in the last 1–2 days. Only days with logged data are included — absent days are unknown, not confirmed rest.',
+    JSON.stringify({ inputs }, null, 2),
   ].join('\n');
 }
 
