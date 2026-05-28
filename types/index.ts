@@ -15,6 +15,21 @@ export type WorkoutCategory = 'cardio' | 'strength' | 'flexibility' | 'core' | '
 export type BodyType = 'ectomorph' | 'mesomorph' | 'endomorph';
 export type FitnessLevel = 'beginner' | 'intermediate' | 'advanced';
 export type FatFocusArea = 'belly' | 'hips' | 'thighs' | 'arms' | 'chest' | 'overall';
+export type PhysiqueGoal =
+  | 'lean_toned'
+  | 'lean_muscle'
+  | 'athletic'
+  | 'muscular_bulk'
+  | 'bodybuilder'
+  | 'healthy_slim'
+  | 'powerlifter';
+export type WorkoutLocation =
+  | 'full_gym'
+  | 'home_minimal'
+  | 'home_dumbbells'
+  | 'home_gym'
+  | 'outdoors'
+  | 'hotel_travel';
 
 export interface UserProfile {
   name: string;
@@ -35,6 +50,8 @@ export interface UserProfile {
   fatFocusAreas?: FatFocusArea[];
   fitnessLevelDerived?: FitnessLevel; // auto-calculated from workout logs
   fitnessLevelUser?: FitnessLevel;    // optional manual override
+  physiqueGoal?: PhysiqueGoal;        // target body the user is training toward
+  workoutLocation?: WorkoutLocation;  // drives equipment assumptions in plan
   timezone?: string;
 }
 
@@ -472,6 +489,15 @@ export interface DailyPlanData {
   generatedAt: string;
   status: 'generating' | 'ready' | 'failed';
   topInsight?: string;
+  projections?: {
+    sleep?:     { headline?: string; coachNote?: string; actions?: string[] };
+    food?:      { headline?: string; coachNote?: string; actions?: string[] };
+    water?:     { headline?: string; coachNote?: string; actions?: string[] };
+    workout?:   { headline?: string; coachNote?: string; actions?: string[] };
+    steps?:     { headline?: string; coachNote?: string; actions?: string[] };
+    heartRate?: { headline?: string; coachNote?: string; actions?: string[] };
+    weight?:    { headline?: string; coachNote?: string; actions?: string[] };
+  };
   foodPlan?: {
     suggestions: AiMealSuggestion[];
     reasoning?: string;

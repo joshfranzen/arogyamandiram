@@ -65,6 +65,14 @@ const UserSchema = new Schema<IUserDocument>(
       fatFocusAreas: { type: [String], default: [] },
       fitnessLevelDerived: { type: String, enum: ['beginner', 'intermediate', 'advanced'] }, // auto from logs
       fitnessLevelUser: { type: String, enum: ['beginner', 'intermediate', 'advanced'] },    // optional override
+      physiqueGoal: {
+        type: String,
+        enum: ['lean_toned', 'lean_muscle', 'athletic', 'muscular_bulk', 'bodybuilder', 'healthy_slim', 'powerlifter'],
+      },
+      workoutLocation: {
+        type: String,
+        enum: ['full_gym', 'home_minimal', 'home_dumbbells', 'home_gym', 'outdoors', 'hotel_travel'],
+      },
       timezone: { type: String, default: '' },
     },
     apiKeys: {

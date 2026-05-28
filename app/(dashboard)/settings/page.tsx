@@ -85,6 +85,25 @@ const bodyFatGuides = [
   { label: 'Higher', range: '25-30%', value: 27, clue: 'Visible belly fat, chest and waist look fuller.' },
 ] as const;
 
+const physiqueGoalOptions = [
+  { value: 'lean_toned',     label: 'Lean / toned',        clue: 'Low body fat, modest muscle — "beach body" look.' },
+  { value: 'lean_muscle',    label: 'Lean muscle (recomp)', clue: 'Build visible muscle while staying lean.' },
+  { value: 'athletic',       label: 'Athletic / functional', clue: 'Balanced strength + conditioning, performance-focused.' },
+  { value: 'muscular_bulk',  label: 'Muscular / bulk',     clue: 'Maximize muscle size, OK to gain some fat.' },
+  { value: 'bodybuilder',    label: 'Bodybuilder / shredded', clue: 'Max muscle + very low body fat, contest-style.' },
+  { value: 'healthy_slim',   label: 'Healthy slim',        clue: 'Fat loss is the primary goal.' },
+  { value: 'powerlifter',    label: 'Stronger / powerlifter', clue: 'Prioritise raw strength over aesthetics.' },
+] as const;
+
+const workoutLocationOptions = [
+  { value: 'full_gym',        label: 'Full gym',          clue: 'Machines, barbells, full dumbbell rack, cables.' },
+  { value: 'home_gym',        label: 'Home gym',          clue: 'Rack, barbell, bench, dumbbells at home.' },
+  { value: 'home_dumbbells',  label: 'Home — dumbbells',  clue: 'Dumbbells + bodyweight, bench optional.' },
+  { value: 'home_minimal',    label: 'Home — minimal',    clue: 'Bodyweight, mat, maybe bands.' },
+  { value: 'outdoors',        label: 'Outdoors / park',   clue: 'Bodyweight, bars/benches outside, running.' },
+  { value: 'hotel_travel',    label: 'Hotel / travel',    clue: 'Limited gear, often bodyweight only.' },
+] as const;
+
 // ─── Fat area tag input ────────────────────────────────────────────────────────
 
 function FatAreaInput({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
@@ -172,6 +191,8 @@ function SettingsInner() {
   const [bodyType, setBodyType] = useState('');
   const [bodyFat, setBodyFat] = useState('');
   const [fatFocusAreas, setFatFocusAreas] = useState<string[]>([]);
+  const [physiqueGoal, setPhysiqueGoal] = useState('');
+  const [workoutLocation, setWorkoutLocation] = useState('');
   const [dietaryPreference, setDietaryPreference] = useState<'no_preference' | 'vegetarian' | 'non_vegetarian' | 'vegan'>('no_preference');
   const [allergies, setAllergies] = useState<string[]>([]);
   const [allergyDraft, setAllergyDraft] = useState('');
@@ -283,6 +304,8 @@ function SettingsInner() {
       setBodyType((p as { bodyType?: string }).bodyType || '');
       setBodyFat((p as { bodyFat?: number }).bodyFat?.toString() || '');
       setFatFocusAreas((p as { fatFocusAreas?: string[] }).fatFocusAreas || []);
+      setPhysiqueGoal((p as { physiqueGoal?: string }).physiqueGoal || '');
+      setWorkoutLocation((p as { workoutLocation?: string }).workoutLocation || '');
     }
 
     // Targets
@@ -449,6 +472,8 @@ function SettingsInner() {
         ...(bodyType ? { bodyType } : {}),
         ...(bodyFat && !isNaN(parseFloat(bodyFat)) ? { bodyFat: parseFloat(bodyFat) } : {}),
         fatFocusAreas,
+        ...(physiqueGoal ? { physiqueGoal } : {}),
+        ...(workoutLocation ? { workoutLocation } : {}),
       };
       if (dateOfBirth) profilePayload.dateOfBirth = dateOfBirth;
       else if (age) profilePayload.age = parseInt(age, 10);
@@ -1090,6 +1115,60 @@ function SettingsInner() {
               <h2 className="text-base font-semibold text-text-primary">Where do you carry more fat?</h2>
               <p className="mt-1 text-xs text-text-muted">Used to personalise your workout target zones.</p>
               <FatAreaInput value={fatFocusAreas} onChange={setFatFocusAreas} />
+            </div>
+
+            {/* Physique goal */}
+            <div className="glass-card rounded-2xl p-6">
+              <h2 className="text-base font-semibold text-text-primary">Body target</h2>
+              <p className="mt-1 text-xs text-text-muted">The look or performance you&apos;re training toward. Shapes how your daily workout is built.</p>
+              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {physiqueGoalOptions.map((opt) => {
+                  const selected = physiqueGoal === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setPhysiqueGoal(selected ? '' : opt.value)}
+                      className={cn(
+                        'rounded-2xl border px-4 py-3 text-left text-xs transition-all',
+                        selected
+                          ? 'border-emerald-500 bg-emerald-500/10'
+                          : 'border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700'
+                      )}
+                    >
+                      <p className={cn('text-sm font-semibold', selected ? 'text-emerald-400' : 'text-zinc-200')}>{opt.label}</p>
+                      <p className="mt-1 text-[11px] text-zinc-400 leading-relaxed">{opt.clue}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Workout location */}
+            <div className="glass-card rounded-2xl p-6">
+              <h2 className="text-base font-semibold text-text-primary">Where do you work out?</h2>
+              <p className="mt-1 text-xs text-text-muted">Drives the equipment we assume you have when picking exercises.</p>
+              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {workoutLocationOptions.map((opt) => {
+                  const selected = workoutLocation === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setWorkoutLocation(selected ? '' : opt.value)}
+                      className={cn(
+                        'rounded-2xl border px-4 py-3 text-left text-xs transition-all',
+                        selected
+                          ? 'border-emerald-500 bg-emerald-500/10'
+                          : 'border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700'
+                      )}
+                    >
+                      <p className={cn('text-sm font-semibold', selected ? 'text-emerald-400' : 'text-zinc-200')}>{opt.label}</p>
+                      <p className="mt-1 text-[11px] text-zinc-400 leading-relaxed">{opt.clue}</p>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Fitness Level */}

@@ -65,7 +65,20 @@ Your responsibilities, in order:
 2. For today, choose body parts the user has NOT trained in the last 1–2 days. Aim for full-body weekly coverage.
 3. Apply the readiness signals provided (protein deficit, sleep, steps).
 4. Use the DERIVED goalDirection (lose / maintain / gain), NOT the raw profile.goal field. If goalDirection is "lose": lean toward higher total work and moderate cardio. If "maintain": balanced. If "gain": more strength volume, longer rests, less cardio.
-5. Estimate calories burned with MET × bodyweight × time. Use these ranges; do NOT under- or over-estimate:
+5. Tune the session to profile.physiqueGoal when present — this is the look/performance the user is training toward. Heuristics:
+   - lean_toned / healthy_slim → more conditioning, full-body circuits, moderate strength, higher rep ranges (12–20).
+   - lean_muscle → hypertrophy emphasis (8–12 reps), modest cardio for recomp.
+   - athletic → mixed strength + conditioning + power/plyo; balanced splits.
+   - muscular_bulk → strength + hypertrophy (6–12 reps), longer rests, minimal cardio.
+   - bodybuilder → split-style isolation + compound work, 8–15 reps, controlled tempo, minimal cardio.
+   - powerlifter → heavy compounds (3–6 reps), long rests, low cardio volume.
+6. Respect profile.workoutLocation when prescribing exercises. Only pick exercises whose equipment is plausibly available:
+   - full_gym / home_gym → barbells, dumbbells, cables, machines all fair game.
+   - home_dumbbells → dumbbells + bodyweight + bench-optional. No barbell, no machines.
+   - home_minimal → bodyweight, bands, mat only. No external weights.
+   - outdoors → bodyweight, pull-up bars, benches, running/sprints. No machines.
+   - hotel_travel → bodyweight + light dumbbells if any; assume minimal space.
+7. Estimate calories burned with MET × bodyweight × time. Use these ranges; do NOT under- or over-estimate:
    - cardio:           low 3.5–4.5 · medium 5.0–7.0 · high 7.0–10.0
    - strength:         low 3.0–4.0 · medium 4.5–6.0 · high 6.0–8.0
    - core:             low 2.5–3.5 · medium 3.5–4.5 · high 4.5–6.0
@@ -106,7 +119,7 @@ Return JSON only with this exact shape:
   }
 }`;
     const user = await User.findById(userId)
-      .select('profile.gender profile.age profile.dateOfBirth profile.height profile.weight profile.activityLevel profile.goal profile.targetWeight profile.bodyType profile.bodyFat profile.fatFocusAreas profile.fitnessLevelDerived profile.fitnessLevelUser targets')
+      .select('profile.gender profile.age profile.dateOfBirth profile.height profile.weight profile.activityLevel profile.goal profile.targetWeight profile.bodyType profile.bodyFat profile.fatFocusAreas profile.fitnessLevelDerived profile.fitnessLevelUser profile.physiqueGoal profile.workoutLocation targets')
       .lean() as {
         profile?: {
           gender?: string;
@@ -122,6 +135,8 @@ Return JSON only with this exact shape:
           fatFocusAreas?: string[];
           fitnessLevelDerived?: string;
           fitnessLevelUser?: string;
+          physiqueGoal?: string;
+          workoutLocation?: string;
         };
         targets?: {
           dailyWorkoutMinutes?: number;

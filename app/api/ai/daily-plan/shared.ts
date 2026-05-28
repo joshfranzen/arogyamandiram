@@ -16,6 +16,92 @@ export type OverviewRequestBody = {
   currentWeightKg?: number;
 };
 
+export type OverviewYesterdayContext = {
+  date: string;
+  totals?: {
+    caloriesKcal?: number;
+    proteinG?: number;
+    carbsG?: number;
+    fatG?: number;
+    fiberG?: number;
+    sugarG?: number;
+    sodiumMg?: number;
+    waterMl?: number;
+    workoutMinutes?: number;
+    caloriesBurnedKcal?: number;
+    steps?: number;
+    heartRateAvg?: number;
+  };
+  meals?: Array<{
+    mealType?: string;
+    name?: string;
+    time?: string;
+    quantity?: number;
+    unit?: string;
+    calories?: number;
+    protein?: number;
+    carbs?: number;
+    fat?: number;
+    fiber?: number;
+    sugar?: number;
+    sodium?: number;
+    saturatedFat?: number;
+    cholesterol?: number;
+  }>;
+  workouts?: Array<{
+    exercise?: string;
+    category?: string;
+    durationMinutes?: number;
+    caloriesBurnedKcal?: number;
+    sets?: number;
+    reps?: number;
+  }>;
+  sleep?: { durationHours?: number; quality1to5?: number } | null;
+  weightKg?: number | null;
+};
+
+export type OverviewPromptContext = {
+  profile?: {
+    age?: number;
+    dateOfBirth?: string | Date;
+    gender?: string;
+    height?: number;
+    weight?: number;
+    activityLevel?: string;
+    goal?: string;
+    targetWeight?: number;
+  } | null;
+  targets?: {
+    dailyCalories?: number;
+    dailyWorkoutMinutes?: number;
+    dailyCalorieBurn?: number;
+    dailyWater?: number;
+    protein?: number;
+    carbs?: number;
+    fat?: number;
+    sleepHours?: number;
+    dailySteps?: number;
+  } | null;
+  yesterday?: OverviewYesterdayContext | null;
+};
+
+export type OverviewProjectionKey =
+  | 'sleep'
+  | 'food'
+  | 'water'
+  | 'workout'
+  | 'steps'
+  | 'heartRate'
+  | 'weight';
+
+export type OverviewProjectionEntry = {
+  headline: string;
+  coachNote: string;
+  actions: string[];
+};
+
+export type OverviewProjections = Record<OverviewProjectionKey, OverviewProjectionEntry>;
+
 export type WorkoutRequestBody = {
   lastWeekDetails?: string;
   goal?: string;
@@ -38,6 +124,8 @@ export type WorkoutPromptContext = {
     fatFocusAreas?: string[];
     fitnessLevelDerived?: string;
     fitnessLevelUser?: string;
+    physiqueGoal?: string;
+    workoutLocation?: string;
   } | null;
   targets?: {
     dailyWorkoutMinutes?: number;
@@ -174,6 +262,8 @@ function sanitizeWorkoutContext(context?: WorkoutPromptContext) {
           ? context.profile.fatFocusAreas.map((a) => asString(a)).filter(Boolean)
           : [],
         fitnessLevel: asString(context.profile.fitnessLevelDerived || context.profile.fitnessLevelUser),
+        physiqueGoal: asString(context.profile.physiqueGoal),
+        workoutLocation: asString(context.profile.workoutLocation),
       }
     : null;
 
@@ -455,19 +545,72 @@ export function buildFoodPrompt(body: FoodRequestBody, date: string): string {
   ].join('\n');
 }
 
-export function buildOverviewPrompt(body: OverviewRequestBody, date: string): string {
-  const summary = body.lastWeekSummary?.trim() || 'No weekly summary provided.';
-  const goal = body.goal?.trim() || 'General health improvement';
-  const weight = Number(body.currentWeightKg);
-  const weightLine = Number.isFinite(weight) && weight > 0
-    ? `Current weight kg: ${weight}`
-    : 'Current weight kg: not provided';
+export function buildOverviewPrompt(
+  body: OverviewRequestBody,
+  date: string,
+  context?: OverviewPromptContext,
+): string {
+  const goal = body.goal?.trim() || asString(context?.profile?.goal) || 'General health improvement';
+  const weightFromBody = Number(body.currentWeightKg);
+  const weightKg = Number.isFinite(weightFromBody) && weightFromBody > 0
+    ? weightFromBody
+    : toFinite(context?.profile?.weight);
+
+  const profile = context?.profile
+    ? {
+        age: (() => {
+          if (context.profile?.dateOfBirth) {
+            const derived = getAgeFromDateOfBirth(context.profile.dateOfBirth);
+            if (Number.isFinite(derived) && derived > 0) return derived;
+          }
+          return toFinite(context.profile.age);
+        })(),
+        gender: asString(context.profile.gender) || undefined,
+        heightCm: toFinite(context.profile.height),
+        weightKg,
+        activityLevel: asString(context.profile.activityLevel) || undefined,
+        targetWeightKg: toFinite(context.profile.targetWeight),
+      }
+    : null;
+
+  const targets = context?.targets
+    ? {
+        dailyCaloriesKcal: toFinite(context.targets.dailyCalories),
+        proteinG: toFinite(context.targets.protein),
+        carbsG: toFinite(context.targets.carbs),
+        fatG: toFinite(context.targets.fat),
+        dailyWaterMl: toFinite(context.targets.dailyWater),
+        dailyWorkoutMinutes: toFinite(context.targets.dailyWorkoutMinutes),
+        dailyCalorieBurnKcal: toFinite(context.targets.dailyCalorieBurn),
+        sleepHours: toFinite(context.targets.sleepHours),
+        dailySteps: toFinite(context.targets.dailySteps),
+      }
+    : null;
+
+  const yesterday = context?.yesterday
+    ? {
+        date: asString(context.yesterday.date),
+        totals: context.yesterday.totals ?? {},
+        meals: Array.isArray(context.yesterday.meals) ? context.yesterday.meals : [],
+        workouts: Array.isArray(context.yesterday.workouts) ? context.yesterday.workouts : [],
+        sleep: context.yesterday.sleep ?? null,
+        weightKg: context.yesterday.weightKg ?? null,
+      }
+    : null;
+
+  const fallbackSummary = body.lastWeekSummary?.trim();
+  const inputs = {
+    planDate: date,
+    goal,
+    profile,
+    targets,
+    yesterday,
+    ...(fallbackSummary ? { lastWeekSummaryFromUser: fallbackSummary } : {}),
+  };
 
   return [
-    `Plan date: ${date}`,
-    `Goal: ${goal}`,
-    weightLine,
-    `Last week summary from user: ${summary}`,
+    'Inputs are provided as a JSON object below. Generate the daily overview using YESTERDAY\'s data only (yesterday.totals, yesterday.meals, yesterday.workouts, yesterday.sleep, yesterday.weightKg) plus the user\'s targets. The UI will prepend "At this rate →" to every projection.headline, so do NOT write that phrase yourself. Every projection.coachNote must reference real numbers or named items from yesterday, and every projection.actions[] step must begin with a verb. Do not invent values that are not in the inputs.',
+    JSON.stringify({ inputs }, null, 2),
   ].join('\n');
 }
 
@@ -524,6 +667,8 @@ export function buildWorkoutPrompt(
         bodyType: sanitized.profile.bodyType,
         bodyFatPct: sanitized.profile.bodyFatPct,
         fitnessLevel: sanitized.profile.fitnessLevel,
+        physiqueGoal: sanitized.profile.physiqueGoal,
+        workoutLocation: sanitized.profile.workoutLocation,
       }
     : null;
 
@@ -909,27 +1054,42 @@ export function normalizeWorkoutPlan(input: unknown, signals?: ReadinessSignals)
   };
 }
 
+const PROJECTION_KEYS: OverviewProjectionKey[] = [
+  'sleep', 'food', 'water', 'workout', 'steps', 'heartRate', 'weight',
+];
+
+function normalizeProjectionEntry(raw: unknown): OverviewProjectionEntry {
+  const obj = (raw && typeof raw === 'object') ? raw as Record<string, unknown> : {};
+  const headline = asString(obj.headline);
+  const coachNote = asString(obj.coachNote);
+  const rawActions = Array.isArray(obj.actions) ? obj.actions : [];
+  const actions = rawActions
+    .map((a) => asString(a))
+    .filter((a) => a.length > 0)
+    .slice(0, 6);
+  return {
+    headline: headline || 'No data yet',
+    coachNote: coachNote || '',
+    actions,
+  };
+}
+
 export function normalizeOverview(input: unknown): {
   topInsight: string | null;
-  prediction: NonNullable<DailyPlanData['prediction']> | null;
+  projections: OverviewProjections;
 } {
   const root = (input && typeof input === 'object') ? input as Record<string, unknown> : {};
-  const predictionRoot = (root.prediction && typeof root.prediction === 'object')
-    ? root.prediction as Record<string, unknown>
+  const projectionsRoot = (root.projections && typeof root.projections === 'object')
+    ? root.projections as Record<string, unknown>
     : {};
 
-  const weeklyWeightChangeKg = asNumber(predictionRoot.weeklyWeightChangeKg, 0);
-  const projectedWeightKg = asNumber(predictionRoot.projectedWeightKg, 0);
-  const hasPrediction = Object.keys(predictionRoot).length > 0;
+  const projections = PROJECTION_KEYS.reduce((acc, key) => {
+    acc[key] = normalizeProjectionEntry(projectionsRoot[key]);
+    return acc;
+  }, {} as OverviewProjections);
 
   return {
     topInsight: asString(root.topInsight) || null,
-    prediction: hasPrediction
-      ? {
-          weeklyWeightChangeKg: Number(weeklyWeightChangeKg.toFixed(2)),
-          projectedWeightKg: Number(projectedWeightKg.toFixed(1)),
-          basis: asString(predictionRoot.basis, 'Projected trend based on recent habits.'),
-        }
-      : null,
+    projections,
   };
 }
