@@ -50,7 +50,7 @@ const TODAY_IDX = 1;
 const FAKE_STREAKS = [
   { label: 'Active days',  current: 14, best: 21 },
   { label: 'Healthy days', current: 9,  best: 14 },
-  { label: 'Food log',     current: 14, best: 18 },
+  { label: 'Food',     current: 14, best: 18 },
   { label: 'Water',        current: 6,  best: 11 },
   { label: 'Workouts',     current: 4,  best: 9  },
   { label: 'Sleep',        current: 3,  best: 8  },

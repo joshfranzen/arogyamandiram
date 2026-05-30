@@ -85,6 +85,39 @@ const bodyFatGuides = [
   { label: 'Higher', range: '25-30%', value: 27, clue: 'Visible belly fat, chest and waist look fuller.' },
 ] as const;
 
+const physiqueGoalOptions = [
+  { value: 'lean_toned',     label: 'Slim and fit',          clue: 'Skinny with just a little muscle. Like a runner.' },
+  { value: 'lean_muscle',    label: 'Slim with muscle',      clue: 'Get muscle you can see, but stay slim.' },
+  { value: 'athletic',       label: 'Sporty',                clue: 'Strong and fast. Good at running, jumping, playing.' },
+  { value: 'muscular_bulk',  label: 'Big and strong',        clue: 'Make muscles as big as you can. A bit of extra fat is OK.' },
+  { value: 'bodybuilder',    label: 'Huge muscles, zero fat', clue: 'Like a superhero or a bodybuilder on stage.' },
+  { value: 'healthy_slim',   label: 'Just lose weight',      clue: 'Mainly drop fat. Looks come later.' },
+  { value: 'powerlifter',    label: 'Lift the heaviest',     clue: 'Be as strong as possible. Looks don\'t matter.' },
+] as const;
+
+const workoutLocationOptions = [
+  { value: 'full_gym',     label: 'Full gym',        clue: 'Machines, barbells, full dumbbell rack, cables.' },
+  { value: 'home',         label: 'Home',            clue: 'Tell us what gear you have in the notes below.' },
+  { value: 'outdoors',     label: 'Outdoors / park', clue: 'Bodyweight, bars/benches outside, running.' },
+  { value: 'hotel_travel', label: 'Hotel / travel',  clue: 'Limited gear, often bodyweight only.' },
+] as const;
+
+// Map legacy WorkoutLocation values to the new shape so existing users keep
+// their selection. Old preset is converted to plain-language notes the AI reads.
+function migrateWorkoutLocation(raw: string | undefined): { location: string; notes: string } {
+  if (raw === 'home_gym') return { location: 'home', notes: 'I have dumbbells, barbell, squat rack, and a bench.' };
+  if (raw === 'home_dumbbells') return { location: 'home', notes: 'Dumbbells + bodyweight only. No barbell, no machines.' };
+  if (raw === 'home_minimal') return { location: 'home', notes: 'Bodyweight only.' };
+  return { location: raw || '', notes: '' };
+}
+
+const equipmentNotesPlaceholder: Record<string, string> = {
+  full_gym:     'e.g. "No cable machine, no leg press — use free weights instead."',
+  home:         'e.g. "I have dumbbells up to 20kg, a pull-up bar, and resistance bands. No bench."',
+  outdoors:     'e.g. "Park has parallel bars, monkey bars, and a 200m running track."',
+  hotel_travel: 'e.g. "Just a mat and a couple of resistance bands."',
+};
+
 // ─── Fat area tag input ────────────────────────────────────────────────────────
 
 function FatAreaInput({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
@@ -172,6 +205,9 @@ function SettingsInner() {
   const [bodyType, setBodyType] = useState('');
   const [bodyFat, setBodyFat] = useState('');
   const [fatFocusAreas, setFatFocusAreas] = useState<string[]>([]);
+  const [physiqueGoal, setPhysiqueGoal] = useState('');
+  const [workoutLocation, setWorkoutLocation] = useState('');
+  const [equipmentNotes, setEquipmentNotes] = useState('');
   const [dietaryPreference, setDietaryPreference] = useState<'no_preference' | 'vegetarian' | 'non_vegetarian' | 'vegan'>('no_preference');
   const [allergies, setAllergies] = useState<string[]>([]);
   const [allergyDraft, setAllergyDraft] = useState('');
@@ -283,6 +319,11 @@ function SettingsInner() {
       setBodyType((p as { bodyType?: string }).bodyType || '');
       setBodyFat((p as { bodyFat?: number }).bodyFat?.toString() || '');
       setFatFocusAreas((p as { fatFocusAreas?: string[] }).fatFocusAreas || []);
+      setPhysiqueGoal((p as { physiqueGoal?: string }).physiqueGoal || '');
+      const migrated = migrateWorkoutLocation((p as { workoutLocation?: string }).workoutLocation);
+      setWorkoutLocation(migrated.location);
+      const storedNotes = (p as { equipmentNotes?: string }).equipmentNotes;
+      setEquipmentNotes(typeof storedNotes === 'string' && storedNotes.trim() ? storedNotes : migrated.notes);
     }
 
     // Targets
@@ -449,6 +490,9 @@ function SettingsInner() {
         ...(bodyType ? { bodyType } : {}),
         ...(bodyFat && !isNaN(parseFloat(bodyFat)) ? { bodyFat: parseFloat(bodyFat) } : {}),
         fatFocusAreas,
+        ...(physiqueGoal ? { physiqueGoal } : {}),
+        ...(workoutLocation ? { workoutLocation } : {}),
+        equipmentNotes: equipmentNotes.trim().slice(0, 500),
       };
       if (dateOfBirth) profilePayload.dateOfBirth = dateOfBirth;
       else if (age) profilePayload.age = parseInt(age, 10);
@@ -1090,6 +1134,75 @@ function SettingsInner() {
               <h2 className="text-base font-semibold text-text-primary">Where do you carry more fat?</h2>
               <p className="mt-1 text-xs text-text-muted">Used to personalise your workout target zones.</p>
               <FatAreaInput value={fatFocusAreas} onChange={setFatFocusAreas} />
+            </div>
+
+            {/* Physique goal */}
+            <div className="glass-card rounded-2xl p-6">
+              <h2 className="text-base font-semibold text-text-primary">Body target</h2>
+              <p className="mt-1 text-xs text-text-muted">Pick the body you want. We&apos;ll plan workouts that fit.</p>
+              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {physiqueGoalOptions.map((opt) => {
+                  const selected = physiqueGoal === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setPhysiqueGoal(selected ? '' : opt.value)}
+                      className={cn(
+                        'rounded-2xl border px-4 py-3 text-left text-xs transition-all',
+                        selected
+                          ? 'border-emerald-500 bg-emerald-500/10'
+                          : 'border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700'
+                      )}
+                    >
+                      <p className={cn('text-sm font-semibold', selected ? 'text-emerald-400' : 'text-zinc-200')}>{opt.label}</p>
+                      <p className="mt-1 text-[11px] text-zinc-400 leading-relaxed">{opt.clue}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Workout location */}
+            <div className="glass-card rounded-2xl p-6">
+              <h2 className="text-base font-semibold text-text-primary">Where do you work out?</h2>
+              <p className="mt-1 text-xs text-text-muted">Drives the equipment we assume you have when picking exercises.</p>
+              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {workoutLocationOptions.map((opt) => {
+                  const selected = workoutLocation === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setWorkoutLocation(selected ? '' : opt.value)}
+                      className={cn(
+                        'rounded-2xl border px-4 py-3 text-left text-xs transition-all',
+                        selected
+                          ? 'border-emerald-500 bg-emerald-500/10'
+                          : 'border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700'
+                      )}
+                    >
+                      <p className={cn('text-sm font-semibold', selected ? 'text-emerald-400' : 'text-zinc-200')}>{opt.label}</p>
+                      <p className="mt-1 text-[11px] text-zinc-400 leading-relaxed">{opt.clue}</p>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {workoutLocation && (
+                <div className="mt-5 border-t border-zinc-800 pt-5">
+                  <p className="text-sm font-semibold text-text-primary">Equipment notes</p>
+                  <p className="mt-1 text-xs text-text-muted">Tell us what gear you&apos;ve got or what&apos;s missing. We&apos;ll skip exercises you can&apos;t actually do.</p>
+                  <textarea
+                    value={equipmentNotes}
+                    onChange={(e) => setEquipmentNotes(e.target.value.slice(0, 500))}
+                    placeholder={equipmentNotesPlaceholder[workoutLocation] ?? 'Anything we should know about your gear?'}
+                    rows={3}
+                    className="input-no-focus-ring mt-3 w-full resize-y rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600"
+                  />
+                  <p className="mt-1 text-right text-[10px] text-zinc-500">{equipmentNotes.length}/500</p>
+                </div>
+              )}
             </div>
 
             {/* Fitness Level */}

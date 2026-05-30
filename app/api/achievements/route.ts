@@ -15,8 +15,8 @@ import { getLevelProgress } from '@/lib/level';
 export const dynamic = 'force-dynamic';
 
 const EMPTY_STREAKS = {
-  current: { logging: 0, healthy: 0, calories: 0, water: 0, workout: 0, sleep: 0, weight: 0 },
-  best: { logging: 0, healthy: 0, calories: 0, water: 0, workout: 0, sleep: 0, weight: 0 },
+  current: { logging: 0, healthy: 0, calories: 0, water: 0, workout: 0, sleep: 0, weight: 0, steps: 0, waterGoal: 0 },
+  best: { logging: 0, healthy: 0, calories: 0, water: 0, workout: 0, sleep: 0, weight: 0, steps: 0, waterGoal: 0 },
   starts: {} as Record<string, undefined>,
 };
 
@@ -70,8 +70,21 @@ export async function GET(req: NextRequest) {
       ? Date.now() - new Date(userDoc.achievementsUpdatedAt).getTime()
       : Infinity;
 
-    if (cacheAge < ACHIEVEMENTS_CACHE_TTL_MS && userDoc?.achievements) {
-      const cached = userDoc.achievements as import('@/types').UserAchievements;
+    const cachedAchievements = userDoc?.achievements as
+      | import('@/types').UserAchievements
+      | undefined;
+    // Force recompute if the cache predates a streak field we now track,
+    // so newly-added streaks (e.g. waterGoal) populate without waiting for TTL.
+    const cacheMissingNewFields =
+      !!cachedAchievements &&
+      cachedAchievements.streaks?.current?.waterGoal === undefined;
+
+    if (
+      cacheAge < ACHIEVEMENTS_CACHE_TTL_MS &&
+      cachedAchievements &&
+      !cacheMissingNewFields
+    ) {
+      const cached = cachedAchievements;
       const xpTotal = cached.xpTotal ?? 0;
       const { level, xpIntoLevel, xpPercent, xpForCurrentLevel } = getLevelProgress(xpTotal);
       let xpToday = 0;

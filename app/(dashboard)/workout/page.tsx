@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import {
   Dumbbell,
   Pencil,
+  Plus,
   Trash2,
   Flame,
   Clock,
@@ -76,6 +77,8 @@ export default function WorkoutPage() {
   const { log, loading, refetch } = useDailyLog();
   const [editingWorkout, setEditingWorkout] = useState<WorkoutEntryForEdit | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [addingWorkout, setAddingWorkout] = useState(false);
+  const [savingAdd, setSavingAdd] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [history, setHistory] = useState<WorkoutHistoryPoint[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -124,6 +127,24 @@ export default function WorkoutPage() {
       showToast('Failed to update workout', 'error');
     } finally {
       setSavingEdit(false);
+    }
+  };
+
+  const handleAddSave = async (workout: Omit<WorkoutEntryForEdit, 'id'>) => {
+    setSavingAdd(true);
+    try {
+      const res = await api.addWorkout(today, workout as Record<string, unknown>);
+      if (res.success) {
+        showToast('Workout added', 'success');
+        setAddingWorkout(false);
+        refetch();
+      } else {
+        showToast(res.error || 'Failed to add workout', 'error');
+      }
+    } catch {
+      showToast('Failed to add workout', 'error');
+    } finally {
+      setSavingAdd(false);
     }
   };
 
@@ -262,7 +283,16 @@ export default function WorkoutPage() {
         {/* Workout List */}
         <div className="flex flex-col lg:relative lg:col-span-2">
           <WorkoutCard className="flex flex-1 flex-col p-6 lg:absolute lg:inset-0 lg:min-h-0">
-            <h2 className="mb-4 text-base font-semibold text-neutral-400">Today&apos;s Sessions</h2>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-base font-semibold text-neutral-400">Today&apos;s Sessions</h2>
+              <button
+                onClick={() => setAddingWorkout(true)}
+                className="flex items-center gap-1.5 rounded-lg bg-white/[0.04] px-2.5 py-1.5 text-xs font-medium text-text-primary transition-colors hover:bg-white/[0.08]"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add Workout
+              </button>
+            </div>
 
             {workouts.length === 0 ? (
               <div className="flex flex-1 flex-col items-center justify-center gap-3 py-12 text-center">
@@ -270,7 +300,13 @@ export default function WorkoutPage() {
                   <Dumbbell className="h-7 w-7 text-text-muted" />
                 </div>
                 <p className="text-sm text-text-muted">No workouts logged today</p>
-                <p className="text-xs text-text-muted">Use the AI Assistant to log workouts</p>
+                <button
+                  onClick={() => setAddingWorkout(true)}
+                  className="mt-1 flex items-center gap-1.5 rounded-xl bg-white/[0.06] px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-white/[0.1]"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Workout
+                </button>
               </div>
             ) : (
               <div className="flex-1 space-y-3 overflow-y-auto min-h-0 hide-scrollbar">
@@ -576,6 +612,15 @@ export default function WorkoutPage() {
           onClose={() => setEditingWorkout(null)}
           onSave={handleEditSave}
           loading={savingEdit}
+        />
+      )}
+      {addingWorkout && (
+        <EditWorkoutModal
+          mode="add"
+          workout={{ id: '', exercise: '', category: 'other', duration: 0, caloriesBurned: 0 }}
+          onClose={() => setAddingWorkout(false)}
+          onSave={handleAddSave}
+          loading={savingAdd}
         />
       )}
     </div>

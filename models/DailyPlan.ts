@@ -16,6 +16,16 @@ export interface IDailyPlanDocument extends Document {
   errorMessage?: string;
 
   topInsight?: string; // AI-selected #1 priority for the day
+  /** Per-metric projection cards (sleep/food/water/workout/steps/heartRate/weight). */
+  projections?: {
+    sleep?:     { headline?: string; coachNote?: string; actions?: string[] };
+    food?:      { headline?: string; coachNote?: string; actions?: string[] };
+    water?:     { headline?: string; coachNote?: string; actions?: string[] };
+    workout?:   { headline?: string; coachNote?: string; actions?: string[] };
+    steps?:     { headline?: string; coachNote?: string; actions?: string[] };
+    heartRate?: { headline?: string; coachNote?: string; actions?: string[] };
+    weight?:    { headline?: string; coachNote?: string; actions?: string[] };
+  };
 
   foodPlan?: {
     suggestions: {
@@ -60,6 +70,7 @@ export interface IDailyPlanDocument extends Document {
     reasoning?: string;
   };
 
+  /** @deprecated replaced by `projections.weight`; still written by the nightly cron path. */
   prediction?: {
     weeklyWeightChangeKg: number;
     projectedWeightKg: number;
@@ -102,6 +113,28 @@ const MealSuggestionSchema = new Schema(
   { _id: false }
 );
 
+const ProjectionEntrySchema = new Schema(
+  {
+    headline: { type: String, default: '' },
+    coachNote: { type: String, default: '' },
+    actions: { type: [String], default: [] },
+  },
+  { _id: false }
+);
+
+const ProjectionsSchema = new Schema(
+  {
+    sleep:     { type: ProjectionEntrySchema, default: undefined },
+    food:      { type: ProjectionEntrySchema, default: undefined },
+    water:     { type: ProjectionEntrySchema, default: undefined },
+    workout:   { type: ProjectionEntrySchema, default: undefined },
+    steps:     { type: ProjectionEntrySchema, default: undefined },
+    heartRate: { type: ProjectionEntrySchema, default: undefined },
+    weight:    { type: ProjectionEntrySchema, default: undefined },
+  },
+  { _id: false }
+);
+
 const ExerciseSchema = new Schema(
   {
     name: { type: String, required: true },
@@ -127,6 +160,7 @@ const DailyPlanSchema = new Schema<IDailyPlanDocument>(
     errorMessage: { type: String },
 
     topInsight: { type: String },
+    projections: { type: ProjectionsSchema, default: undefined },
 
     foodPlan: {
       suggestions: { type: [MealSuggestionSchema], default: [] },

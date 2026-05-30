@@ -23,11 +23,53 @@ import {
 } from '@/lib/utils';
 import WaterCard from '@/components/ui/water-card';
 
+type VesselProps = { className?: string };
+
+const vesselStroke = {
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.4,
+  strokeLinecap: 'round' as const,
+  strokeLinejoin: 'round' as const,
+};
+
+const ShotGlass = ({ className }: VesselProps) => (
+  <svg viewBox="0 0 24 24" className={className} {...vesselStroke}>
+    <path d="M8.5 11 L9.6 18 H14.4 L15.5 11 Z" />
+    <path d="M8.5 11 H15.5" />
+    <path d="M8.85 13.3 L9.6 18 H14.4 L15.15 13.3 Z" fill="#4FC3F7" fillOpacity="0.55" stroke="none" />
+  </svg>
+);
+
+const Tumbler = ({ className }: VesselProps) => (
+  <svg viewBox="0 0 24 24" className={className} {...vesselStroke}>
+    <path d="M7.5 6 L8.7 19 H15.3 L16.5 6 Z" />
+    <path d="M7.5 6 H16.5" />
+    <path d="M8.05 11.5 L8.7 19 H15.3 L15.95 11.5 Z" fill="#4FC3F7" fillOpacity="0.55" stroke="none" />
+  </svg>
+);
+
+const TallGlass = ({ className }: VesselProps) => (
+  <svg viewBox="0 0 24 24" className={className} {...vesselStroke}>
+    <path d="M8 3 L8.9 21 H15.1 L16 3 Z" />
+    <path d="M8 3 H16" />
+    <path d="M8.32 9.5 L8.9 21 H15.1 L15.68 9.5 Z" fill="#4FC3F7" fillOpacity="0.55" stroke="none" />
+  </svg>
+);
+
+const Bottle = ({ className }: VesselProps) => (
+  <svg viewBox="0 0 24 24" className={className} {...vesselStroke}>
+    <path d="M10 2.5 H14 V4.5 H10 Z" />
+    <path d="M10.2 4.5 V7 Q10.2 8 9.4 8.8 L8.6 9.8 Q8 10.6 8 11.7 V20 Q8 21.5 9.5 21.5 H14.5 Q16 21.5 16 20 V11.7 Q16 10.6 15.4 9.8 L14.6 8.8 Q13.8 8 13.8 7 V4.5" />
+    <path d="M8.2 13 V20 Q8.2 21.3 9.5 21.3 H14.5 Q15.8 21.3 15.8 20 V13 Z" fill="#4FC3F7" fillOpacity="0.55" stroke="none" />
+  </svg>
+);
+
 const DEFAULT_QUICK_AMOUNTS = [
-  { label: '100 ml', value: 100, icon: '💧' },
-  { label: '250 ml', value: 250, icon: '🥤' },
-  { label: '500 ml', value: 500, icon: '🍶' },
-  { label: '750 ml', value: 750, icon: '🧴' },
+  { label: '100 ml', value: 100, Icon: ShotGlass },
+  { label: '250 ml', value: 250, Icon: Tumbler },
+  { label: '500 ml', value: 500, Icon: TallGlass },
+  { label: '750 ml', value: 750, Icon: Bottle },
 ] as const;
 
 interface WaterEntry {
@@ -153,35 +195,22 @@ export default function WaterPage() {
               />
             </div>
 
-            {/* Amount Display */}
-            <div className="text-center">
-              <p className="text-3xl font-semibold text-[#A3A3A3]">{formatWater(current)}</p>
-              <p className="text-sm text-[#94A3B8]">of {formatWater(target)} goal</p>
-              {remaining > 0 && (
-                <p className="mt-1 text-xs text-[#94A3B8]">
-                  {formatWater(remaining)} remaining
-                </p>
-              )}
-              {percent >= 100 && (
-                <div className="mt-2 inline-flex items-center gap-1 rounded-lg bg-emerald-500/10 px-3 py-1 text-xs font-medium text-[#A3A3A3]">
-                  🎉 Daily goal reached!
-                </div>
-              )}
-            </div>
-
             {/* Quick Add Buttons – visible gap between each button */}
             <div className="mt-6 grid w-full grid-cols-4 gap-3">
-              {quickAmounts.map((amt) => (
-                <button
-                  key={amt.value}
-                  onClick={() => addWater(amt.value)}
-                  disabled={adding}
-                  className="flex flex-col items-center gap-1 rounded-xl bg-white/[0.03] px-2 py-3 text-xs font-medium text-[#94A3B8] transition-all hover:bg-white/[0.08] hover:text-[#A3A3A3] active:scale-95 disabled:opacity-50"
-                >
-                  <span className="text-lg">{amt.icon}</span>
-                  <span>{amt.label}</span>
-                </button>
-              ))}
+              {quickAmounts.map((amt) => {
+                const Icon = amt.Icon;
+                return (
+                  <button
+                    key={amt.value}
+                    onClick={() => addWater(amt.value)}
+                    disabled={adding}
+                    className="flex flex-col items-center gap-1.5 rounded-xl bg-white/[0.03] px-2 py-3 text-xs font-medium text-[#94A3B8] transition-all hover:bg-white/[0.08] hover:text-[#A3A3A3] active:scale-95 disabled:opacity-50"
+                  >
+                    <Icon className="h-7 w-7" />
+                    <span>{amt.label}</span>
+                  </button>
+                );
+              })}
             </div>
 
           </WaterCard>
