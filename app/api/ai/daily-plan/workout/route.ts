@@ -61,11 +61,25 @@ export async function POST(req: NextRequest) {
     const systemPrompt = `You are an evidence-based fitness coach generating ONE user's daily workout plan as JSON.
 
 Your responsibilities, in order:
-1. Read the user's last 7 days of workouts (provided in the user message). Decide the right training split for THIS user THIS week. Choices include — but you may also blend or invent — full body, upper/lower, push-pull-legs, or single-body-part-per-day. Pick what fits their fitness level, recovery state, and what's already been trained this week. Do NOT fall back to a default rule like "always full body for beginners" — use the data.
+1. Read the user's last 2 days of workouts (provided in the user message). Decide the right training split for THIS user right now. Choices include — but you may also blend or invent — full body, upper/lower, push-pull-legs, or single-body-part-per-day. Pick what fits their fitness level, recovery state, and what's already been trained recently. Do NOT fall back to a default rule like "always full body for beginners" — use the data.
 2. For today, choose body parts the user has NOT trained in the last 1–2 days. Aim for full-body weekly coverage.
 3. Apply the readiness signals provided (protein deficit, sleep, steps).
 4. Use the DERIVED goalDirection (lose / maintain / gain), NOT the raw profile.goal field. If goalDirection is "lose": lean toward higher total work and moderate cardio. If "maintain": balanced. If "gain": more strength volume, longer rests, less cardio.
-5. Estimate calories burned with MET × bodyweight × time. Use these ranges; do NOT under- or over-estimate:
+5. Tune the session to profile.physiqueGoal when present — this is the look/performance the user is training toward. Heuristics:
+   - lean_toned / healthy_slim → more conditioning, full-body circuits, moderate strength, higher rep ranges (12–20).
+   - lean_muscle → hypertrophy emphasis (8–12 reps), modest cardio for recomp.
+   - athletic → mixed strength + conditioning + power/plyo; balanced splits.
+   - muscular_bulk → strength + hypertrophy (6–12 reps), longer rests, minimal cardio.
+   - bodybuilder → split-style isolation + compound work, 8–15 reps, controlled tempo, minimal cardio.
+   - powerlifter → heavy compounds (3–6 reps), long rests, low cardio volume.
+6. Respect profile.workoutLocation when prescribing exercises. Defaults by location:
+   - full_gym → barbells, dumbbells, cables, machines all fair game.
+   - home → assume bodyweight + light dumbbells unless equipmentNotes say otherwise.
+   - outdoors → bodyweight, pull-up bars, benches, running/sprints. No machines.
+   - hotel_travel → bodyweight + light dumbbells if any; assume minimal space.
+   Then read profile.equipmentNotes as the user's own description of what they HAVE and what they DON'T HAVE. This is plain free-text — interpret it pragmatically. If they say "no cable machine", do not prescribe cable rows. If they say "I have a pull-up bar and 20kg dumbbells", you may use those. The notes OVERRIDE the location default.
+   (Legacy values that may still appear: home_gym = home with rack+barbell+bench+dumbbells; home_dumbbells = home with dumbbells only; home_minimal = home with bodyweight only.)
+7. Estimate calories burned with MET × bodyweight × time. Use these ranges; do NOT under- or over-estimate:
    - cardio:           low 3.5–4.5 · medium 5.0–7.0 · high 7.0–10.0
    - strength:         low 3.0–4.0 · medium 4.5–6.0 · high 6.0–8.0
    - core:             low 2.5–3.5 · medium 3.5–4.5 · high 4.5–6.0
@@ -106,7 +120,7 @@ Return JSON only with this exact shape:
   }
 }`;
     const user = await User.findById(userId)
-      .select('profile.gender profile.age profile.dateOfBirth profile.height profile.weight profile.activityLevel profile.goal profile.targetWeight profile.bodyType profile.bodyFat profile.fatFocusAreas profile.fitnessLevelDerived profile.fitnessLevelUser targets')
+      .select('profile.gender profile.age profile.dateOfBirth profile.height profile.weight profile.activityLevel profile.goal profile.targetWeight profile.bodyType profile.bodyFat profile.fatFocusAreas profile.fitnessLevelDerived profile.fitnessLevelUser profile.physiqueGoal profile.workoutLocation profile.equipmentNotes targets')
       .lean() as {
         profile?: {
           gender?: string;
@@ -122,6 +136,9 @@ Return JSON only with this exact shape:
           fatFocusAreas?: string[];
           fitnessLevelDerived?: string;
           fitnessLevelUser?: string;
+          physiqueGoal?: string;
+          workoutLocation?: string;
+          equipmentNotes?: string;
         };
         targets?: {
           dailyWorkoutMinutes?: number;
@@ -136,18 +153,24 @@ Return JSON only with this exact shape:
         };
       } | null;
 
-    // 7-day window ending today. We include today's recovery / nutrition / hydration
-    // data so readiness signals are accurate, but the buildWeeklyWorkoutSummary
-    // helper drops today's *workouts* from the LLM prompt to avoid feeding the model
-    // the workout it's about to generate.
-    const sevenDaysAgo = (() => {
+    // 2-day window: yesterday + day-before-yesterday. We intentionally exclude
+    // today — today's workouts are the plan we're generating, and today's
+    // partial-day nutrition / steps would skew readiness averages downward
+    // (plans are usually generated in the morning before the user has eaten or
+    // moved much). Yesterday's log carries fresh enough sleep data.
+    const windowStart = (() => {
       const d = new Date(today);
-      d.setDate(d.getDate() - 6);
+      d.setDate(d.getDate() - 2);
       return d.toISOString().slice(0, 10);
     })();
-    const recentLogs = await DailyLog.find({ userId, date: { $gte: sevenDaysAgo, $lte: today } })
+    const windowEnd = (() => {
+      const d = new Date(today);
+      d.setDate(d.getDate() - 1);
+      return d.toISOString().slice(0, 10);
+    })();
+    const recentLogs = await DailyLog.find({ userId, date: { $gte: windowStart, $lte: windowEnd } })
       .sort({ date: -1 })
-      .limit(7)
+      .limit(2)
       .select('date totalCalories totalProtein totalCarbs totalFat waterIntake caloriesBurned heartRate steps activeCalories distanceKm sleep.duration sleep.quality workouts.exercise workouts.planExerciseName workouts.category workouts.duration workouts.caloriesBurned workouts.sets workouts.reps workouts.source workouts.notes')
       .lean() as Array<{
         date?: string;

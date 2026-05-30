@@ -15,6 +15,19 @@ export type WorkoutCategory = 'cardio' | 'strength' | 'flexibility' | 'core' | '
 export type BodyType = 'ectomorph' | 'mesomorph' | 'endomorph';
 export type FitnessLevel = 'beginner' | 'intermediate' | 'advanced';
 export type FatFocusArea = 'belly' | 'hips' | 'thighs' | 'arms' | 'chest' | 'overall';
+export type PhysiqueGoal =
+  | 'lean_toned'
+  | 'lean_muscle'
+  | 'athletic'
+  | 'muscular_bulk'
+  | 'bodybuilder'
+  | 'healthy_slim'
+  | 'powerlifter';
+export type WorkoutLocation =
+  | 'full_gym'
+  | 'home'
+  | 'outdoors'
+  | 'hotel_travel';
 
 export interface UserProfile {
   name: string;
@@ -35,6 +48,9 @@ export interface UserProfile {
   fatFocusAreas?: FatFocusArea[];
   fitnessLevelDerived?: FitnessLevel; // auto-calculated from workout logs
   fitnessLevelUser?: FitnessLevel;    // optional manual override
+  physiqueGoal?: PhysiqueGoal;        // target body the user is training toward
+  workoutLocation?: WorkoutLocation;  // where the user trains
+  equipmentNotes?: string;            // free-form notes: gear available or excluded
   timezone?: string;
 }
 
@@ -189,6 +205,7 @@ export interface UserStreaks {
     sleep: number;      // consecutive days meeting sleep target
     weight: number;     // consecutive days logging weight
     steps?: number;     // consecutive days meeting daily step goal
+    waterGoal?: number; // consecutive days hitting full daily water target
   };
   best: {
     logging: number;
@@ -199,6 +216,7 @@ export interface UserStreaks {
     sleep: number;
     weight: number;
     steps?: number;     // longest run of days meeting daily step goal
+    waterGoal?: number; // longest run of days hitting full daily water target
   };
   /**
    * Optional start dates (ISO YYYY-MM-DD) for the *current* streak run
@@ -214,6 +232,7 @@ export interface UserStreaks {
     sleep?: string;
     weight?: string;
     steps?: string;
+    waterGoal?: string;
   };
 }
 
@@ -469,6 +488,15 @@ export interface DailyPlanData {
   generatedAt: string;
   status: 'generating' | 'ready' | 'failed';
   topInsight?: string;
+  projections?: {
+    sleep?:     { headline?: string; coachNote?: string; actions?: string[] };
+    food?:      { headline?: string; coachNote?: string; actions?: string[] };
+    water?:     { headline?: string; coachNote?: string; actions?: string[] };
+    workout?:   { headline?: string; coachNote?: string; actions?: string[] };
+    steps?:     { headline?: string; coachNote?: string; actions?: string[] };
+    heartRate?: { headline?: string; coachNote?: string; actions?: string[] };
+    weight?:    { headline?: string; coachNote?: string; actions?: string[] };
+  };
   foodPlan?: {
     suggestions: AiMealSuggestion[];
     reasoning?: string;

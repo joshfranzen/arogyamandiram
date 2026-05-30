@@ -406,13 +406,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Water Ring card – mobile */}
-        <div className={cn('mobile-fade-up mobile-dash-px')} style={{ animationDelay: '120ms' }}>
-          <WaterRingCard waterIntake={log?.waterIntake || 0} dailyWater={targets.dailyWater} />
-        </div>
-
         {/* Quick stats 2x2 – two-line value + label on mobile (each with section shade) */}
-        <div className={cn('mobile-fade-up mobile-dash-px')} style={{ animationDelay: '160ms' }}>
+        <div className={cn('mobile-fade-up mobile-dash-px')} style={{ animationDelay: '120ms' }}>
           <div className="m-stats-grid">
             <div className="stat-card-water">
               <StatMini
@@ -463,6 +458,11 @@ export default function DashboardPage() {
               />
             </div>
           </div>
+        </div>
+
+        {/* Water Ring card – mobile (centered between the two stat grids) */}
+        <div className={cn('mobile-fade-up mobile-dash-px')} style={{ animationDelay: '160ms' }}>
+          <WaterRingCard waterIntake={log?.waterIntake || 0} dailyWater={targets.dailyWater} />
         </div>
 
         {/* Wearable metrics 2x2 – mobile */}
@@ -713,6 +713,7 @@ const EMPTY_STREAKS: UserStreaks = {
     workout: 0,
     sleep: 0,
     weight: 0,
+    waterGoal: 0,
   },
   best: {
     logging: 0,
@@ -722,6 +723,7 @@ const EMPTY_STREAKS: UserStreaks = {
     workout: 0,
     sleep: 0,
     weight: 0,
+    waterGoal: 0,
   },
 };
 
@@ -738,14 +740,16 @@ function StreakCard({
   const items = [
     { key: 'logging' as const, label: 'Active days' },
     { key: 'healthy' as const, label: 'Healthy days' },
-    { key: 'calories' as const, label: 'Food log' },
+    { key: 'calories' as const, label: 'Food' },
     { key: 'water' as const, label: 'Water' },
+    { key: 'waterGoal' as const, label: 'Water' },
     { key: 'weight' as const, label: 'Weight' },
     { key: 'workout' as const, label: 'Workouts' },
     { key: 'sleep' as const, label: 'Sleep' },
+    { key: 'steps' as const, label: 'Steps' },
   ];
 
-  const activeItems = items.filter((item) => s.current[item.key] > 0);
+  const activeItems = items.filter((item) => (s.current[item.key] ?? 0) > 0);
   const daysToSeven = Math.max(1, 7 - loggingStreak);
 
   return (
@@ -762,18 +766,22 @@ function StreakCard({
         </p>
       </div>
 
-      {/* Streak items or empty state — fixed height so card never changes size */}
-      <div className="flex-1 min-w-0 h-16 sm:h-14 flex items-center overflow-hidden">
+      {/* Streak items or empty state */}
+      <div className="flex-1 min-w-0 h-14 flex items-center overflow-hidden">
         {activeItems.length === 0 ? (
           <p className="text-sm text-text-muted/60 italic">Log today to start a streak.</p>
         ) : (
-          <div className="flex gap-3 overflow-x-auto hide-scrollbar w-full h-full items-center">
+          <div className="flex gap-2.5 overflow-x-auto hide-scrollbar w-full h-full items-center snap-x snap-mandatory sm:snap-none">
             {activeItems.map((item) => (
-              <div key={item.key} className="w-[140px] sm:w-[160px] shrink-0 h-full">
+              <div
+                key={item.key}
+                className="w-[150px] sm:w-[160px] shrink-0 h-full snap-start"
+              >
                 <AchievementStreakCard
                   label={item.label}
-                  current={s.current[item.key]}
-                  best={s.best[item.key]}
+                  current={s.current[item.key] ?? 0}
+                  best={s.best[item.key] ?? 0}
+                  variant={item.key === 'waterGoal' ? 'water' : 'default'}
                 />
               </div>
             ))}
@@ -782,9 +790,9 @@ function StreakCard({
       </div>
 
       {/* Day dots — full-width row on mobile, shrunk column on desktop */}
-      <div className="flex gap-1.5 sm:shrink-0">
+      <div className="grid w-full grid-cols-7 gap-1.5 sm:flex sm:w-auto sm:shrink-0">
         {DAY_LABELS.map((lbl, i) => (
-          <div key={i} className={`sdot ${i === displayDayIndex ? 'sdot-today' : ''}`}>
+          <div key={i} className={`sdot !w-full sm:!w-9 ${i === displayDayIndex ? 'sdot-today' : ''}`}>
             {lbl}
           </div>
         ))}

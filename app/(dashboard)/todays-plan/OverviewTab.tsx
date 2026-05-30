@@ -4,8 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Sparkles, Loader2, CalendarDays, Zap,
   Flame, Droplets, Moon, Scale, Activity,
-  TrendingDown, TrendingUp, Clock,
+  Footprints, HeartPulse,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/hooks/useUser';
 import { showToast } from '@/components/ui/Toast';
@@ -24,29 +25,49 @@ type TodayLog = {
   weight: number | null;
 };
 
-type Prediction = {
-  weeklyWeightChangeKg: number;
-  projectedWeightKg: number;
-  basis: string;
+type ProjectionEntry = {
+  headline?: string;
+  coachNote?: string;
+  actions?: string[];
+};
+
+type Projections = {
+  sleep?: ProjectionEntry;
+  food?: ProjectionEntry;
+  water?: ProjectionEntry;
+  workout?: ProjectionEntry;
+  steps?: ProjectionEntry;
+  heartRate?: ProjectionEntry;
+  weight?: ProjectionEntry;
 };
 
 type OverviewData = {
   topInsight: string | null;
-  prediction: Prediction | null;
+  projections: Projections | null;
   todayLog: TodayLog | null;
+  yesterdayLog: TodayLog | null;
   yesterdayFeedback: { workoutDifficulty?: string } | null;
 };
+
+const PROJECTION_ROWS: Array<{
+  key: keyof Projections;
+  label: string;
+  icon: LucideIcon;
+}> = [
+  { key: 'sleep',     label: 'Sleep',      icon: Moon },
+  { key: 'food',      label: 'Food',       icon: Flame },
+  { key: 'water',     label: 'Water',      icon: Droplets },
+  { key: 'workout',   label: 'Workout',    icon: Activity },
+  { key: 'steps',     label: 'Steps',      icon: Footprints },
+  { key: 'heartRate', label: 'Heart Rate', icon: HeartPulse },
+  { key: 'weight',    label: 'Weight',     icon: Scale },
+];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function pct(actual: number, target: number) {
   if (!target || target <= 0) return 0;
   return Math.min(100, Math.round((actual / target) * 100));
-}
-function adherenceColor(p: number) {
-  if (p >= 80) return 'text-emerald-400';
-  if (p >= 50) return 'text-amber-400';
-  return 'text-rose-400';
 }
 function metricColor(p: number) {
   if (p >= 100) return 'border-emerald-500/30 bg-emerald-500/5';
@@ -64,6 +85,60 @@ function recoveryLabel(score: number) {
   if (score >= 50) return 'Moderate';
   return 'Rest';
 }
+type ProjectionMetric = {
+  current: number;
+  target: number;
+  unit: string;
+  pct: number;
+  formattedCurrent: string;
+  formattedTarget: string;
+};
+
+function getProjectionMetric(
+  key: keyof Projections,
+  log: TodayLog | null,
+  targets: UserTargets | undefined,
+): ProjectionMetric | null {
+  if (!log || !targets) return null;
+  const fmt = (n: number, digits = 0) => (n > 0 ? n.toFixed(digits) : '0');
+  switch (key) {
+    case 'sleep': {
+      const current = log.sleep?.duration ?? 0;
+      const target = targets.sleepHours ?? 8;
+      return { current, target, unit: 'h', pct: pct(current, target), formattedCurrent: fmt(current, 1), formattedTarget: String(target) };
+    }
+    case 'food': {
+      const current = log.totalCalories ?? 0;
+      const target = targets.dailyCalories ?? 2000;
+      return { current, target, unit: 'kcal', pct: pct(current, target), formattedCurrent: fmt(current), formattedTarget: String(target) };
+    }
+    case 'water': {
+      const currentL = (log.waterIntake ?? 0) / 1000;
+      const targetL = (targets.dailyWater ?? 2500) / 1000;
+      return { current: currentL, target: targetL, unit: 'L', pct: pct(currentL, targetL), formattedCurrent: fmt(currentL, 1), formattedTarget: targetL.toFixed(1) };
+    }
+    case 'workout': {
+      const current = log.workoutMinutes ?? 0;
+      const target = targets.dailyWorkoutMinutes ?? 30;
+      return { current, target, unit: 'min', pct: pct(current, target), formattedCurrent: fmt(current), formattedTarget: String(target) };
+    }
+    case 'steps': {
+      const current = (log as TodayLog & { steps?: number }).steps ?? 0;
+      const target = (targets as UserTargets & { dailySteps?: number }).dailySteps ?? 8000;
+      return { current, target, unit: 'steps', pct: pct(current, target), formattedCurrent: current.toLocaleString(), formattedTarget: target.toLocaleString() };
+    }
+    default:
+      return null; // heartRate and weight don't fit a "% of target" bar
+  }
+}
+
+function projectionStatus(p: number): { label: string; color: string; barColor: string } {
+  if (p >= 100) return { label: 'On track', color: 'text-emerald-400', barColor: 'bg-emerald-400' };
+  if (p >= 70) return { label: 'Close', color: 'text-amber-400', barColor: 'bg-amber-400' };
+  if (p > 0) return { label: 'Short', color: 'text-rose-400', barColor: 'bg-rose-400' };
+  return { label: 'No data', color: 'text-zinc-500', barColor: 'bg-zinc-700' };
+}
+
 export function calcRecoveryScore(
   log: TodayLog | null,
   targets: UserTargets | undefined,
@@ -75,24 +150,6 @@ export function calcRecoveryScore(
   const fatiguePenalty = yesterdayDifficulty === 'too_hard' ? 10 : 0;
   return Math.round(sleepScore + workoutScore + 30 - fatiguePenalty);
 }
-export function getTimeBanner(
-  hour: number,
-  log: TodayLog | null,
-  targets: UserTargets | undefined
-): string | null {
-  if (!log || !targets) return null;
-  const workoutTarget = targets.dailyWorkoutMinutes ?? 30;
-  const calorieTarget = targets.dailyCalories ?? 2000;
-  const waterTarget = (targets.dailyWater ?? 2500) / 1000;
-  if (hour >= 21 && log.workoutMinutes < workoutTarget * 0.5)
-    return "It's late — swap the workout for a 20-min walk or stretching session instead.";
-  if (hour >= 14 && log.totalCalories < calorieTarget * 0.4)
-    return "You've only hit 40% of your calorie target. A protein-rich meal now will help.";
-  if (hour >= 11 && log.waterIntake / 1000 < waterTarget * 0.3)
-    return "You've had very little water so far. Aim for 500ml before your next meal.";
-  return null;
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function OverviewTab() {
@@ -108,7 +165,7 @@ export default function OverviewTab() {
     setLoading(true);
     try {
       const res = await fetch('/api/ai/daily-plan/overview', { credentials: 'include' });
-      const json = await res.json() as { success: boolean; data?: OverviewData };
+      const json: { success: boolean; data?: OverviewData } = await res.json();
       if (json.success && json.data) setData(json.data);
     } catch { /* silent */ }
     finally { setLoading(false); }
@@ -137,7 +194,7 @@ export default function OverviewTab() {
         headers: { 'Content-Type': 'application/json' },
         body: '{}',
       });
-      const json = await res.json() as { success: boolean; error?: string };
+      const json: { success: boolean; error?: string } = await res.json();
       if (json.success) {
         await load();
         showToast('Overview regenerated!', 'success');
@@ -152,57 +209,26 @@ export default function OverviewTab() {
   };
 
   const todayLog = data?.todayLog ?? null;
+  const yesterdayLog = data?.yesterdayLog ?? null;
   const yesterdayFeedback = data?.yesterdayFeedback ?? null;
-  const hour = typeof window !== 'undefined' ? new Date().getHours() : 12;
-  const timeBanner = getTimeBanner(hour, todayLog, targets);
   const recoveryScore = calcRecoveryScore(todayLog, targets, yesterdayFeedback?.workoutDifficulty);
 
-  const foodPct    = pct(todayLog?.totalCalories ?? 0, targets?.dailyCalories ?? 2000);
-  const workoutPct = pct(todayLog?.workoutMinutes ?? 0, targets?.dailyWorkoutMinutes ?? 30);
-  const sleepPct   = pct(todayLog?.sleep?.duration ?? 0, targets?.sleepHours ?? 8);
-  const waterPct   = pct((todayLog?.waterIntake ?? 0) / 1000, (targets?.dailyWater ?? 2500) / 1000);
+  const blueprintLog = yesterdayLog;
+
+  const hasAiContent = Boolean(data?.topInsight || data?.projections);
 
   return (
     <>
-      {timeBanner && (
-        <div className="flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-2.5">
-          <Clock className="h-3.5 w-3.5 shrink-0 text-amber-400" />
-          <p className="text-xs text-amber-200">{timeBanner}</p>
-        </div>
-      )}
-
-      {data?.topInsight && (
-        <div className="dashboard-unified-card rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4">
-          <div className="flex items-center gap-2 text-emerald-400">
-            <Zap className="h-4 w-4 shrink-0" />
-            <span className="text-xs font-semibold uppercase tracking-wide">Main Focus Today</span>
-          </div>
-          <p className="mt-2 text-sm font-medium text-text-primary">{data.topInsight}</p>
-        </div>
-      )}
-
+      {/* ── Fixed top card: yesterday's metrics. Does NOT change on regenerate. ── */}
       <div className="dashboard-unified-card rounded-2xl border p-5 sm:p-6">
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-base font-semibold text-text-primary">Health Blueprint</h2>
-            <p className="mt-0.5 text-xs text-text-muted">Today&apos;s progress vs your targets</p>
-          </div>
-          {hasApiKey && (data?.topInsight || data?.prediction) && (
-            <button
-              onClick={handleGenerate}
-              disabled={generating}
-              className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors disabled:opacity-50"
-            >
-              {generating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-              {generating ? 'Generating…' : 'Regenerate'}
-            </button>
-          )}
+        <div className="mb-4">
+          <h2 className="text-base font-semibold text-text-primary">Health Blueprint</h2>
         </div>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           {/* Sleep */}
           {(() => {
-            const actual = todayLog?.sleep?.duration ?? 0;
+            const actual = blueprintLog?.sleep?.duration ?? 0;
             const target = targets?.sleepHours ?? 8;
             return (
               <div className={cn('flex flex-col items-center gap-1.5 rounded-2xl border p-4 text-center', metricColor(pct(actual, target)))}>
@@ -217,7 +243,7 @@ export default function OverviewTab() {
           })()}
           {/* Water */}
           {(() => {
-            const actualL = (todayLog?.waterIntake ?? 0) / 1000;
+            const actualL = (blueprintLog?.waterIntake ?? 0) / 1000;
             const targetL = (targets?.dailyWater ?? 2500) / 1000;
             return (
               <div className={cn('flex flex-col items-center gap-1.5 rounded-2xl border p-4 text-center', metricColor(pct(actualL, targetL)))}>
@@ -232,7 +258,7 @@ export default function OverviewTab() {
           })()}
           {/* Calories */}
           {(() => {
-            const actual = todayLog?.totalCalories ?? 0;
+            const actual = blueprintLog?.totalCalories ?? 0;
             const target = targets?.dailyCalories ?? 2000;
             return (
               <div className={cn('flex flex-col items-center gap-1.5 rounded-2xl border p-4 text-center', metricColor(pct(actual, target)))}>
@@ -247,7 +273,7 @@ export default function OverviewTab() {
           })()}
           {/* Workout */}
           {(() => {
-            const actual = todayLog?.workoutMinutes ?? 0;
+            const actual = blueprintLog?.workoutMinutes ?? 0;
             const target = targets?.dailyWorkoutMinutes ?? 30;
             return (
               <div className={cn('flex flex-col items-center gap-1.5 rounded-2xl border p-4 text-center', metricColor(pct(actual, target)))}>
@@ -263,7 +289,7 @@ export default function OverviewTab() {
           {/* Weight */}
           {(() => {
             const ideal = targets?.idealWeight;
-            const current = todayLog?.weight;
+            const current = blueprintLog?.weight;
             return (
               <div className="flex flex-col items-center gap-1.5 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 text-center">
                 <Scale className="h-5 w-5 text-emerald-400" />
@@ -287,60 +313,124 @@ export default function OverviewTab() {
           </div>
         </div>
 
-        {/* Adherence strip */}
-        {todayLog && (
-          <div className="mt-4 flex flex-wrap gap-4 rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3 text-xs">
-            <span>Food: <span className={cn('font-semibold', adherenceColor(foodPct))}>{foodPct}%</span></span>
-            <span>Water: <span className={cn('font-semibold', adherenceColor(waterPct))}>{waterPct}%</span></span>
-            <span>Workout: <span className={cn('font-semibold', adherenceColor(workoutPct))}>{workoutPct}%</span></span>
-            <span>Sleep: <span className={cn('font-semibold', adherenceColor(sleepPct))}>{sleepPct}%</span></span>
-          </div>
-        )}
-
-        {/* Prediction */}
-        {data?.prediction && (
-          <div className="mt-3 flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-2.5">
-            {data.prediction.weeklyWeightChangeKg < 0 ? (
-              <TrendingDown className="h-4 w-4 shrink-0 text-emerald-400" />
-            ) : data.prediction.weeklyWeightChangeKg > 0 ? (
-              <TrendingUp className="h-4 w-4 shrink-0 text-amber-400" />
-            ) : (
-              <Scale className="h-4 w-4 shrink-0 text-zinc-400" />
-            )}
-            <div>
-              <p className="text-xs font-semibold text-text-primary">
-                At this rate →{' '}
-                {data.prediction.weeklyWeightChangeKg > 0 ? '+' : ''}
-                {data.prediction.weeklyWeightChangeKg} kg/week
-                {data.prediction.projectedWeightKg ? ` (≈ ${data.prediction.projectedWeightKg} kg in 4 weeks)` : ''}
-              </p>
-              <p className="text-[10px] text-text-muted">{data.prediction.basis}</p>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Empty state */}
-      {!loading && !data?.topInsight && !data?.prediction && (
-        <div className="dashboard-unified-card rounded-2xl border p-5">
-          <div className="flex flex-col items-center gap-3 py-8 text-center">
-            <CalendarDays className="h-10 w-10 text-zinc-600" />
-            <p className="text-sm font-medium text-zinc-300">No overview generated yet</p>
-            <p className="text-xs text-zinc-500">
-              Generate your daily overview — AI will pick your #1 focus and predict your weight trend.
-            </p>
+      {/* ── Separate "generate" card: AI Main Focus + projection sub-cards. ── */}
+      {hasAiContent ? (
+        <div className="dashboard-unified-card rounded-2xl border p-5 sm:p-6">
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold text-text-primary">Today&apos;s Focus</h2>
+            </div>
             {hasApiKey && (
               <button
                 onClick={handleGenerate}
                 disabled={generating}
-                className="mt-2 inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50"
+                className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors disabled:opacity-50"
               >
-                {generating ? <Loader2 className="h-4 w-4 animate-spin text-black" /> : <Sparkles className="h-4 w-4 text-black" />}
-                {generating ? 'Generating…' : 'Generate Overview'}
+                {generating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                {generating ? 'Generating…' : 'Regenerate'}
               </button>
             )}
           </div>
+
+          {data?.topInsight && (
+            <div className="mb-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+              <div className="flex items-center gap-2 text-emerald-400">
+                <Zap className="h-4 w-4 shrink-0" />
+                <span className="text-xs font-semibold uppercase tracking-wide">Main Focus Today</span>
+              </div>
+              <p className="mt-2 text-sm font-medium text-text-primary">{data.topInsight}</p>
+            </div>
+          )}
+
+          {data?.projections && (
+            <div className="space-y-3">
+              {PROJECTION_ROWS.map(({ key, label, icon: Icon }) => {
+                const entry = data.projections?.[key];
+                if (!entry || (!entry.headline && !entry.coachNote && !(entry.actions?.length))) return null;
+                const metric = getProjectionMetric(key, blueprintLog, targets);
+                const status = metric ? projectionStatus(metric.pct) : null;
+                return (
+                  <div
+                    key={key}
+                    className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Icon className="h-4 w-4 shrink-0 text-emerald-400" />
+                      <span className="text-sm font-semibold text-text-primary">{label}</span>
+                    </div>
+
+                    {metric ? (
+                      <div className="mt-3">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <p className="text-sm font-semibold text-text-primary">
+                            {metric.formattedCurrent}
+                            <span className="text-zinc-500"> / {metric.formattedTarget} {metric.unit}</span>
+                          </p>
+                          <p className="font-mono text-xs text-zinc-500">{Math.min(100, Math.round(metric.pct))}%</p>
+                        </div>
+                        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
+                          <div
+                            className={cn('h-full rounded-full transition-all', status?.barColor)}
+                            style={{ width: `${Math.min(100, Math.max(0, metric.pct))}%` }}
+                          />
+                        </div>
+                        {status && entry.headline && (
+                          <p className={cn('mt-2 text-[10px] font-semibold uppercase tracking-wide', status.color)}>
+                            {entry.headline}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      entry.headline && (
+                        <p className="mt-2 text-sm font-semibold text-text-primary">
+                          {entry.headline}
+                        </p>
+                      )
+                    )}
+
+                    {entry.coachNote && (
+                      <p className="mt-3 text-xs leading-relaxed text-zinc-400">{entry.coachNote}</p>
+                    )}
+                    {Array.isArray(entry.actions) && entry.actions.length > 0 && (
+                      <ul className="mt-3 space-y-1">
+                        {entry.actions.map((step, idx) => (
+                          <li key={idx} className="flex gap-2 text-xs text-text-primary">
+                            <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-emerald-400" />
+                            <span>{step}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
+      ) : (
+        !loading && (
+          <div className="dashboard-unified-card rounded-2xl border p-5">
+            <div className="flex flex-col items-center gap-3 py-8 text-center">
+              <CalendarDays className="h-10 w-10 text-zinc-600" />
+              <p className="text-sm font-medium text-zinc-300">No overview generated yet</p>
+              <p className="text-xs text-zinc-500">
+                Generate your daily overview — AI will pick your #1 focus and predict your weight trend.
+              </p>
+              {hasApiKey && (
+                <button
+                  onClick={handleGenerate}
+                  disabled={generating}
+                  className="mt-2 inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50"
+                >
+                  {generating ? <Loader2 className="h-4 w-4 animate-spin text-black" /> : <Sparkles className="h-4 w-4 text-black" />}
+                  {generating ? 'Generating…' : 'Generate Overview'}
+                </button>
+              )}
+            </div>
+          </div>
+        )
       )}
     </>
   );
