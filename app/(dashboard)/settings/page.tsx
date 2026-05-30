@@ -86,23 +86,37 @@ const bodyFatGuides = [
 ] as const;
 
 const physiqueGoalOptions = [
-  { value: 'lean_toned',     label: 'Lean / toned',        clue: 'Low body fat, modest muscle — "beach body" look.' },
-  { value: 'lean_muscle',    label: 'Lean muscle (recomp)', clue: 'Build visible muscle while staying lean.' },
-  { value: 'athletic',       label: 'Athletic / functional', clue: 'Balanced strength + conditioning, performance-focused.' },
-  { value: 'muscular_bulk',  label: 'Muscular / bulk',     clue: 'Maximize muscle size, OK to gain some fat.' },
-  { value: 'bodybuilder',    label: 'Bodybuilder / shredded', clue: 'Max muscle + very low body fat, contest-style.' },
-  { value: 'healthy_slim',   label: 'Healthy slim',        clue: 'Fat loss is the primary goal.' },
-  { value: 'powerlifter',    label: 'Stronger / powerlifter', clue: 'Prioritise raw strength over aesthetics.' },
+  { value: 'lean_toned',     label: 'Slim and fit',          clue: 'Skinny with just a little muscle. Like a runner.' },
+  { value: 'lean_muscle',    label: 'Slim with muscle',      clue: 'Get muscle you can see, but stay slim.' },
+  { value: 'athletic',       label: 'Sporty',                clue: 'Strong and fast. Good at running, jumping, playing.' },
+  { value: 'muscular_bulk',  label: 'Big and strong',        clue: 'Make muscles as big as you can. A bit of extra fat is OK.' },
+  { value: 'bodybuilder',    label: 'Huge muscles, zero fat', clue: 'Like a superhero or a bodybuilder on stage.' },
+  { value: 'healthy_slim',   label: 'Just lose weight',      clue: 'Mainly drop fat. Looks come later.' },
+  { value: 'powerlifter',    label: 'Lift the heaviest',     clue: 'Be as strong as possible. Looks don\'t matter.' },
 ] as const;
 
 const workoutLocationOptions = [
-  { value: 'full_gym',        label: 'Full gym',          clue: 'Machines, barbells, full dumbbell rack, cables.' },
-  { value: 'home_gym',        label: 'Home gym',          clue: 'Rack, barbell, bench, dumbbells at home.' },
-  { value: 'home_dumbbells',  label: 'Home — dumbbells',  clue: 'Dumbbells + bodyweight, bench optional.' },
-  { value: 'home_minimal',    label: 'Home — minimal',    clue: 'Bodyweight, mat, maybe bands.' },
-  { value: 'outdoors',        label: 'Outdoors / park',   clue: 'Bodyweight, bars/benches outside, running.' },
-  { value: 'hotel_travel',    label: 'Hotel / travel',    clue: 'Limited gear, often bodyweight only.' },
+  { value: 'full_gym',     label: 'Full gym',        clue: 'Machines, barbells, full dumbbell rack, cables.' },
+  { value: 'home',         label: 'Home',            clue: 'Tell us what gear you have in the notes below.' },
+  { value: 'outdoors',     label: 'Outdoors / park', clue: 'Bodyweight, bars/benches outside, running.' },
+  { value: 'hotel_travel', label: 'Hotel / travel',  clue: 'Limited gear, often bodyweight only.' },
 ] as const;
+
+// Map legacy WorkoutLocation values to the new shape so existing users keep
+// their selection. Old preset is converted to plain-language notes the AI reads.
+function migrateWorkoutLocation(raw: string | undefined): { location: string; notes: string } {
+  if (raw === 'home_gym') return { location: 'home', notes: 'I have dumbbells, barbell, squat rack, and a bench.' };
+  if (raw === 'home_dumbbells') return { location: 'home', notes: 'Dumbbells + bodyweight only. No barbell, no machines.' };
+  if (raw === 'home_minimal') return { location: 'home', notes: 'Bodyweight only.' };
+  return { location: raw || '', notes: '' };
+}
+
+const equipmentNotesPlaceholder: Record<string, string> = {
+  full_gym:     'e.g. "No cable machine, no leg press — use free weights instead."',
+  home:         'e.g. "I have dumbbells up to 20kg, a pull-up bar, and resistance bands. No bench."',
+  outdoors:     'e.g. "Park has parallel bars, monkey bars, and a 200m running track."',
+  hotel_travel: 'e.g. "Just a mat and a couple of resistance bands."',
+};
 
 // ─── Fat area tag input ────────────────────────────────────────────────────────
 
@@ -193,6 +207,7 @@ function SettingsInner() {
   const [fatFocusAreas, setFatFocusAreas] = useState<string[]>([]);
   const [physiqueGoal, setPhysiqueGoal] = useState('');
   const [workoutLocation, setWorkoutLocation] = useState('');
+  const [equipmentNotes, setEquipmentNotes] = useState('');
   const [dietaryPreference, setDietaryPreference] = useState<'no_preference' | 'vegetarian' | 'non_vegetarian' | 'vegan'>('no_preference');
   const [allergies, setAllergies] = useState<string[]>([]);
   const [allergyDraft, setAllergyDraft] = useState('');
@@ -305,7 +320,10 @@ function SettingsInner() {
       setBodyFat((p as { bodyFat?: number }).bodyFat?.toString() || '');
       setFatFocusAreas((p as { fatFocusAreas?: string[] }).fatFocusAreas || []);
       setPhysiqueGoal((p as { physiqueGoal?: string }).physiqueGoal || '');
-      setWorkoutLocation((p as { workoutLocation?: string }).workoutLocation || '');
+      const migrated = migrateWorkoutLocation((p as { workoutLocation?: string }).workoutLocation);
+      setWorkoutLocation(migrated.location);
+      const storedNotes = (p as { equipmentNotes?: string }).equipmentNotes;
+      setEquipmentNotes(typeof storedNotes === 'string' && storedNotes.trim() ? storedNotes : migrated.notes);
     }
 
     // Targets
@@ -474,6 +492,7 @@ function SettingsInner() {
         fatFocusAreas,
         ...(physiqueGoal ? { physiqueGoal } : {}),
         ...(workoutLocation ? { workoutLocation } : {}),
+        equipmentNotes: equipmentNotes.trim().slice(0, 500),
       };
       if (dateOfBirth) profilePayload.dateOfBirth = dateOfBirth;
       else if (age) profilePayload.age = parseInt(age, 10);
@@ -1120,7 +1139,7 @@ function SettingsInner() {
             {/* Physique goal */}
             <div className="glass-card rounded-2xl p-6">
               <h2 className="text-base font-semibold text-text-primary">Body target</h2>
-              <p className="mt-1 text-xs text-text-muted">The look or performance you&apos;re training toward. Shapes how your daily workout is built.</p>
+              <p className="mt-1 text-xs text-text-muted">Pick the body you want. We&apos;ll plan workouts that fit.</p>
               <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {physiqueGoalOptions.map((opt) => {
                   const selected = physiqueGoal === opt.value;
@@ -1169,6 +1188,21 @@ function SettingsInner() {
                   );
                 })}
               </div>
+
+              {workoutLocation && (
+                <div className="mt-5 border-t border-zinc-800 pt-5">
+                  <p className="text-sm font-semibold text-text-primary">Equipment notes</p>
+                  <p className="mt-1 text-xs text-text-muted">Tell us what gear you&apos;ve got or what&apos;s missing. We&apos;ll skip exercises you can&apos;t actually do.</p>
+                  <textarea
+                    value={equipmentNotes}
+                    onChange={(e) => setEquipmentNotes(e.target.value.slice(0, 500))}
+                    placeholder={equipmentNotesPlaceholder[workoutLocation] ?? 'Anything we should know about your gear?'}
+                    rows={3}
+                    className="input-no-focus-ring mt-3 w-full resize-y rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600"
+                  />
+                  <p className="mt-1 text-right text-[10px] text-zinc-500">{equipmentNotes.length}/500</p>
+                </div>
+              )}
             </div>
 
             {/* Fitness Level */}

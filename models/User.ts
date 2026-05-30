@@ -71,8 +71,9 @@ const UserSchema = new Schema<IUserDocument>(
       },
       workoutLocation: {
         type: String,
-        enum: ['full_gym', 'home_minimal', 'home_dumbbells', 'home_gym', 'outdoors', 'hotel_travel'],
+        enum: ['full_gym', 'home', 'outdoors', 'hotel_travel'],
       },
+      equipmentNotes: { type: String, default: '', maxlength: 500 },
       timezone: { type: String, default: '' },
     },
     apiKeys: {

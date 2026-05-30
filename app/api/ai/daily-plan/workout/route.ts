@@ -72,12 +72,13 @@ Your responsibilities, in order:
    - muscular_bulk → strength + hypertrophy (6–12 reps), longer rests, minimal cardio.
    - bodybuilder → split-style isolation + compound work, 8–15 reps, controlled tempo, minimal cardio.
    - powerlifter → heavy compounds (3–6 reps), long rests, low cardio volume.
-6. Respect profile.workoutLocation when prescribing exercises. Only pick exercises whose equipment is plausibly available:
-   - full_gym / home_gym → barbells, dumbbells, cables, machines all fair game.
-   - home_dumbbells → dumbbells + bodyweight + bench-optional. No barbell, no machines.
-   - home_minimal → bodyweight, bands, mat only. No external weights.
+6. Respect profile.workoutLocation when prescribing exercises. Defaults by location:
+   - full_gym → barbells, dumbbells, cables, machines all fair game.
+   - home → assume bodyweight + light dumbbells unless equipmentNotes say otherwise.
    - outdoors → bodyweight, pull-up bars, benches, running/sprints. No machines.
    - hotel_travel → bodyweight + light dumbbells if any; assume minimal space.
+   Then read profile.equipmentNotes as the user's own description of what they HAVE and what they DON'T HAVE. This is plain free-text — interpret it pragmatically. If they say "no cable machine", do not prescribe cable rows. If they say "I have a pull-up bar and 20kg dumbbells", you may use those. The notes OVERRIDE the location default.
+   (Legacy values that may still appear: home_gym = home with rack+barbell+bench+dumbbells; home_dumbbells = home with dumbbells only; home_minimal = home with bodyweight only.)
 7. Estimate calories burned with MET × bodyweight × time. Use these ranges; do NOT under- or over-estimate:
    - cardio:           low 3.5–4.5 · medium 5.0–7.0 · high 7.0–10.0
    - strength:         low 3.0–4.0 · medium 4.5–6.0 · high 6.0–8.0
@@ -119,7 +120,7 @@ Return JSON only with this exact shape:
   }
 }`;
     const user = await User.findById(userId)
-      .select('profile.gender profile.age profile.dateOfBirth profile.height profile.weight profile.activityLevel profile.goal profile.targetWeight profile.bodyType profile.bodyFat profile.fatFocusAreas profile.fitnessLevelDerived profile.fitnessLevelUser profile.physiqueGoal profile.workoutLocation targets')
+      .select('profile.gender profile.age profile.dateOfBirth profile.height profile.weight profile.activityLevel profile.goal profile.targetWeight profile.bodyType profile.bodyFat profile.fatFocusAreas profile.fitnessLevelDerived profile.fitnessLevelUser profile.physiqueGoal profile.workoutLocation profile.equipmentNotes targets')
       .lean() as {
         profile?: {
           gender?: string;
@@ -137,6 +138,7 @@ Return JSON only with this exact shape:
           fitnessLevelUser?: string;
           physiqueGoal?: string;
           workoutLocation?: string;
+          equipmentNotes?: string;
         };
         targets?: {
           dailyWorkoutMinutes?: number;

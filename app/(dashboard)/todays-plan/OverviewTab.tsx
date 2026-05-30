@@ -85,6 +85,60 @@ function recoveryLabel(score: number) {
   if (score >= 50) return 'Moderate';
   return 'Rest';
 }
+type ProjectionMetric = {
+  current: number;
+  target: number;
+  unit: string;
+  pct: number;
+  formattedCurrent: string;
+  formattedTarget: string;
+};
+
+function getProjectionMetric(
+  key: keyof Projections,
+  log: TodayLog | null,
+  targets: UserTargets | undefined,
+): ProjectionMetric | null {
+  if (!log || !targets) return null;
+  const fmt = (n: number, digits = 0) => (n > 0 ? n.toFixed(digits) : '0');
+  switch (key) {
+    case 'sleep': {
+      const current = log.sleep?.duration ?? 0;
+      const target = targets.sleepHours ?? 8;
+      return { current, target, unit: 'h', pct: pct(current, target), formattedCurrent: fmt(current, 1), formattedTarget: String(target) };
+    }
+    case 'food': {
+      const current = log.totalCalories ?? 0;
+      const target = targets.dailyCalories ?? 2000;
+      return { current, target, unit: 'kcal', pct: pct(current, target), formattedCurrent: fmt(current), formattedTarget: String(target) };
+    }
+    case 'water': {
+      const currentL = (log.waterIntake ?? 0) / 1000;
+      const targetL = (targets.dailyWater ?? 2500) / 1000;
+      return { current: currentL, target: targetL, unit: 'L', pct: pct(currentL, targetL), formattedCurrent: fmt(currentL, 1), formattedTarget: targetL.toFixed(1) };
+    }
+    case 'workout': {
+      const current = log.workoutMinutes ?? 0;
+      const target = targets.dailyWorkoutMinutes ?? 30;
+      return { current, target, unit: 'min', pct: pct(current, target), formattedCurrent: fmt(current), formattedTarget: String(target) };
+    }
+    case 'steps': {
+      const current = (log as TodayLog & { steps?: number }).steps ?? 0;
+      const target = (targets as UserTargets & { dailySteps?: number }).dailySteps ?? 8000;
+      return { current, target, unit: 'steps', pct: pct(current, target), formattedCurrent: current.toLocaleString(), formattedTarget: target.toLocaleString() };
+    }
+    default:
+      return null; // heartRate and weight don't fit a "% of target" bar
+  }
+}
+
+function projectionStatus(p: number): { label: string; color: string; barColor: string } {
+  if (p >= 100) return { label: 'On track', color: 'text-emerald-400', barColor: 'bg-emerald-400' };
+  if (p >= 70) return { label: 'Close', color: 'text-amber-400', barColor: 'bg-amber-400' };
+  if (p > 0) return { label: 'Short', color: 'text-rose-400', barColor: 'bg-rose-400' };
+  return { label: 'No data', color: 'text-zinc-500', barColor: 'bg-zinc-700' };
+}
+
 export function calcRecoveryScore(
   log: TodayLog | null,
   targets: UserTargets | undefined,
@@ -295,37 +349,60 @@ export default function OverviewTab() {
               {PROJECTION_ROWS.map(({ key, label, icon: Icon }) => {
                 const entry = data.projections?.[key];
                 if (!entry || (!entry.headline && !entry.coachNote && !(entry.actions?.length))) return null;
+                const metric = getProjectionMetric(key, blueprintLog, targets);
+                const status = metric ? projectionStatus(metric.pct) : null;
                 return (
                   <div
                     key={key}
                     className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4"
                   >
-                    <div className="flex items-start gap-3">
-                      <Icon className="h-4 w-4 shrink-0 text-emerald-400 mt-0.5" />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-[10px] uppercase tracking-wide text-text-muted">{label}</span>
+                    <div className="flex items-center gap-2">
+                      <Icon className="h-4 w-4 shrink-0 text-emerald-400" />
+                      <span className="text-sm font-semibold text-text-primary">{label}</span>
+                    </div>
+
+                    {metric ? (
+                      <div className="mt-3">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <p className="text-sm font-semibold text-text-primary">
+                            {metric.formattedCurrent}
+                            <span className="text-zinc-500"> / {metric.formattedTarget} {metric.unit}</span>
+                          </p>
+                          <p className="font-mono text-xs text-zinc-500">{Math.min(100, Math.round(metric.pct))}%</p>
                         </div>
-                        {entry.headline && (
-                          <p className="mt-0.5 text-sm font-semibold text-text-primary">
-                            At this rate → {entry.headline}
+                        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
+                          <div
+                            className={cn('h-full rounded-full transition-all', status?.barColor)}
+                            style={{ width: `${Math.min(100, Math.max(0, metric.pct))}%` }}
+                          />
+                        </div>
+                        {status && entry.headline && (
+                          <p className={cn('mt-2 text-[10px] font-semibold uppercase tracking-wide', status.color)}>
+                            {entry.headline}
                           </p>
                         )}
-                        {entry.coachNote && (
-                          <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">{entry.coachNote}</p>
-                        )}
-                        {Array.isArray(entry.actions) && entry.actions.length > 0 && (
-                          <ul className="mt-2 space-y-1">
-                            {entry.actions.map((step, idx) => (
-                              <li key={idx} className="flex gap-2 text-xs text-text-primary">
-                                <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-emerald-400" />
-                                <span>{step}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
                       </div>
-                    </div>
+                    ) : (
+                      entry.headline && (
+                        <p className="mt-2 text-sm font-semibold text-text-primary">
+                          {entry.headline}
+                        </p>
+                      )
+                    )}
+
+                    {entry.coachNote && (
+                      <p className="mt-3 text-xs leading-relaxed text-zinc-400">{entry.coachNote}</p>
+                    )}
+                    {Array.isArray(entry.actions) && entry.actions.length > 0 && (
+                      <ul className="mt-3 space-y-1">
+                        {entry.actions.map((step, idx) => (
+                          <li key={idx} className="flex gap-2 text-xs text-text-primary">
+                            <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-emerald-400" />
+                            <span>{step}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 );
               })}

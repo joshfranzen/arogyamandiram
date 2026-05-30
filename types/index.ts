@@ -25,9 +25,7 @@ export type PhysiqueGoal =
   | 'powerlifter';
 export type WorkoutLocation =
   | 'full_gym'
-  | 'home_minimal'
-  | 'home_dumbbells'
-  | 'home_gym'
+  | 'home'
   | 'outdoors'
   | 'hotel_travel';
 
@@ -51,7 +49,8 @@ export interface UserProfile {
   fitnessLevelDerived?: FitnessLevel; // auto-calculated from workout logs
   fitnessLevelUser?: FitnessLevel;    // optional manual override
   physiqueGoal?: PhysiqueGoal;        // target body the user is training toward
-  workoutLocation?: WorkoutLocation;  // drives equipment assumptions in plan
+  workoutLocation?: WorkoutLocation;  // where the user trains
+  equipmentNotes?: string;            // free-form notes: gear available or excluded
   timezone?: string;
 }
 

@@ -126,6 +126,7 @@ export type WorkoutPromptContext = {
     fitnessLevelUser?: string;
     physiqueGoal?: string;
     workoutLocation?: string;
+    equipmentNotes?: string;
   } | null;
   targets?: {
     dailyWorkoutMinutes?: number;
@@ -264,6 +265,7 @@ function sanitizeWorkoutContext(context?: WorkoutPromptContext) {
         fitnessLevel: asString(context.profile.fitnessLevelDerived || context.profile.fitnessLevelUser),
         physiqueGoal: asString(context.profile.physiqueGoal),
         workoutLocation: asString(context.profile.workoutLocation),
+        equipmentNotes: asString(context.profile.equipmentNotes),
       }
     : null;
 
@@ -669,6 +671,7 @@ export function buildWorkoutPrompt(
         fitnessLevel: sanitized.profile.fitnessLevel,
         physiqueGoal: sanitized.profile.physiqueGoal,
         workoutLocation: sanitized.profile.workoutLocation,
+        equipmentNotes: sanitized.profile.equipmentNotes,
       }
     : null;
 
