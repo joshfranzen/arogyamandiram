@@ -153,9 +153,13 @@ export default function AchievementsPage() {
                 <div className="relative">
                   <div className="glass-card card-pressable flex flex-col rounded-2xl p-4">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.08] text-xl">
-                        <span>{badge.icon}</span>
-                      </div>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`/badges/${badge.id}.svg`}
+                        alt={badge.name}
+                        className="h-12 w-12 shrink-0 select-none"
+                        draggable={false}
+                      />
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-text-primary">
                           {badge.name}

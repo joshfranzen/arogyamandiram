@@ -11,7 +11,7 @@ export interface BadgeDefinition {
 /** All badge definitions – single source of truth for catalog and award logic. */
 export const BADGE_DEFINITIONS: BadgeDefinition[] = [
   // ----- First-time -----
-  { id: 'first_meal', name: 'First Steps', description: 'Logged your first meal.', icon: '🍽️', category: 'first' },
+  { id: 'first_meal', name: 'First Meal', description: 'Logged your first meal.', icon: '🍽️', category: 'first' },
   { id: 'first_water', name: 'First Drop', description: 'Logged water for the first time.', icon: '💧', category: 'first' },
   { id: 'first_workout', name: 'First Rep', description: 'Logged your first workout.', icon: '🏋️', category: 'first' },
   { id: 'first_weight', name: 'First Weigh-In', description: 'Logged your weight for the first time.', icon: '⚖️', category: 'first' },
