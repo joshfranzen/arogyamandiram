@@ -1,0 +1,21 @@
+<svg width="240" height="240" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Workout Warrior flat badge">
+  <defs>
+    <path id="topArc-streak_workout_30" d="M42.3,78.7 A88,88 0 0 1 197.7,78.7"/>
+  </defs>
+  <circle cx="120" cy="120" r="112" fill="#20394A"/>
+  <circle cx="120" cy="120" r="106" fill="none" stroke="#F2E8D0" stroke-width="2"/>
+  <circle cx="120" cy="120" r="80" fill="#F2E8D0"/>
+  <circle cx="120" cy="120" r="80" fill="none" stroke="#20394A" stroke-width="3"/>
+  <text font-family="Georgia, 'Times New Roman', serif" font-size="12.5" font-weight="600" fill="#F2E8D0" letter-spacing="1.2">
+    <textPath href="#topArc-streak_workout_30" startOffset="50%" text-anchor="middle">WORKOUT WARRIOR</textPath>
+  </text>
+  <path d="M22,120 l6,-6 6,6 -6,6 Z" fill="#F2E8D0"/>
+  <path d="M206,120 l6,-6 6,6 -6,6 Z" fill="#F2E8D0"/>
+    <rect x="98" y="106" width="44" height="10" rx="2" fill="#6B4F8F" stroke="#20394A" stroke-width="3"/>
+    <rect x="84" y="92" width="14" height="38" rx="3" fill="#6B4F8F" stroke="#20394A" stroke-width="3"/>
+    <rect x="142" y="92" width="14" height="38" rx="3" fill="#6B4F8F" stroke="#20394A" stroke-width="3"/>
+    <rect x="73" y="98" width="11" height="26" rx="2.5" fill="#6B4F8F" stroke="#20394A" stroke-width="3"/>
+    <rect x="156" y="98" width="11" height="26" rx="2.5" fill="#6B4F8F" stroke="#20394A" stroke-width="3"/>
+  <path d="M60,164 H180 L186,176 L180,188 H60 L54,176 Z" fill="#6B4F8F" stroke="#20394A" stroke-width="3" stroke-linejoin="round"/>
+  <text x="120" y="181" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="13.5" font-weight="700" fill="#F2E8D0" letter-spacing="2">30 DAYS</text>
+</svg>

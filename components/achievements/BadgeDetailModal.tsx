@@ -4,7 +4,6 @@ import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import type { UserBadge } from '@/types';
-import { BadgeCard } from './BadgeCard';
 
 interface BadgeDetailModalProps {
   badge: UserBadge | null;
@@ -21,6 +20,14 @@ export function BadgeDetailModal({ badge, onClose }: BadgeDetailModalProps) {
   }, [onClose]);
 
   if (!badge) return null;
+
+  const earnedDate = badge.earnedAt
+    ? new Date(badge.earnedAt).toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    : null;
 
   const modalContent = (
     <div
@@ -42,8 +49,23 @@ export function BadgeDetailModal({ badge, onClose }: BadgeDetailModalProps) {
         <X className="h-5 w-5" />
       </button>
 
-      <div className="relative z-[80] w-full max-w-xs sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
-        <BadgeCard badge={badge} />
+      <div
+        className="relative z-[80] flex w-full max-w-xs flex-col items-center gap-4 rounded-2xl bg-black/55 p-6 backdrop-blur-md sm:max-w-sm"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={`/badges/${badge.id}.svg`}
+          alt={badge.name}
+          className="h-56 w-56 select-none sm:h-64 sm:w-64"
+          draggable={false}
+        />
+        <p className="text-center text-sm text-text-secondary">{badge.description}</p>
+        {earnedDate && (
+          <p className="text-[11px] uppercase tracking-wider text-text-muted">
+            Earned {earnedDate}
+          </p>
+        )}
       </div>
     </div>
   );
