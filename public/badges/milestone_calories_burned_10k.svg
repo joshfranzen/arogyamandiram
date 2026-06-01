@@ -1,0 +1,18 @@
+<svg width="240" height="240" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="10K Burned flat badge">
+  <defs>
+    <path id="topArc-milestone_calories_burned_10k" d="M42.3,78.7 A88,88 0 0 1 197.7,78.7"/>
+  </defs>
+  <circle cx="120" cy="120" r="112" fill="#20394A"/>
+  <circle cx="120" cy="120" r="106" fill="none" stroke="#F2E8D0" stroke-width="2"/>
+  <circle cx="120" cy="120" r="80" fill="#F2E8D0"/>
+  <circle cx="120" cy="120" r="80" fill="none" stroke="#20394A" stroke-width="3"/>
+  <text font-family="Georgia, 'Times New Roman', serif" font-size="13.5" font-weight="600" fill="#F2E8D0" letter-spacing="1.5">
+    <textPath href="#topArc-milestone_calories_burned_10k" startOffset="50%" text-anchor="middle">10K BURNED</textPath>
+  </text>
+  <path d="M22,120 l6,-6 6,6 -6,6 Z" fill="#F2E8D0"/>
+  <path d="M206,120 l6,-6 6,6 -6,6 Z" fill="#F2E8D0"/>
+    <path d="M120,76 C104,96 96,112 96,128 a24 24 0 0 0 48 0 C144,112 136,96 120,76 Z" fill="#D9603B" stroke="#20394A" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M120,108 C114,116 110,122 110,128 a10 10 0 0 0 20 0 C130,122 126,116 120,108 Z" fill="#F5B05B"/>
+  <path d="M60,164 H180 L186,176 L180,188 H60 L54,176 Z" fill="#D9603B" stroke="#20394A" stroke-width="3" stroke-linejoin="round"/>
+  <text x="120" y="181" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="13.5" font-weight="700" fill="#F2E8D0" letter-spacing="2">10K KCAL</text>
+</svg>
