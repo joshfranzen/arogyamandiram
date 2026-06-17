@@ -16,11 +16,11 @@ import type { UserBadge } from '@/types';
 
 /* ── Mock data ── */
 const MOCK_BADGES: UserBadge[] = [
-  { id: 'workout_50', name: '50 Workouts', description: 'Completed 50 workouts.', icon: '🏋️', category: 'milestone', earnedAt: '2026-04-10' },
-  { id: 'meal_100',   name: '100 Meals',   description: 'Logged 100 meals.',       icon: '🍽',  category: 'milestone', earnedAt: '2026-04-08' },
-  { id: 'meal_50',    name: '50 Meals',    description: 'Logged 50 meals.',        icon: '🍽',  category: 'milestone', earnedAt: '2026-04-05' },
-  { id: 'first_meal', name: 'First Steps', description: 'Logged your first meal.', icon: '🍳',  category: 'first',     earnedAt: '2026-03-11' },
-  { id: 'first_drop', name: 'First Drop',  description: 'Logged water first time.',icon: '💧',  category: 'first',     earnedAt: '2026-03-10' },
+  { id: 'milestone_workouts_50',  name: '50 Workouts',  description: 'Completed 50 workouts.',        icon: '🏋️', category: 'milestone', earnedAt: '2026-04-10' },
+  { id: 'milestone_meals_100',    name: '100 Meals',    description: 'Logged 100 meals.',              icon: '🍽',  category: 'milestone', earnedAt: '2026-04-08' },
+  { id: 'milestone_meals_50',     name: '50 Meals',     description: 'Logged 50 meals.',               icon: '🍽',  category: 'milestone', earnedAt: '2026-04-05' },
+  { id: 'first_meal',             name: 'First Meal',   description: 'Logged your first meal.',        icon: '🍳',  category: 'first',     earnedAt: '2026-03-11' },
+  { id: 'first_water',            name: 'First Drop',   description: 'Logged water for the first time.',icon: '💧', category: 'first',     earnedAt: '2026-03-10' },
 ];
 
 const NAV_ITEMS = [

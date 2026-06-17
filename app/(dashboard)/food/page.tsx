@@ -363,10 +363,13 @@ export default function FoodLogPage() {
                           <p className="text-[11px] text-neutral-400">
                             {meal.quantity}{meal.unit} · {mealLabels[meal.mealType || 'snack']}{meal.time ? ` · ${formatTime(meal.time)}` : ''}
                           </p>
-                          <div className="flex gap-2 mt-0.5">
+                          <div className="flex flex-wrap gap-2 mt-0.5">
                             <span className="text-[10px] text-violet-400">{Math.round(meal.protein)}g P</span>
                             <span className="text-[10px] text-emerald-400">{Math.round(meal.carbs)}g C</span>
                             <span className="text-[10px] text-rose-400">{Math.round(meal.fat)}g F</span>
+                            <span className="text-[10px] text-emerald-300">{Math.round(meal.fiber ?? 0)}g Fi</span>
+                            <span className="text-[10px] text-yellow-400">{Math.round(meal.sugar ?? 0)}g S</span>
+                            <span className="text-[10px] text-sky-400">{Math.round(meal.sodium ?? 0)}mg Na</span>
                           </div>
                         </div>
                         <span className="shrink-0 text-xs font-semibold text-neutral-400">
@@ -592,10 +595,13 @@ export default function FoodLogPage() {
                                   <p className="text-[10px] text-neutral-500">
                                     {meal.quantity}{meal.unit}{meal.time ? ` · ${formatTime(meal.time)}` : ''}
                                   </p>
-                                  <div className="flex gap-2 mt-0.5">
+                                  <div className="flex flex-wrap gap-2 mt-0.5">
                                     <span className="text-[10px] text-violet-400">{Math.round(meal.protein)}g P</span>
                                     <span className="text-[10px] text-emerald-400">{Math.round(meal.carbs)}g C</span>
                                     <span className="text-[10px] text-rose-400">{Math.round(meal.fat)}g F</span>
+                                    <span className="text-[10px] text-emerald-300">{Math.round(meal.fiber ?? 0)}g Fi</span>
+                                    <span className="text-[10px] text-yellow-400">{Math.round(meal.sugar ?? 0)}g S</span>
+                                    <span className="text-[10px] text-sky-400">{Math.round(meal.sodium ?? 0)}mg Na</span>
                                   </div>
                                 </div>
                                 <span className="shrink-0 text-xs text-neutral-400">
