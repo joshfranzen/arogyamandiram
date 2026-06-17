@@ -1068,9 +1068,16 @@ function SettingsInner() {
           <>
             {/* Body Type */}
             <div className="glass-card rounded-2xl p-6">
-              <div className="flex items-center gap-2">
-                <PersonStanding className="h-4 w-4 text-accent-cyan" />
-                <h2 className="text-base font-semibold text-text-primary">Body Shape</h2>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <PersonStanding className="h-4 w-4 text-accent-cyan" />
+                  <h2 className="text-base font-semibold text-text-primary">Body Shape</h2>
+                </div>
+                <button onClick={saveProfile} disabled={saving}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors disabled:opacity-50">
+                  {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                  Save
+                </button>
               </div>
               <p className="mt-1 text-xs text-text-muted">Choose visually.</p>
               <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -1095,7 +1102,14 @@ function SettingsInner() {
 
             {/* Body Fat */}
             <div className="glass-card rounded-2xl p-6">
-              <h2 className="text-base font-semibold text-text-primary">Body Fat %</h2>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-base font-semibold text-text-primary">Body Fat %</h2>
+                <button onClick={saveProfile} disabled={saving}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors disabled:opacity-50">
+                  {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                  Save
+                </button>
+              </div>
               <p className="mt-1 text-xs text-text-muted">Not sure of exact %? Pick the closest visual range first, then fine-tune if needed.</p>
               <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {bodyFatGuides.map((guide) => {
@@ -1131,14 +1145,28 @@ function SettingsInner() {
 
             {/* Fat focus areas */}
             <div className="glass-card rounded-2xl p-6">
-              <h2 className="text-base font-semibold text-text-primary">Where do you carry more fat?</h2>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-base font-semibold text-text-primary">Where do you carry more fat?</h2>
+                <button onClick={saveProfile} disabled={saving}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors disabled:opacity-50">
+                  {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                  Save
+                </button>
+              </div>
               <p className="mt-1 text-xs text-text-muted">Used to personalise your workout target zones.</p>
               <FatAreaInput value={fatFocusAreas} onChange={setFatFocusAreas} />
             </div>
 
             {/* Physique goal */}
             <div className="glass-card rounded-2xl p-6">
-              <h2 className="text-base font-semibold text-text-primary">Body target</h2>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-base font-semibold text-text-primary">Body target</h2>
+                <button onClick={saveProfile} disabled={saving}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors disabled:opacity-50">
+                  {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                  Save
+                </button>
+              </div>
               <p className="mt-1 text-xs text-text-muted">Pick the body you want. We&apos;ll plan workouts that fit.</p>
               <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {physiqueGoalOptions.map((opt) => {
@@ -1165,7 +1193,14 @@ function SettingsInner() {
 
             {/* Workout location */}
             <div className="glass-card rounded-2xl p-6">
-              <h2 className="text-base font-semibold text-text-primary">Where do you work out?</h2>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-base font-semibold text-text-primary">Where do you work out?</h2>
+                <button onClick={saveProfile} disabled={saving}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors disabled:opacity-50">
+                  {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                  Save
+                </button>
+              </div>
               <p className="mt-1 text-xs text-text-muted">Drives the equipment we assume you have when picking exercises.</p>
               <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {workoutLocationOptions.map((opt) => {
@@ -1217,13 +1252,6 @@ function SettingsInner() {
               </div>
             </div>
 
-            <div className="flex justify-end">
-              <button onClick={saveProfile} disabled={saving}
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-6 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50">
-                {saving ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-black border-t-transparent" /> : <Save className="h-4 w-4" />}
-                Save
-              </button>
-            </div>
           </>
         )}
 
@@ -1250,6 +1278,11 @@ function SettingsInner() {
                       Regenerate plan
                     </button>
                   )}
+                  <button onClick={saveTargets} disabled={targetsSaving}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors disabled:opacity-50">
+                    {targetsSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                    Save Targets
+                  </button>
                 </div>
               </div>
               <p className="mt-1 text-xs text-text-muted">These values are used across your dashboard and trackers.</p>
@@ -1322,13 +1355,6 @@ function SettingsInner() {
               </div>
             )}
 
-            <div className="flex justify-end">
-              <button onClick={saveTargets} disabled={targetsSaving}
-                className="glass-button-primary flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold disabled:opacity-50">
-                {targetsSaving ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <Save className="h-4 w-4" />}
-                Save Targets
-              </button>
-            </div>
           </>
         )}
 
@@ -1336,9 +1362,16 @@ function SettingsInner() {
         {activeTab === 'customizations' && (
           <>
             <div className="glass-card rounded-2xl p-6">
-              <div className="flex items-center gap-2">
-                <SlidersHorizontal className="h-4 w-4 text-accent-cyan" />
-                <h2 className="text-base font-semibold text-text-primary">Water tracker</h2>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal className="h-4 w-4 text-accent-cyan" />
+                  <h2 className="text-base font-semibold text-text-primary">Water tracker</h2>
+                </div>
+                <button onClick={saveCustomizations} disabled={customizationsSaving}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors disabled:opacity-50">
+                  {customizationsSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                  Save
+                </button>
               </div>
               <p className="mt-1 text-xs text-text-muted">Edit the four quick-add water buttons used on the Water page.</p>
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -1361,9 +1394,16 @@ function SettingsInner() {
 
             {/* Food preferences */}
             <div className="glass-card rounded-2xl p-6">
-              <div className="flex items-center gap-2">
-                <Utensils className="h-4 w-4 text-emerald-400" />
-                <h2 className="text-base font-semibold text-text-primary">Food preferences</h2>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Utensils className="h-4 w-4 text-emerald-400" />
+                  <h2 className="text-base font-semibold text-text-primary">Food preferences</h2>
+                </div>
+                <button onClick={saveCustomizations} disabled={customizationsSaving}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors disabled:opacity-50">
+                  {customizationsSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                  Save
+                </button>
               </div>
               <p className="mt-1 text-xs text-text-muted">Used automatically when AI creates your food plan.</p>
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -1577,9 +1617,16 @@ function SettingsInner() {
 
             {/* Units */}
             <div className="glass-card rounded-2xl p-6">
-              <div className="flex items-center gap-2">
-                <Ruler className="h-4 w-4 text-accent-cyan" />
-                <h2 className="text-base font-semibold text-text-primary">Units</h2>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Ruler className="h-4 w-4 text-accent-cyan" />
+                  <h2 className="text-base font-semibold text-text-primary">Units</h2>
+                </div>
+                <button onClick={saveCustomizations} disabled={customizationsSaving}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors disabled:opacity-50">
+                  {customizationsSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                  Save
+                </button>
               </div>
               <p className="mt-1 text-xs text-text-muted">How weight and height are displayed across the app.</p>
               <div className="mt-4 grid grid-cols-2 gap-2 max-w-xs">
@@ -1595,13 +1642,6 @@ function SettingsInner() {
               </div>
             </div>
 
-            <div className="flex justify-end">
-              <button onClick={saveCustomizations} disabled={customizationsSaving}
-                className="glass-button-primary flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold disabled:opacity-50">
-                {customizationsSaving ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <Save className="h-4 w-4" />}
-                Save
-              </button>
-            </div>
           </>
         )}
 
