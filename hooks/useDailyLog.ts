@@ -13,6 +13,8 @@ interface MealEntry {
   carbs: number;
   fat: number;
   fiber?: number;
+  sugar?: number;
+  sodium?: number;
   quantity: number;
   unit: string;
   mealType: string;
