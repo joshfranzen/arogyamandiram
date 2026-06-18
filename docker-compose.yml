@@ -3,10 +3,18 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_DASHBOARD_TOUR_VERSION: ${NEXT_PUBLIC_DASHBOARD_TOUR_VERSION:-1}
+        NEXT_PUBLIC_DEBUG_MODE: ${NEXT_PUBLIC_DEBUG_MODE:-false}
+    env_file:
+      - path: .env
+        required: false
+      - path: .env.local
+        required: false
     container_name: arogyamandiram-app
     restart: unless-stopped
     ports:
-      - "3050:3000"
+      - "${APP_HOST_PORT:-3000}:3000"
     depends_on:
       mongo:
         condition: service_healthy
@@ -15,8 +23,11 @@ services:
       MONGODB_URI: mongodb://mongo:27017/arogyamandiram
       MONGO_DB: arogyamandiram
 
+      # Keep container port stable for Docker publishing (host APP_HOST_PORT -> container 3000)
+      PORT: 3000
+
       # NextAuth — required
-      NEXTAUTH_URL: http://localhost:3050
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:${APP_HOST_PORT:-3000}}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
 
       # Encryption — required for per-user API key storage

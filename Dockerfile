@@ -1,52 +1,42 @@
-# ── Stage 1: install production dependencies ──────────────────────────────────
-FROM node:20-alpine AS deps
+FROM node:20-alpine
 WORKDIR /app
-
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev --legacy-peer-deps
-
-# ── Stage 2: build ────────────────────────────────────────────────────────────
-FROM node:20-alpine AS builder
-WORKDIR /app
-
-COPY package.json package-lock.json ./
-RUN npm ci --legacy-peer-deps
-
-COPY . .
 
 # Build-time placeholders so `next build` succeeds without real secrets.
 # Real values are injected at container runtime.
 ENV NEXTAUTH_URL=http://localhost:3000
 ENV NEXTAUTH_SECRET=build-time-placeholder
 ENV MONGODB_URI=mongodb://localhost:27017/arogyamandiram
-ENV ENCRYPTION_KEY=00000000000000000000000000000000000000000000000000000000000000
+ENV ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000
 # NEXT_PUBLIC_* vars are inlined at build time by Next.js and must be present here
-ENV NEXT_PUBLIC_DASHBOARD_TOUR_VERSION=1
-ENV NEXT_PUBLIC_DEBUG_MODE=false
-
-RUN npm run build
-
-# ── Stage 3: production runner ────────────────────────────────────────────────
-FROM node:20-alpine AS runner
-WORKDIR /app
-
-ENV NODE_ENV=production
+ARG NEXT_PUBLIC_DASHBOARD_TOUR_VERSION=1
+ARG NEXT_PUBLIC_DEBUG_MODE=false
+ENV NEXT_PUBLIC_DASHBOARD_TOUR_VERSION=${NEXT_PUBLIC_DASHBOARD_TOUR_VERSION}
+ENV NEXT_PUBLIC_DEBUG_MODE=${NEXT_PUBLIC_DEBUG_MODE}
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
+COPY package.json package-lock.json ./
+# Install all deps (including devDependencies needed for the build, e.g. tailwindcss)
+RUN npm ci --legacy-peer-deps
+
+COPY . .
+RUN npm run build
+
+# Copy static assets and public folder into the standalone output so the
+# standalone server can serve /_next/static/* and /public/* correctly.
+RUN cp -r .next/static .next/standalone/.next/static \
+ && cp -r public .next/standalone/public
+
+# Switch to production mode after build
+ENV NODE_ENV=production
+
 # Create a non-root user
 RUN addgroup --system --gid 1001 nodejs \
- && adduser  --system --uid 1001 nextjs
-
-# Copy standalone server bundle
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-
-# Copy static assets
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+ && adduser  --system --uid 1001 nextjs \
+ && chown -R nextjs:nodejs /app
 
 USER nextjs
 
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+CMD ["node", ".next/standalone/server.js"]
