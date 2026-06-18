@@ -61,4 +61,4 @@ services:
 
 volumes:
   arogyamandiram_mongo_data:
-    external: true
+
