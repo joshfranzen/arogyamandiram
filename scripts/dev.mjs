@@ -6,7 +6,10 @@
 // streams share one consistent shape.
 
 import { spawn } from 'child_process';
+import { createRequire } from 'module';
 import { format, inferLevel } from './logger.mjs';
+
+const require = createRequire(import.meta.url);
 
 const children = [];
 let shuttingDown = false;
@@ -62,7 +65,9 @@ function shutdown(code = 0) {
 process.on('SIGINT', () => shutdown(130));
 process.on('SIGTERM', () => shutdown(143));
 
-start('next', 'next', ['dev', '--turbo'], {
+const nextCli = require.resolve('next/dist/bin/next');
+
+start('next', process.execPath, [nextCli, 'dev', '--turbo'], {
   DOTENV_CONFIG_PATH: '.env.local',
   NODE_OPTIONS: '--require dotenv/config',
 });

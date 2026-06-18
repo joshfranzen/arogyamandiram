@@ -9,6 +9,7 @@ import { NextRequest } from 'next/server';
 import { maskedResponse, errorResponse } from '@/lib/apiMask';
 import { getAuthUserIdWithBypass, isUserId } from '@/lib/session';
 import { resolveOpenAIKey } from '@/lib/openaiKey';
+import { openAIFetch } from '@/lib/openaiClient';
 
 export const dynamic = 'force-dynamic';
 
@@ -285,24 +286,17 @@ export async function POST(req: NextRequest) {
     const requestedAt = new Date().toISOString();
     const startedAt = Date.now();
 
-    const res = await fetch('https://api.openai.com/v1/responses', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
+    const res = await openAIFetch(apiKey, 'responses', {
+      model: 'gpt-4o',
+      instructions: INSTRUCTIONS,
+      input: userMessage,
+      tools: [WORKOUT_LOG_TOOL],
+      tool_choice: {
+        type: 'function',
+        name: 'get_workout_log',
       },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        instructions: INSTRUCTIONS,
-        input: userMessage,
-        tools: [WORKOUT_LOG_TOOL],
-        tool_choice: {
-          type: 'function',
-          name: 'get_workout_log',
-        },
-        temperature: 0.3,
-        max_output_tokens: 2048,
-      }),
+      temperature: 0.3,
+      max_output_tokens: 2048,
     });
 
     if (!res.ok) {

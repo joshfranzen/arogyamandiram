@@ -1,4 +1,5 @@
 import { OPENAI_BEST_MODEL } from '@/lib/aiModel';
+import { openAIFetch } from '@/lib/openaiClient';
 
 type OpenAiJsonParams = {
   apiKey: string;
@@ -47,7 +48,8 @@ export async function createOpenAiJson<T extends Record<string, unknown>>({
   maxTokens = 1200,
   onDebug,
 }: OpenAiJsonParams): Promise<T> {
-  const endpoint = 'https://api.openai.com/v1/chat/completions';
+  const baseUrl = (process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1').replace(/\/$/, '');
+  const endpoint = `${baseUrl}/chat/completions`;
   const requestBody = {
     model,
     messages: [
@@ -59,14 +61,7 @@ export async function createOpenAiJson<T extends Record<string, unknown>>({
     response_format: { type: 'json_object' },
   } satisfies Record<string, unknown>;
 
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(requestBody),
-  });
+  const res = await openAIFetch(apiKey, 'chat/completions', requestBody);
 
   const data = await res.json().catch(() => ({}));
 

@@ -8,6 +8,7 @@ import { NextRequest } from 'next/server';
 import { maskedResponse, errorResponse } from '@/lib/apiMask';
 import { getAuthUserId, isUserId } from '@/lib/session';
 import { resolveOpenAIKey } from '@/lib/openaiKey';
+import { openAIFetch } from '@/lib/openaiClient';
 import { OPENAI_ORCHESTRATOR_MODEL } from '@/lib/aiModel';
 
 export const dynamic = 'force-dynamic';
@@ -196,25 +197,18 @@ export async function POST(req: NextRequest) {
       : ORCHESTRATOR_SYSTEM;
     const classifyUserPrompt = userInput || '(image attached)';
 
-    const openaiRes = await fetch('https://api.openai.com/v1/responses', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${openaiKey}`,
-      },
-      body: JSON.stringify({
-        model: OPENAI_ORCHESTRATOR_MODEL,
-        instructions: classifySystemPrompt,
-        input: imageBase64
-          ? [
-              { type: 'input_text', text: classifyUserPrompt },
-              { type: 'input_image', image_url: `data:${imageMimeType ?? 'image/jpeg'};base64,${imageBase64}` },
-            ]
-          : classifyUserPrompt,
-        tools: [CLASSIFY_TOOL],
-        tool_choice: { type: 'function', name: 'classify_intent' },
-        temperature: 0,
-      }),
+    const openaiRes = await openAIFetch(openaiKey, 'responses', {
+      model: OPENAI_ORCHESTRATOR_MODEL,
+      instructions: classifySystemPrompt,
+      input: imageBase64
+        ? [
+            { type: 'input_text', text: classifyUserPrompt },
+            { type: 'input_image', image_url: `data:${imageMimeType ?? 'image/jpeg'};base64,${imageBase64}` },
+          ]
+        : classifyUserPrompt,
+      tools: [CLASSIFY_TOOL],
+      tool_choice: { type: 'function', name: 'classify_intent' },
+      temperature: 0,
     });
 
     if (!openaiRes.ok) {

@@ -4,12 +4,13 @@
 
 import connectDB from '@/lib/db';
 import User from '@/models/User';
-import { decrypt } from '@/lib/encryption';
 import { getAgeFromDateOfBirth } from '@/lib/utils';
 import { calculateIdealWeight } from '@/lib/health';
 import { getLatestLoggedWeight } from '@/lib/latestWeight';
 import type { UserTargets } from '@/types';
 import { OPENAI_BEST_MODEL } from '@/lib/aiModel';
+import { resolveOpenAIKey } from '@/lib/openaiKey';
+import { openAIFetch } from '@/lib/openaiClient';
 
 type OpenAIUsage = {
   prompt_tokens?: number;
@@ -17,25 +18,9 @@ type OpenAIUsage = {
   total_tokens?: number;
 };
 
+/** @deprecated Use resolveOpenAIKey from openaiKey.ts directly. */
 export async function getOpenAIKeyForHealthPlan(userId: string): Promise<string | null> {
-  await connectDB();
-  const user = await User.findById(userId).select('+apiKeys.openai').lean();
-  const apiKeys = user?.apiKeys as { openai?: string } | undefined;
-
-  if (apiKeys?.openai) {
-    try {
-      return decrypt(apiKeys.openai);
-    } catch (err) {
-      console.error('[AI Health Plan Encryption Error]: Failed to decrypt user OpenAI key', {
-        userId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-      // fall through to server-level key or null
-    }
-  }
-
-  if (process.env.OPENAI_API_KEY) return process.env.OPENAI_API_KEY;
-  return null;
+  return resolveOpenAIKey(userId);
 }
 
 async function callOpenAI(
@@ -51,22 +36,15 @@ async function callOpenAI(
   timestamp: string;
 }> {
   const startedAt = Date.now();
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: OPENAI_BEST_MODEL,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.5,
-      max_completion_tokens: 1200,
-      response_format: { type: 'json_object' },
-    }),
+  const res = await openAIFetch(apiKey, 'chat/completions', {
+    model: OPENAI_BEST_MODEL,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    temperature: 0.5,
+    max_completion_tokens: 1200,
+    response_format: { type: 'json_object' },
   });
 
   if (!res.ok) {

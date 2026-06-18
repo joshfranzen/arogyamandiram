@@ -9,6 +9,7 @@ import connectDB from '@/lib/db';
 import User from '@/models/User';
 import DailyLog from '@/models/DailyLog';
 import { resolveOpenAIKey } from '@/lib/openaiKey';
+import { openAIFetch } from '@/lib/openaiClient';
 import { maskedResponse, errorResponse } from '@/lib/apiMask';
 import { getAuthUserId, isUserId } from '@/lib/session';
 import { getToday } from '@/lib/utils';
@@ -125,19 +126,15 @@ Respond ONLY with valid JSON in this exact shape (no markdown, no extra text):
   "tips": ["tip1", "tip2", "tip3"] (2-4 actionable tips)
 }`;
 
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: OPENAI_BEST_MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: contextLines },
-        ],
-        temperature: 0.4,
-        max_completion_tokens: 800,
-        response_format: { type: 'json_object' },
-      }),
+    const res = await openAIFetch(apiKey, 'chat/completions', {
+      model: OPENAI_BEST_MODEL,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: contextLines },
+      ],
+      temperature: 0.4,
+      max_completion_tokens: 800,
+      response_format: { type: 'json_object' },
     });
 
     if (!res.ok) {

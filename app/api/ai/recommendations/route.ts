@@ -9,6 +9,7 @@ import connectDB from '@/lib/db';
 import User from '@/models/User';
 import DailyLog from '@/models/DailyLog';
 import { resolveOpenAIKey } from '@/lib/openaiKey';
+import { openAIFetch } from '@/lib/openaiClient';
 import { maskedResponse, errorResponse } from '@/lib/apiMask';
 import { getAuthUserId, isUserId } from '@/lib/session';
 import { getToday, getYesterday, getAgeFromDateOfBirth, toLocalDateString } from '@/lib/utils';
@@ -38,22 +39,15 @@ async function callOpenAI(
   userPrompt: string
 ): Promise<OpenAICallResult> {
   const startedAt = Date.now();
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: OPENAI_BEST_MODEL,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.7,
-      max_completion_tokens: 1500,
-      response_format: { type: 'json_object' },
-    }),
+  const res = await openAIFetch(apiKey, 'chat/completions', {
+    model: OPENAI_BEST_MODEL,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    temperature: 0.7,
+    max_completion_tokens: 1500,
+    response_format: { type: 'json_object' },
   });
 
   if (!res.ok) {

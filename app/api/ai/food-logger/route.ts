@@ -12,33 +12,13 @@
 import { NextRequest } from 'next/server';
 import connectDB from '@/lib/db';
 import User from '@/models/User';
-import { decrypt } from '@/lib/encryption';
 import { maskedResponse, errorResponse } from '@/lib/apiMask';
 import { getAuthUserIdWithBypass, isUserId } from '@/lib/session';
 import { writeDebugLog } from '@/lib/debugLogWriter';
+import { resolveOpenAIKey } from '@/lib/openaiKey';
+import { openAIFetch } from '@/lib/openaiClient';
 
 export const dynamic = 'force-dynamic';
-
-async function getOpenAIKey(userId: string): Promise<string | null> {
-  await connectDB();
-  const user = await User.findById(userId).select('+apiKeys.openai').lean();
-  const apiKeys = user?.apiKeys as { openai?: string } | undefined;
-
-  if (apiKeys?.openai) {
-    try {
-      return decrypt(apiKeys.openai);
-    } catch (err) {
-      console.error('[AI Food Logger Encryption Error]: Failed to decrypt user OpenAI key', {
-        userId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-      // Fall through to server-level key or null so we don't crash the route
-    }
-  }
-
-  if (process.env.OPENAI_API_KEY) return process.env.OPENAI_API_KEY;
-  return null;
-}
 
 // ============================================
 // STEP 1 — Meal Understanding (Food Parser)
@@ -468,25 +448,21 @@ async function lookupBrandNutrition(
   if (brandNutritionCache.has(cacheKey)) return brandNutritionCache.get(cacheKey) ?? null;
 
   try {
-    const res = await fetch('https://api.openai.com/v1/responses', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        instructions: BRAND_LOOKUP_INSTRUCTIONS,
-        input: `Product: ${itemName}`,
-        tools: [
-          BRAND_NUTRITION_TOOL,
-          {
-            type: 'web_search',
-            user_location: { type: 'approximate' as const },
-            search_context_size: 'low' as const,
-          },
-        ],
-        tool_choice: { type: 'function', name: 'extract_brand_nutrition' },
-        temperature: 0,
-        max_output_tokens: 512,
-      }),
+    const res = await openAIFetch(apiKey, 'responses', {
+      model: 'gpt-4o',
+      instructions: BRAND_LOOKUP_INSTRUCTIONS,
+      input: `Product: ${itemName}`,
+      tools: [
+        BRAND_NUTRITION_TOOL,
+        {
+          type: 'web_search',
+          user_location: { type: 'approximate' as const },
+          search_context_size: 'low' as const,
+        },
+      ],
+      tool_choice: { type: 'function', name: 'extract_brand_nutrition' },
+      temperature: 0,
+      max_output_tokens: 512,
     });
 
     if (!res.ok) { brandNutritionCache.set(cacheKey, null); return null; }
@@ -785,7 +761,7 @@ export async function POST(req: NextRequest) {
       return errorResponse('Text description of the meal is required', 400);
     }
 
-    const apiKey = await getOpenAIKey(userId);
+    const apiKey = await resolveOpenAIKey(userId);
     if (!apiKey) {
       return errorResponse(
         'OpenAI API key required. Add your key in Settings to enable AI Food Logger.',
@@ -798,21 +774,14 @@ export async function POST(req: NextRequest) {
     const startMs = Date.now();
 
     // ——— STEP 1: Parse meal text → structured food items only ———
-    const parseRes = await fetch('https://api.openai.com/v1/responses', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        instructions: PARSE_INSTRUCTIONS,
-        input: `User text: ${mealText}`,
-        tools: [PARSE_MEAL_TOOL],
-        tool_choice: { type: 'function', name: 'parse_meal_foods' },
-        temperature: 0.2,
-        max_output_tokens: 1024,
-      }),
+    const parseRes = await openAIFetch(apiKey, 'responses', {
+      model: 'gpt-4o',
+      instructions: PARSE_INSTRUCTIONS,
+      input: `User text: ${mealText}`,
+      tools: [PARSE_MEAL_TOOL],
+      tool_choice: { type: 'function', name: 'parse_meal_foods' },
+      temperature: 0.2,
+      max_output_tokens: 1024,
     });
 
     if (!parseRes.ok) {
@@ -943,28 +912,21 @@ export async function POST(req: NextRequest) {
       2
     );
 
-    const res = await fetch('https://api.openai.com/v1/responses', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        instructions: NUTRITION_INSTRUCTIONS,
-        input: `Input:\n${nutritionInput}`,
-        tools: [
-          MEAL_NUTRITION_TOOL,
-          {
-            type: 'web_search',
-            user_location: { type: 'approximate' as const },
-            search_context_size: 'medium' as const,
-          },
-        ],
-        tool_choice: { type: 'function', name: 'get_meal_nutrition' },
-        temperature: 0.2,
-        max_output_tokens: 4096,
-      }),
+    const res = await openAIFetch(apiKey, 'responses', {
+      model: 'gpt-4o',
+      instructions: NUTRITION_INSTRUCTIONS,
+      input: `Input:\n${nutritionInput}`,
+      tools: [
+        MEAL_NUTRITION_TOOL,
+        {
+          type: 'web_search',
+          user_location: { type: 'approximate' as const },
+          search_context_size: 'medium' as const,
+        },
+      ],
+      tool_choice: { type: 'function', name: 'get_meal_nutrition' },
+      temperature: 0.2,
+      max_output_tokens: 4096,
     });
 
     if (!res.ok) {

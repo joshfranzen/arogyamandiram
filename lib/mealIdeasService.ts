@@ -7,6 +7,7 @@ import connectDB from '@/lib/db';
 import DailyLog from '@/models/DailyLog';
 import User from '@/models/User';
 import { resolveOpenAIKey } from '@/lib/openaiKey';
+import { openAIFetch } from '@/lib/openaiClient';
 import { getToday, toLocalDateString, getAgeFromDateOfBirth } from '@/lib/utils';
 import { calculateBMR, calculateTDEE } from '@/lib/health';
 import { getLatestLoggedWeight } from '@/lib/latestWeight';
@@ -478,22 +479,15 @@ async function callOpenAI(
   userPrompt: string
 ): Promise<{ content: unknown; usage?: UsageInfo; latencyMs: number }> {
   const start = Date.now();
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.4,
-      max_completion_tokens: 450,
-      response_format: { type: 'json_object' as const },
-    }),
+  const res = await openAIFetch(apiKey, 'chat/completions', {
+    model: MODEL,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    temperature: 0.4,
+    max_completion_tokens: 450,
+    response_format: { type: 'json_object' as const },
   });
 
   const latencyMs = Date.now() - start;
