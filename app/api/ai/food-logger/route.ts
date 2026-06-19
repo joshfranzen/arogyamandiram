@@ -17,6 +17,7 @@ import { getAuthUserIdWithBypass, isUserId } from '@/lib/session';
 import { writeDebugLog } from '@/lib/debugLogWriter';
 import { resolveOpenAIKey } from '@/lib/openaiKey';
 import { openAIFetch } from '@/lib/openaiClient';
+import { OPENAI_BEST_MODEL } from '@/lib/aiModel';
 
 export const dynamic = 'force-dynamic';
 
@@ -449,7 +450,7 @@ async function lookupBrandNutrition(
 
   try {
     const res = await openAIFetch(apiKey, 'responses', {
-      model: 'gpt-4o',
+      model: OPENAI_BEST_MODEL,
       instructions: BRAND_LOOKUP_INSTRUCTIONS,
       input: `Product: ${itemName}`,
       tools: [
@@ -775,7 +776,7 @@ export async function POST(req: NextRequest) {
 
     // ——— STEP 1: Parse meal text → structured food items only ———
     const parseRes = await openAIFetch(apiKey, 'responses', {
-      model: 'gpt-4o',
+      model: OPENAI_BEST_MODEL,
       instructions: PARSE_INSTRUCTIONS,
       input: `User text: ${mealText}`,
       tools: [PARSE_MEAL_TOOL],
@@ -913,7 +914,7 @@ export async function POST(req: NextRequest) {
     );
 
     const res = await openAIFetch(apiKey, 'responses', {
-      model: 'gpt-4o',
+      model: OPENAI_BEST_MODEL,
       instructions: NUTRITION_INSTRUCTIONS,
       input: `Input:\n${nutritionInput}`,
       tools: [
@@ -1175,7 +1176,7 @@ export async function POST(req: NextRequest) {
           usage: step2Usage,
         },
         metadata: {
-          model: 'gpt-4o',
+          model: OPENAI_BEST_MODEL,
           usage: combinedUsage,
           step1Usage,
           step2Usage,

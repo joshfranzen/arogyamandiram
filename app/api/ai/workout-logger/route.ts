@@ -10,6 +10,7 @@ import { maskedResponse, errorResponse } from '@/lib/apiMask';
 import { getAuthUserIdWithBypass, isUserId } from '@/lib/session';
 import { resolveOpenAIKey } from '@/lib/openaiKey';
 import { openAIFetch } from '@/lib/openaiClient';
+import { OPENAI_BEST_MODEL } from '@/lib/aiModel';
 
 export const dynamic = 'force-dynamic';
 
@@ -287,7 +288,7 @@ export async function POST(req: NextRequest) {
     const startedAt = Date.now();
 
     const res = await openAIFetch(apiKey, 'responses', {
-      model: 'gpt-4o',
+      model: OPENAI_BEST_MODEL,
       instructions: INSTRUCTIONS,
       input: userMessage,
       tools: [WORKOUT_LOG_TOOL],
@@ -396,7 +397,7 @@ export async function POST(req: NextRequest) {
           workouts,
         },
         metadata: {
-          model: typeof data.model === 'string' ? data.model : 'gpt-4o',
+          model: typeof data.model === 'string' ? data.model : OPENAI_BEST_MODEL,
           usage: data.usage ?? {},
           latencyMs: Math.max(0, Date.now() - startedAt),
           timestamp,

@@ -7,6 +7,7 @@ ENV NEXTAUTH_URL=http://localhost:3000
 ENV NEXTAUTH_SECRET=build-time-placeholder
 ENV MONGODB_URI=mongodb://localhost:27017/arogyamandiram
 ENV ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000
+ENV OPENAI_MODEL=build-placeholder
 # NEXT_PUBLIC_* vars are inlined at build time by Next.js and must be present here
 ARG NEXT_PUBLIC_DASHBOARD_TOUR_VERSION=1
 ARG NEXT_PUBLIC_DEBUG_MODE=false

@@ -1,6 +1,3 @@
-const DEFAULT_BEST_MODEL = 'gpt-5.4';
-const DEFAULT_ORCHESTRATOR_MODEL = 'gpt-5.4-mini';
-
 function readEnvModel(key: string): string | undefined {
   const value = process.env[key];
   if (!value) return undefined;
@@ -8,12 +5,22 @@ function readEnvModel(key: string): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-export const OPENAI_BEST_MODEL =
-  readEnvModel('OPENAI_MODEL_BEST') ||
-  readEnvModel('OPENAI_MODEL') ||
-  DEFAULT_BEST_MODEL;
+function resolveRequiredModel(keys: string[]): string {
+  for (const key of keys) {
+    const value = readEnvModel(key);
+    if (value) return value;
+  }
+  throw new Error(`Missing AI model configuration. Set one of: ${keys.join(', ')}`);
+}
 
-export const OPENAI_ORCHESTRATOR_MODEL =
-  readEnvModel('OPENAI_MODEL_ORCHESTRATOR') ||
-  readEnvModel('OPENAI_MODEL_MINI') ||
-  DEFAULT_ORCHESTRATOR_MODEL;
+export const OPENAI_BEST_MODEL = resolveRequiredModel([
+  'OPENAI_MODEL_BEST',
+  'OPENAI_MODEL',
+]);
+
+export const OPENAI_ORCHESTRATOR_MODEL = resolveRequiredModel([
+  'OPENAI_MODEL_ORCHESTRATOR',
+  'OPENAI_MODEL_MINI',
+  'OPENAI_MODEL_BEST',
+  'OPENAI_MODEL',
+]);
